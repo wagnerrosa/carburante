@@ -22,9 +22,15 @@ struct FuelLogFormView: View {
     @State private var liters: Double?
     @State private var totalCost: Double?
     @State private var fuelType: FuelType = .gasolinaComum
+    @State private var isFullTank: Bool = true
     @State private var validationMessage: String?
 
     private var isEditing: Bool { fuelLog != nil }
+
+    /// É o primeiro abastecimento da moto (ignorando o próprio log em edição)?
+    private var isFirstFuelUp: Bool {
+        motorcycle.fuelLogs.allSatisfy { $0.persistentModelID == fuelLog?.persistentModelID }
+    }
 
     /// Maior hodômetro registrado p/ a moto, ignorando o próprio log em edição.
     private var lastOdometer: Double {
@@ -47,7 +53,7 @@ struct FuelLogFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Abastecimento") {
+                Section {
                     DatePicker("Data", selection: $date, displayedComponents: [.date, .hourAndMinute])
 
                     HStack {
@@ -69,6 +75,15 @@ struct FuelLogFormView: View {
                         ForEach(FuelType.allCases) { type in
                             Text(type.rawValue).tag(type)
                         }
+                    }
+                    Toggle("Tanque cheio", isOn: $isFullTank)
+                } header: {
+                    Text("Abastecimento")
+                } footer: {
+                    if isFirstFuelUp {
+                        Text("Encha o tanque neste primeiro registro para começar a medir o consumo.")
+                    } else {
+                        Text("Desligue se você não encheu o tanque. Abastecimentos parciais são somados e o consumo é fechado no próximo tanque cheio.")
                     }
                 }
 
@@ -108,6 +123,7 @@ struct FuelLogFormView: View {
         liters = log.liters
         totalCost = log.totalCost
         fuelType = log.fuelType
+        isFullTank = log.isFullTank
     }
 
     private func save() {
@@ -133,6 +149,7 @@ struct FuelLogFormView: View {
             log.liters = lit
             log.totalCost = cost
             log.fuelType = fuelType
+            log.isFullTank = isFullTank
         } else {
             let log = FuelLog(
                 date: date,
@@ -140,6 +157,7 @@ struct FuelLogFormView: View {
                 liters: lit,
                 totalCost: cost,
                 fuelType: fuelType,
+                isFullTank: isFullTank,
                 motorcycle: motorcycle
             )
             modelContext.insert(log)

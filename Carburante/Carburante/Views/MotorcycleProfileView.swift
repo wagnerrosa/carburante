@@ -26,6 +26,7 @@ struct MotorcycleProfileView: View {
                     Text("\(motorcycle.currentOdometer, format: .number) km")
                 }
             }
+            consumptionSection
             Section {
                 Button {
                     showingFuelLog = true
@@ -56,6 +57,30 @@ struct MotorcycleProfileView: View {
         }
         .sheet(isPresented: $showingFuelLog) {
             FuelLogFormView(motorcycle: motorcycle)
+        }
+    }
+
+    @ViewBuilder
+    private var consumptionSection: some View {
+        let summary = motorcycle.consumptionSummary
+        Section("Consumo") {
+            if let avg = summary.averageKmPerLiter {
+                LabeledContent("Consumo médio") {
+                    Text("\(avg, format: .number.precision(.fractionLength(1))) km/l")
+                }
+                LabeledContent("Distância medida") {
+                    Text("\(summary.totalDistance, format: .number) km")
+                }
+                if let cpk = summary.costPerKm {
+                    LabeledContent("Custo por km") {
+                        Text("R$ \(cpk, format: .number.precision(.fractionLength(2)))")
+                    }
+                }
+            } else {
+                Text("Registre dois abastecimentos com tanque cheio para medir o consumo.")
+                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+            }
         }
     }
 }

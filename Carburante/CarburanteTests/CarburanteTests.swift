@@ -132,4 +132,80 @@ final class CarburanteTests: XCTestCase {
         let errors = FuelLogValidator.validate(odometer: 50, liters: 5, totalCost: 30, lastOdometer: nil)
         XCTAssertTrue(errors.isEmpty)
     }
+
+    // MARK: - Consumption
+
+    private func entry(_ odo: Double, _ liters: Double, _ cost: Double = 0, full: Bool = true, day: Int = 1) -> FuelEntry {
+        let date = DateComponents(calendar: .current, year: 2026, month: 1, day: day).date!
+        return FuelEntry(odometer: odo, liters: liters, totalCost: cost, isFullTank: full, date: date)
+    }
+
+    /// Caso normal: dois cheios. (1100-1000)/10 = 10 km/l.
+    func testNormalConsumption() {
+        let entries = [entry(1000, 8), entry(1100, 10)]
+        let segs = ConsumptionCalculator.segments(from: entries)
+        XCTAssertEqual(segs.count, 1)
+        XCTAssertEqual(segs.first?.distance, 100)
+        XCTAssertEqual(segs.first?.liters, 10)
+        XCTAssertEqual(segs.first?.kmPerLiter, 10)
+    }
+
+    /// Primeiro registro sozinho não gera consumo (só âncora).
+    func testFirstLogNoConsumption() {
+        let segs = ConsumptionCalculator.segments(from: [entry(1000, 8)])
+        XCTAssertTrue(segs.isEmpty)
+        XCTAssertNil(ConsumptionCalculator.summary(from: [entry(1000, 8)]).averageKmPerLiter)
+    }
+
+    /// Parcial entre dois cheios: litros somados. cheio@1000 → parcial 5L@1100 → cheio 8L@1200.
+    /// (1200-1000)/(5+8) = 200/13.
+    func testPartialBetweenFullTanks() {
+        let entries = [entry(1000, 10, full: true), entry(1100, 5, full: false), entry(1200, 8, full: true)]
+        let segs = ConsumptionCalculator.segments(from: entries)
+        XCTAssertEqual(segs.count, 1)
+        XCTAssertEqual(segs.first?.distance, 200)
+        XCTAssertEqual(segs.first?.liters, 13)
+        XCTAssertEqual(segs.first?.kmPerLiter ?? 0, 200.0 / 13.0, accuracy: 0.0001)
+    }
+
+    /// Divisão por zero: odômetro não avança → segmento descartado, sem crash.
+    func testZeroDistanceSkipped() {
+        let entries = [entry(1000, 10), entry(1000, 5)]
+        let segs = ConsumptionCalculator.segments(from: entries)
+        XCTAssertTrue(segs.isEmpty)
+    }
+
+    /// Entradas fora de ordem são ordenadas por odômetro.
+    func testOutOfOrderEntries() {
+        let entries = [entry(1200, 8), entry(1000, 10), entry(1100, 5, full: false)]
+        let segs = ConsumptionCalculator.segments(from: entries)
+        XCTAssertEqual(segs.count, 1)
+        XCTAssertEqual(segs.first?.distance, 200)
+        XCTAssertEqual(segs.first?.liters, 13)
+    }
+
+    /// Média sobre múltiplos segmentos = distância total / litros total dos segmentos.
+    func testAverageAcrossSegments() {
+        // seg1: (1100-1000)/10=10. seg2: (1300-1100)/20=10. média=(300)/(30)=10.
+        let entries = [entry(1000, 5), entry(1100, 10), entry(1300, 20)]
+        let summary = ConsumptionCalculator.summary(from: entries)
+        XCTAssertEqual(summary.segmentCount, 2)
+        XCTAssertEqual(summary.totalDistance, 300)
+        XCTAssertEqual(summary.totalLitersInSegments, 30)
+        XCTAssertEqual(summary.averageKmPerLiter, 10)
+    }
+
+    /// Custo por km usa o custo dos litros nos segmentos medidos.
+    func testCostPerKm() {
+        let entries = [entry(1000, 10, 50), entry(1100, 10, 80)]
+        let summary = ConsumptionCalculator.summary(from: entries)
+        // distância 100, custo do segmento = 80 (litros após a âncora). 80/100 = 0.8.
+        XCTAssertEqual(summary.costPerKm, 0.8)
+    }
+
+    /// Sem nenhum cheio → sem segmentos.
+    func testNoFullTankNoSegments() {
+        let entries = [entry(1000, 5, full: false), entry(1100, 5, full: false)]
+        XCTAssertTrue(ConsumptionCalculator.segments(from: entries).isEmpty)
+    }
 }

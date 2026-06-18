@@ -30,6 +30,10 @@ final class FuelLog {
     var totalCost: Double
     /// Persistido como String (rawValue de `FuelType`) via `fuelType`.
     var fuelTypeRaw: String
+    /// Encheu o tanque? Consumo só é calculado entre dois abastecimentos
+    /// cheios (litros de parciais intermediários são somados). Ver `ConsumptionCalculator`.
+    /// Default na declaração permite migração leve de stores antigos.
+    var isFullTank: Bool = true
 
     // Contexto — nulo no MVP (Fase 7 GPS preenche).
     var latitude: Double?
@@ -57,6 +61,7 @@ final class FuelLog {
         liters: Double,
         totalCost: Double,
         fuelType: FuelType,
+        isFullTank: Bool = true,
         motorcycle: Motorcycle? = nil,
         ocrProcessed: Bool = false,
         createdAt: Date = Date()
@@ -66,6 +71,7 @@ final class FuelLog {
         self.liters = liters
         self.totalCost = totalCost
         self.fuelTypeRaw = fuelType.rawValue
+        self.isFullTank = isFullTank
         self.motorcycle = motorcycle
         self.ocrProcessed = ocrProcessed
         self.createdAt = createdAt
