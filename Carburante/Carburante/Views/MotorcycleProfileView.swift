@@ -32,7 +32,16 @@ struct MotorcycleProfileView: View {
                 } label: {
                     Label("Novo abastecimento", systemImage: "fuelpump")
                 }
-                LabeledContent("Abastecimentos", value: "\(motorcycle.fuelLogs.count)")
+                NavigationLink {
+                    FuelLogListView(motorcycle: motorcycle)
+                } label: {
+                    HStack {
+                        Text("Abastecimentos")
+                        Spacer()
+                        Text("\(motorcycle.fuelLogs.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         .navigationTitle(motorcycle.displayName)

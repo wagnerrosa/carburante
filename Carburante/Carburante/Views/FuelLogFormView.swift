@@ -14,23 +14,34 @@ struct FuelLogFormView: View {
     @Environment(\.dismiss) private var dismiss
 
     let motorcycle: Motorcycle
+    /// Nil = novo abastecimento. Não-nil = edição.
+    var fuelLog: FuelLog?
 
     @State private var date: Date = Date()
-    @State private var odometer: Double = 0
-    @State private var liters: Double = 0
-    @State private var totalCost: Double = 0
+    @State private var odometer: Double?
+    @State private var liters: Double?
+    @State private var totalCost: Double?
     @State private var fuelType: FuelType = .gasolinaComum
     @State private var validationMessage: String?
 
-    /// Maior hodômetro já registrado p/ a moto (inclui o atual da moto).
+    private var isEditing: Bool { fuelLog != nil }
+
+    /// Maior hodômetro registrado p/ a moto, ignorando o próprio log em edição.
     private var lastOdometer: Double {
-        let logsMax = motorcycle.fuelLogs.map(\.odometer).max() ?? 0
+        let logsMax = motorcycle.fuelLogs
+            .filter { $0.persistentModelID != fuelLog?.persistentModelID }
+            .map(\.odometer).max() ?? 0
         return max(logsMax, motorcycle.currentOdometer)
     }
 
     private var pricePerLiter: Double? {
-        guard liters > 0 else { return nil }
-        return totalCost / liters
+        guard let l = liters, l > 0, let c = totalCost else { return nil }
+        return c / l
+    }
+
+    /// Placeholder do hodômetro: último valor conhecido, deixa claro que é leitura total.
+    private var odometerPrompt: String {
+        lastOdometer > 0 ? "Último: \(Int(lastOdometer))" : "Hodômetro atual"
     }
 
     var body: some View {
@@ -40,17 +51,17 @@ struct FuelLogFormView: View {
                     DatePicker("Data", selection: $date, displayedComponents: [.date, .hourAndMinute])
 
                     HStack {
-                        TextField("Hodômetro", value: $odometer, format: .number)
+                        TextField("Hodômetro atual", value: $odometer, format: .number, prompt: Text(odometerPrompt))
                             .keyboardType(.decimalPad)
                         Text("km").foregroundStyle(.secondary)
                     }
                     HStack {
-                        TextField("Litros", value: $liters, format: .number)
+                        TextField("Litros", value: $liters, format: .number, prompt: Text("Litros"))
                             .keyboardType(.decimalPad)
                         Text("L").foregroundStyle(.secondary)
                     }
                     HStack {
-                        TextField("Valor total", value: $totalCost, format: .number)
+                        TextField("Valor total", value: $totalCost, format: .number, prompt: Text("Valor total"))
                             .keyboardType(.decimalPad)
                         Text("R$").foregroundStyle(.secondary)
                     }
@@ -76,7 +87,7 @@ struct FuelLogFormView: View {
                     }
                 }
             }
-            .navigationTitle("Novo Abastecimento")
+            .navigationTitle(isEditing ? "Editar Abastecimento" : "Novo Abastecimento")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -86,14 +97,29 @@ struct FuelLogFormView: View {
                     Button("Salvar") { save() }
                 }
             }
+            .onAppear(perform: loadIfEditing)
         }
     }
 
+    private func loadIfEditing() {
+        guard let log = fuelLog else { return }
+        date = log.date
+        odometer = log.odometer
+        liters = log.liters
+        totalCost = log.totalCost
+        fuelType = log.fuelType
+    }
+
     private func save() {
+        // Campo vazio (nil) → 0, reprovado pela validação (positivos obrigatórios).
+        let odo = odometer ?? 0
+        let lit = liters ?? 0
+        let cost = totalCost ?? 0
+
         let errors = FuelLogValidator.validate(
-            odometer: odometer,
-            liters: liters,
-            totalCost: totalCost,
+            odometer: odo,
+            liters: lit,
+            totalCost: cost,
             lastOdometer: lastOdometer > 0 ? lastOdometer : nil
         )
         guard errors.isEmpty else {
@@ -101,18 +127,26 @@ struct FuelLogFormView: View {
             return
         }
 
-        let log = FuelLog(
-            date: date,
-            odometer: odometer,
-            liters: liters,
-            totalCost: totalCost,
-            fuelType: fuelType,
-            motorcycle: motorcycle
-        )
-        modelContext.insert(log)
+        if let log = fuelLog {
+            log.date = date
+            log.odometer = odo
+            log.liters = lit
+            log.totalCost = cost
+            log.fuelType = fuelType
+        } else {
+            let log = FuelLog(
+                date: date,
+                odometer: odo,
+                liters: lit,
+                totalCost: cost,
+                fuelType: fuelType,
+                motorcycle: motorcycle
+            )
+            modelContext.insert(log)
+        }
         // Avança o hodômetro da moto se este for mais recente.
-        if odometer > motorcycle.currentOdometer {
-            motorcycle.currentOdometer = odometer
+        if odo > motorcycle.currentOdometer {
+            motorcycle.currentOdometer = odo
         }
         dismiss()
     }
