@@ -25,6 +25,10 @@ final class Motorcycle {
     var manufacturerConsumption: Double?
     var createdAt: Date
 
+    /// Abastecimentos da moto. Apagar a moto apaga seus abastecimentos.
+    @Relationship(deleteRule: .cascade, inverse: \FuelLog.motorcycle)
+    var fuelLogs: [FuelLog] = []
+
     init(
         make: String,
         model: String,

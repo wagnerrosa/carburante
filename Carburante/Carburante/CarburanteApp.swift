@@ -13,6 +13,7 @@ struct CarburanteApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Motorcycle.self,
+            FuelLog.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

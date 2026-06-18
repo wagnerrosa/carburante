@@ -14,7 +14,7 @@ final class CarburanteTests: XCTestCase {
     /// Container in-memory para isolar cada teste.
     private func makeContext() throws -> ModelContext {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: Motorcycle.self, configurations: config)
+        let container = try ModelContainer(for: Motorcycle.self, FuelLog.self, configurations: config)
         return ModelContext(container)
     }
 
@@ -64,5 +64,72 @@ final class CarburanteTests: XCTestCase {
     func testDisplayName() {
         let moto = Motorcycle(make: "Honda", model: "CB 500F", year: 2022, country: "Brasil")
         XCTAssertEqual(moto.displayName, "Honda CB 500F (2022)")
+    }
+
+    // MARK: - FuelLog
+
+    func testCreateFuelLogLinkedToMotorcycle() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500F", year: 2022, country: "Brasil", currentOdometer: 1000)
+        ctx.insert(moto)
+        let log = FuelLog(odometer: 1200, liters: 12.5, totalCost: 75.0, fuelType: .gasolinaComum, motorcycle: moto)
+        ctx.insert(log)
+        try ctx.save()
+
+        XCTAssertEqual(moto.fuelLogs.count, 1)
+        XCTAssertEqual(moto.fuelLogs.first?.odometer, 1200)
+        XCTAssertEqual(log.motorcycle?.make, "Honda")
+        XCTAssertEqual(log.fuelType, .gasolinaComum)
+    }
+
+    func testFuelTypeRoundTrip() throws {
+        let log = FuelLog(odometer: 100, liters: 10, totalCost: 50, fuelType: .etanol)
+        XCTAssertEqual(log.fuelTypeRaw, "Etanol")
+        log.fuelType = .diesel
+        XCTAssertEqual(log.fuelTypeRaw, "Diesel")
+    }
+
+    func testPricePerLiter() {
+        let log = FuelLog(odometer: 100, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        XCTAssertEqual(log.pricePerLiter, 6.0)
+        let zero = FuelLog(odometer: 100, liters: 0, totalCost: 60, fuelType: .gasolinaComum)
+        XCTAssertNil(zero.pricePerLiter)
+    }
+
+    func testCascadeDeleteRemovesFuelLogs() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Yamaha", model: "MT-07", year: 2021, country: "Brasil")
+        ctx.insert(moto)
+        ctx.insert(FuelLog(odometer: 500, liters: 10, totalCost: 60, fuelType: .gasolinaComum, motorcycle: moto))
+        try ctx.save()
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<FuelLog>()).count, 1)
+
+        ctx.delete(moto)
+        try ctx.save()
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<FuelLog>()).count, 0)
+    }
+
+    // MARK: - Validation
+
+    func testValidationAcceptsValid() {
+        let errors = FuelLogValidator.validate(odometer: 1500, liters: 12, totalCost: 80, lastOdometer: 1000)
+        XCTAssertTrue(errors.isEmpty)
+    }
+
+    func testValidationRejectsBackwardOdometer() {
+        let errors = FuelLogValidator.validate(odometer: 900, liters: 12, totalCost: 80, lastOdometer: 1000)
+        XCTAssertEqual(errors, [.odometerBelowLast(last: 1000)])
+    }
+
+    func testValidationRejectsNonPositive() {
+        let errors = FuelLogValidator.validate(odometer: 0, liters: 0, totalCost: -5, lastOdometer: nil)
+        XCTAssertTrue(errors.contains(.odometerNotPositive))
+        XCTAssertTrue(errors.contains(.litersNotPositive))
+        XCTAssertTrue(errors.contains(.costNegative))
+    }
+
+    func testValidationFirstLogNoLastOdometer() {
+        let errors = FuelLogValidator.validate(odometer: 50, liters: 5, totalCost: 30, lastOdometer: nil)
+        XCTAssertTrue(errors.isEmpty)
     }
 }

@@ -11,6 +11,7 @@ import SwiftData
 struct MotorcycleProfileView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var showingEdit = false
+    @State private var showingFuelLog = false
 
     var body: some View {
         List {
@@ -25,6 +26,14 @@ struct MotorcycleProfileView: View {
                     Text("\(motorcycle.currentOdometer, format: .number) km")
                 }
             }
+            Section {
+                Button {
+                    showingFuelLog = true
+                } label: {
+                    Label("Novo abastecimento", systemImage: "fuelpump")
+                }
+                LabeledContent("Abastecimentos", value: "\(motorcycle.fuelLogs.count)")
+            }
         }
         .navigationTitle(motorcycle.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -35,6 +44,9 @@ struct MotorcycleProfileView: View {
         }
         .sheet(isPresented: $showingEdit) {
             MotorcycleFormView(motorcycle: motorcycle)
+        }
+        .sheet(isPresented: $showingFuelLog) {
+            FuelLogFormView(motorcycle: motorcycle)
         }
     }
 }
