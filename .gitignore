@@ -1,0 +1,13 @@
+claude.md
+PLAN/
+
+# Xcode user-specific state
+xcuserdata/
+*.xcuserstate
+**/xcuserdata/
+
+# Build
+DerivedData/
+build/
+*.xcscmblueprint
+.DS_Store
