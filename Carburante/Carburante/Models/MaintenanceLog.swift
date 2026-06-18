@@ -37,6 +37,8 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
 
 @Model
 final class MaintenanceLog {
+    /// ID estável (gerado no app) usado como PK no Supabase.
+    var id: UUID = UUID()
     var date: Date
     /// Quilometragem (hodômetro) na manutenção.
     var mileage: Double

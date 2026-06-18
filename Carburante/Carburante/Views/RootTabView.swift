@@ -10,6 +10,8 @@ import SwiftUI
 import SwiftData
 
 struct RootTabView: View {
+    @Environment(\.modelContext) private var modelContext
+
     var body: some View {
         TabView {
             Tab("Dashboard", systemImage: "gauge.with.dots.needle.bottom.50percent") {
@@ -18,6 +20,10 @@ struct RootTabView: View {
             Tab("Motos", systemImage: "motorcycle") {
                 MotorcycleListView()
             }
+        }
+        .task {
+            // Garante sessão anônima e envia os dados locais ao Supabase.
+            await SyncService.shared.pushAll(from: modelContext)
         }
     }
 }

@@ -12,6 +12,8 @@ import SwiftData
 
 @Model
 final class Motorcycle {
+    /// ID estável (gerado no app) usado como PK no Supabase — casa o sync sem round-trip.
+    var id: UUID = UUID()
     var make: String
     var model: String
     var year: Int

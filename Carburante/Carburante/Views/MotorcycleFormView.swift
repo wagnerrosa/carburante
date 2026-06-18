@@ -101,6 +101,9 @@ struct MotorcycleFormView: View {
             )
             modelContext.insert(new)
         }
+        try? modelContext.save()
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
         dismiss()
     }
 }

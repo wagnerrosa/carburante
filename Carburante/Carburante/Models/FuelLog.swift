@@ -24,6 +24,8 @@ enum FuelType: String, CaseIterable, Codable, Identifiable {
 
 @Model
 final class FuelLog {
+    /// ID estável (gerado no app) usado como PK no Supabase.
+    var id: UUID = UUID()
     var date: Date
     var odometer: Double
     var liters: Double

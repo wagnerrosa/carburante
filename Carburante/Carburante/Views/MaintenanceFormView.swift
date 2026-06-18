@@ -101,6 +101,9 @@ struct MaintenanceFormView: View {
             )
             modelContext.insert(log)
         }
+        try? modelContext.save()
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
         dismiss()
     }
 }

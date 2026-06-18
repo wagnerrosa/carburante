@@ -299,6 +299,9 @@ struct FuelLogFormView: View {
         if odo > motorcycle.currentOdometer {
             motorcycle.currentOdometer = odo
         }
+        try? modelContext.save()
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
         dismiss()
     }
 
