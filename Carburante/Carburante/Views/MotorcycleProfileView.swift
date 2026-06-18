@@ -44,6 +44,18 @@ struct MotorcycleProfileView: View {
                     }
                 }
             }
+            Section {
+                NavigationLink {
+                    MaintenanceListView(motorcycle: motorcycle)
+                } label: {
+                    HStack {
+                        Label("Manutenções", systemImage: "wrench.and.screwdriver")
+                        Spacer()
+                        Text("\(motorcycle.maintenanceLogs.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .navigationTitle(motorcycle.displayName)
         .navigationBarTitleDisplayMode(.inline)

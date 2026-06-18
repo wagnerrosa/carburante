@@ -14,7 +14,7 @@ final class CarburanteTests: XCTestCase {
     /// Container in-memory para isolar cada teste.
     private func makeContext() throws -> ModelContext {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: Motorcycle.self, FuelLog.self, configurations: config)
+        let container = try ModelContainer(for: Motorcycle.self, FuelLog.self, MaintenanceLog.self, configurations: config)
         return ModelContext(container)
     }
 
@@ -272,5 +272,76 @@ final class CarburanteTests: XCTestCase {
 
     func testParseOdometerNoNumber() {
         XCTAssertNil(OCRParser.parseOdometer(["KM", "---"]))
+    }
+
+    // MARK: - Maintenance
+
+    func testCreateMaintenanceLinkedToMotorcycle() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500F", year: 2022, country: "Brasil", currentOdometer: 5000)
+        ctx.insert(moto)
+        let log = MaintenanceLog(mileage: 5000, cost: 120, notes: "Óleo 10W40", type: .oleo, motorcycle: moto)
+        ctx.insert(log)
+        try ctx.save()
+
+        XCTAssertEqual(moto.maintenanceLogs.count, 1)
+        XCTAssertEqual(moto.maintenanceLogs.first?.type, .oleo)
+        XCTAssertEqual(log.motorcycle?.make, "Honda")
+    }
+
+    func testMaintenanceTypeRoundTrip() {
+        let log = MaintenanceLog(mileage: 100, type: .pneus)
+        XCTAssertEqual(log.typeRaw, "Pneus")
+        log.type = .freios
+        XCTAssertEqual(log.typeRaw, "Freios")
+    }
+
+    func testMaintenanceCascadeDelete() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Yamaha", model: "MT-07", year: 2021, country: "Brasil")
+        ctx.insert(moto)
+        ctx.insert(MaintenanceLog(mileage: 1000, type: .oleo, motorcycle: moto))
+        try ctx.save()
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<MaintenanceLog>()).count, 1)
+
+        ctx.delete(moto)
+        try ctx.save()
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<MaintenanceLog>()).count, 0)
+    }
+
+    // MARK: - Maintenance schedule
+
+    private func day(_ y: Int, _ m: Int, _ d: Int) -> Date {
+        DateComponents(calendar: .current, year: y, month: m, day: d).date!
+    }
+
+    func testOilStatusNilWithoutHistory() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: nil, lastOilMileage: nil, currentMileage: 5000, now: day(2026, 6, 18))
+        XCTAssertNil(status)
+    }
+
+    func testOilStatusNotOverdueByKm() {
+        // troca @ 5000 km, atual 6000 → próxima @ 8000, faltam 2000.
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 6000, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.dueMileage, 8000)
+        XCTAssertEqual(status?.kmRemaining, 2000)
+        XCTAssertEqual(status?.isOverdue, false)
+    }
+
+    func testOilStatusOverdueByKm() {
+        // troca @ 5000, atual 8500 → passou dos 8000.
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 8500, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.isOverdue, true)
+        XCTAssertEqual(status?.kmRemaining, -500)
+    }
+
+    func testOilStatusOverdueByDate() {
+        // troca há mais de 180 dias, poucos km → vencida por tempo.
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2025, 1, 1), lastOilMileage: 5000, currentMileage: 5100, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.isOverdue, true)
     }
 }

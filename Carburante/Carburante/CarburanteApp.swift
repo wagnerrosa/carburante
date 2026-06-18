@@ -14,6 +14,7 @@ struct CarburanteApp: App {
         let schema = Schema([
             Motorcycle.self,
             FuelLog.self,
+            MaintenanceLog.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

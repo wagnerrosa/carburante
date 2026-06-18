@@ -29,6 +29,10 @@ final class Motorcycle {
     @Relationship(deleteRule: .cascade, inverse: \FuelLog.motorcycle)
     var fuelLogs: [FuelLog] = []
 
+    /// Manutenções da moto. Apagar a moto apaga suas manutenções.
+    @Relationship(deleteRule: .cascade, inverse: \MaintenanceLog.motorcycle)
+    var maintenanceLogs: [MaintenanceLog] = []
+
     init(
         make: String,
         model: String,

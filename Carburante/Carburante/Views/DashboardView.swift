@@ -83,6 +83,26 @@ struct DashboardView: View {
                 }
             }
 
+            Section("Próxima manutenção") {
+                if let status = moto.oilChangeStatus() {
+                    LabeledContent("Troca de óleo") {
+                        Text("\(status.dueMileage.formatted(.number)) km")
+                    }
+                    if status.isOverdue {
+                        Label("Troca de óleo vencida", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                            .font(.subheadline)
+                    } else {
+                        metric("Faltam", "\(status.kmRemaining.formatted(.number)) km")
+                    }
+                    metric("Prevista para", status.dueDate.formatted(.dateTime.day().month().year()))
+                } else {
+                    Text("Registre uma troca de óleo para prever a próxima.")
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                }
+            }
+
             Section("Último abastecimento") {
                 if let last = moto.latestFuelLog {
                     metric("Data", last.date.formatted(.dateTime.day().month().year()))
