@@ -26,7 +26,7 @@ struct CarburanteApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MotorcycleListView()
+            RootTabView()
         }
         .modelContainer(sharedModelContainer)
     }

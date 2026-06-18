@@ -60,6 +60,11 @@ extension Motorcycle {
     var consumptionSummary: ConsumptionSummary {
         ConsumptionCalculator.summary(from: fuelLogs.map(\.asFuelEntry))
     }
+
+    /// Abastecimento mais recente por data.
+    var latestFuelLog: FuelLog? {
+        fuelLogs.max { $0.date < $1.date }
+    }
 }
 
 enum ConsumptionCalculator {
