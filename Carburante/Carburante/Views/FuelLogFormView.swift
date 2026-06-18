@@ -2,12 +2,13 @@
 //  FuelLogFormView.swift
 //  Carburante
 //
-//  Novo abastecimento — entrada manual (sem OCR no MVP Fase 2).
-//  OCR (Fase 6) vai pré-preencher estes mesmos campos.
+//  Novo abastecimento — entrada manual + OCR (Fase 6). O OCR pré-preenche
+//  os campos; a revisão antes de salvar é obrigatória (OCR é auxílio).
 //
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct FuelLogFormView: View {
     @Environment(\.modelContext) private var modelContext
@@ -24,6 +25,22 @@ struct FuelLogFormView: View {
     @State private var fuelType: FuelType = .gasolinaComum
     @State private var isFullTank: Bool = true
     @State private var validationMessage: String?
+
+    // OCR
+    @State private var ocrProcessed = false
+    @State private var ocrConfidence: Double?
+    @State private var ocrStatus: String?
+    @State private var isRecognizing = false
+    @State private var showCameraFor: PhotoTarget?
+    @State private var galleryItem: PhotosPickerItem?
+    @State private var galleryTarget: PhotoTarget = .receipt
+
+    /// Qual campo a foto alimenta.
+    private enum PhotoTarget: Identifiable {
+        case odometer   // foto do painel
+        case receipt    // foto da bomba/comprovante
+        var id: Int { self == .odometer ? 0 : 1 }
+    }
 
     private var isEditing: Bool { fuelLog != nil }
 
@@ -53,6 +70,7 @@ struct FuelLogFormView: View {
     var body: some View {
         NavigationStack {
             Form {
+                ocrSection
                 Section {
                     DatePicker("Data", selection: $date, displayedComponents: [.date, .hourAndMinute])
 
@@ -113,6 +131,99 @@ struct FuelLogFormView: View {
                 }
             }
             .onAppear(perform: loadIfEditing)
+            .fullScreenCover(item: $showCameraFor) { target in
+                CameraPicker { image in
+                    Task { await process(image, for: target) }
+                }
+                .ignoresSafeArea()
+            }
+            .onChange(of: galleryItem) { _, newItem in
+                guard let newItem else { return }
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        await process(image, for: galleryTarget)
+                    }
+                    galleryItem = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - OCR
+
+    @ViewBuilder
+    private var ocrSection: some View {
+        Section {
+            photoControls(target: .odometer, label: "Foto do hodômetro", icon: "gauge")
+            photoControls(target: .receipt, label: "Foto da bomba/comprovante", icon: "doc.text.viewfinder")
+        } header: {
+            Text("Foto (OCR)")
+        } footer: {
+            if isRecognizing {
+                Label("Lendo imagem…", systemImage: "hourglass")
+            } else if let status = ocrStatus {
+                Text(status)
+            } else {
+                Text("Fotografe e revise — o OCR é um auxílio, os valores podem precisar de correção.")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func photoControls(target: PhotoTarget, label: String, icon: String) -> some View {
+        HStack {
+            Label(label, systemImage: icon)
+            Spacer()
+            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                Button {
+                    showCameraFor = target
+                } label: {
+                    Image(systemName: "camera")
+                }
+                .buttonStyle(.borderless)
+            }
+            PhotosPicker(selection: $galleryItem, matching: .images) {
+                Image(systemName: "photo")
+            }
+            .buttonStyle(.borderless)
+            .simultaneousGesture(TapGesture().onEnded { galleryTarget = target })
+        }
+        .disabled(isRecognizing)
+    }
+
+    private func process(_ image: UIImage, for target: PhotoTarget) async {
+        guard let cgImage = image.cgImage else { return }
+        isRecognizing = true
+        ocrStatus = nil
+        defer { isRecognizing = false }
+
+        do {
+            let recognized = try await TextRecognizer.recognize(in: cgImage)
+            switch target {
+            case .odometer:
+                if let odo = OCRParser.parseOdometer(recognized.lines) {
+                    odometer = odo
+                    ocrStatus = "Hodômetro lido: \(Int(odo)) km. Confira."
+                } else {
+                    ocrStatus = "Não consegui ler o hodômetro. Digite manualmente."
+                }
+            case .receipt:
+                let result = OCRParser.parseFuelReceipt(recognized.lines)
+                if let l = result.liters { liters = l }
+                if let c = result.totalCost { totalCost = c }
+                if let f = result.fuelType { fuelType = f }
+                let got = [result.liters != nil ? "litros" : nil,
+                           result.totalCost != nil ? "valor" : nil,
+                           result.fuelType != nil ? "combustível" : nil].compactMap { $0 }
+                ocrStatus = got.isEmpty
+                    ? "Não consegui ler o comprovante. Preencha manualmente."
+                    : "Lido: \(got.joined(separator: ", ")). Confira os valores."
+            }
+            ocrProcessed = true
+            ocrConfidence = recognized.confidence
+        } catch {
+            ocrStatus = "Falha ao processar a imagem."
         }
     }
 
@@ -150,6 +261,10 @@ struct FuelLogFormView: View {
             log.totalCost = cost
             log.fuelType = fuelType
             log.isFullTank = isFullTank
+            if ocrProcessed {
+                log.ocrProcessed = true
+                log.ocrConfidence = ocrConfidence
+            }
         } else {
             let log = FuelLog(
                 date: date,
@@ -158,8 +273,10 @@ struct FuelLogFormView: View {
                 totalCost: cost,
                 fuelType: fuelType,
                 isFullTank: isFullTank,
-                motorcycle: motorcycle
+                motorcycle: motorcycle,
+                ocrProcessed: ocrProcessed
             )
+            log.ocrConfidence = ocrConfidence
             modelContext.insert(log)
         }
         // Avança o hodômetro da moto se este for mais recente.

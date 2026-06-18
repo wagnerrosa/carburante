@@ -208,4 +208,69 @@ final class CarburanteTests: XCTestCase {
         let entries = [entry(1000, 5, full: false), entry(1100, 5, full: false)]
         XCTAssertTrue(ConsumptionCalculator.segments(from: entries).isEmpty)
     }
+
+    // MARK: - OCR Parser
+
+    func testNormalizeNumberBRDecimal() {
+        XCTAssertEqual(OCRParser.normalizeNumber("12,5"), 12.5)
+        XCTAssertEqual(OCRParser.normalizeNumber("1.234,56"), 1234.56)
+        XCTAssertEqual(OCRParser.normalizeNumber("75,00"), 75.0)
+    }
+
+    func testNormalizeNumberThousandsDot() {
+        // 60.000 → milhar (3 dígitos após ponto, parte inteira <=3).
+        XCTAssertEqual(OCRParser.normalizeNumber("60.000"), 60000)
+        // 12.5 → decimal US.
+        XCTAssertEqual(OCRParser.normalizeNumber("12.5"), 12.5)
+    }
+
+    func testParseReceiptTypical() {
+        let lines = [
+            "POSTO SHELL",
+            "GASOLINA COMUM",
+            "LITROS 12,500",
+            "PRECO/L 6,000",
+            "VL.TOTAL 75,00"
+        ]
+        let r = OCRParser.parseFuelReceipt(lines)
+        XCTAssertEqual(r.liters, 12.5)
+        XCTAssertEqual(r.totalCost, 75.0)
+        XCTAssertEqual(r.fuelType, .gasolinaComum)
+    }
+
+    /// Vision quebra rótulo e valor em linhas separadas — valor vem na linha seguinte.
+    func testParseReceiptLabelAndValueOnSeparateLines() {
+        let lines = [
+            "GASOLINA COMUM",
+            "PRECO/L", "6,099",
+            "LITROS", "12,500",
+            "VL.TOTAL", "76,24"
+        ]
+        let r = OCRParser.parseFuelReceipt(lines)
+        XCTAssertEqual(r.liters, 12.5)
+        XCTAssertEqual(r.totalCost, 76.24)
+        XCTAssertEqual(r.fuelType, .gasolinaComum)
+    }
+
+    func testParseReceiptEthanolAndAdditive() {
+        XCTAssertEqual(OCRParser.parseFuelReceipt(["ETANOL"]).fuelType, .etanol)
+        XCTAssertEqual(OCRParser.parseFuelReceipt(["GASOLINA ADITIVADA"]).fuelType, .gasolinaAditivada)
+        XCTAssertEqual(OCRParser.parseFuelReceipt(["DIESEL S10"]).fuelType, .diesel)
+    }
+
+    func testParseReceiptGarbageReturnsNil() {
+        let r = OCRParser.parseFuelReceipt(["XJ$@ ###", "....", "obrigado volte sempre"])
+        XCTAssertNil(r.liters)
+        XCTAssertNil(r.totalCost)
+        XCTAssertNil(r.fuelType)
+    }
+
+    func testParseOdometerPicksLargestInteger() {
+        // Painel: hodômetro grande + talvez trip menor + "KM".
+        XCTAssertEqual(OCRParser.parseOdometer(["KM", "60123", "123.4"]), 60123)
+    }
+
+    func testParseOdometerNoNumber() {
+        XCTAssertNil(OCRParser.parseOdometer(["KM", "---"]))
+    }
 }
