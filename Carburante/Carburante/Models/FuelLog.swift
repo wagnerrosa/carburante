@@ -89,4 +89,10 @@ extension FuelLog {
         guard liters > 0 else { return nil }
         return totalCost / liters
     }
+
+    /// Rótulo curto de localização, ex.: "São Paulo, SP". nil se não capturado.
+    var placeLabel: String? {
+        let parts = [city, state].compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
 }

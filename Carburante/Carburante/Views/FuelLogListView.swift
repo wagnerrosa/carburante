@@ -76,6 +76,12 @@ private struct FuelLogRow: View {
                     .foregroundStyle(.secondary)
             }
             .font(.subheadline)
+
+            if let place = log.placeLabel {
+                Label(place, systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 2)
         .contentShape(.rect)

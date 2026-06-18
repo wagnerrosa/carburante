@@ -26,6 +26,10 @@ struct FuelLogFormView: View {
     @State private var isFullTank: Bool = true
     @State private var validationMessage: String?
 
+    // Localização (capturada em background ao abrir um novo registro)
+    @State private var locationService = LocationService()
+    @State private var location: LocationSnapshot?
+
     // OCR
     @State private var ocrProcessed = false
     @State private var ocrConfidence: Double?
@@ -131,6 +135,11 @@ struct FuelLogFormView: View {
                 }
             }
             .onAppear(perform: loadIfEditing)
+            .task {
+                // Captura localização só em registro novo; best-effort, não bloqueia.
+                guard fuelLog == nil else { return }
+                location = await locationService.currentSnapshot()
+            }
             .fullScreenCover(item: $showCameraFor) { target in
                 CameraPicker { image in
                     Task { await process(image, for: target) }
@@ -277,6 +286,13 @@ struct FuelLogFormView: View {
                 ocrProcessed: ocrProcessed
             )
             log.ocrConfidence = ocrConfidence
+            if let loc = location {
+                log.latitude = loc.latitude
+                log.longitude = loc.longitude
+                log.city = loc.city
+                log.state = loc.state
+                log.country = loc.country
+            }
             modelContext.insert(log)
         }
         // Avança o hodômetro da moto se este for mais recente.
