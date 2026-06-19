@@ -36,18 +36,9 @@ struct DashboardView: View {
             }
             .navigationTitle("Resumo")
             .toolbar {
-                if motorcycle != nil {
+                if let moto = motorcycle {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingFuelLog = true
-                        } label: {
-                            Label("Abastecer", systemImage: "plus")
-                        }
-                    }
-                }
-                if motorcycles.count > 1 {
-                    ToolbarItem(placement: .topBarLeading) {
-                        motorcyclePicker
+                        bikeMenu(for: moto)
                     }
                 }
             }
@@ -74,17 +65,50 @@ struct DashboardView: View {
         }
     }
 
-    private var motorcyclePicker: some View {
+    /// Controle único de contexto (padrão app Esportes "Meus times"): mostra a
+    /// moto atual e, ao tocar, oferece a ação nº1 (abastecer) + troca de moto +
+    /// adicionar — consolida o seletor e o "+" num só elemento nomeado.
+    private func bikeMenu(for moto: Motorcycle) -> some View {
         Menu {
-            Picker("Moto", selection: $selectedID) {
-                ForEach(motorcycles) { moto in
-                    Text(moto.displayName).tag(Optional(moto.persistentModelID))
+            Button {
+                showingFuelLog = true
+            } label: {
+                Label("Novo abastecimento", systemImage: "fuelpump.fill")
+            }
+
+            Divider()
+
+            Picker("Moto", selection: Binding(
+                get: { motorcycle?.persistentModelID },
+                set: { selectedID = $0 }
+            )) {
+                ForEach(motorcycles) { m in
+                    Text(m.displayName).tag(Optional(m.persistentModelID))
                 }
             }
+
+            Divider()
+
+            Button {
+                showingAddMoto = true
+            } label: {
+                Label("Adicionar moto", systemImage: "plus")
+            }
         } label: {
-            Label(motorcycle?.displayName ?? "Moto", systemImage: "chevron.up.chevron.down")
-                .font(.subheadline)
+            // Só o modelo no botão (compacto — nomes completos podem ser longos,
+            // ex. "Harley Davidson Iron"); o nome completo aparece no menu.
+            HStack(spacing: 4) {
+                Image(systemName: "motorcycle")
+                Text(moto.model)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .font(.subheadline.weight(.semibold))
         }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
     }
 
     @ViewBuilder
@@ -94,7 +118,7 @@ struct DashboardView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                heroBlock(summary, moto: moto)
+                heroBlock(summary)
 
                 if let status, status.isOverdue {
                     overdueWarning
@@ -133,12 +157,8 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func heroBlock(_ summary: ConsumptionSummary, moto: Motorcycle) -> some View {
+    private func heroBlock(_ summary: ConsumptionSummary) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(moto.displayName)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(summary.averageKmPerLiter.map {
                     $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
