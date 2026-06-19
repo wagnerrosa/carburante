@@ -24,12 +24,12 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
 
     var icon: String {
         switch self {
-        case .oleo: return "drop"
+        case .oleo: return "drop.fill"
         case .filtros: return "air.purifier"
-        case .pneus: return "circle.circle"
+        case .pneus: return "tire"
         case .relacao: return "gearshape.2"
-        case .freios: return "hand.raised"
-        case .revisao: return "wrench.and.screwdriver"
+        case .freios: return "pedal.brake.fill"
+        case .revisao: return "wrench.and.screwdriver.fill"
         case .outro: return "ellipsis.circle"
         }
     }

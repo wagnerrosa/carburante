@@ -2,7 +2,9 @@
 //  MotorcycleProfileView.swift
 //  Carburante
 //
-//  Perfil da moto — detalhe + botão editar.
+//  Perfil da moto — detalhe + editar. Ação (abastecer) e navegação (listas)
+//  ficam visualmente distintas: ação = Button com tile colorido em Section
+//  própria; navegação = NavigationLink com chevron nativo.
 //
 
 import SwiftUI
@@ -23,37 +25,35 @@ struct MotorcycleProfileView: View {
             }
             Section("Hodômetro") {
                 LabeledContent("Atual") {
-                    Text("\(motorcycle.currentOdometer, format: .number) km")
+                    Text(AppFormat.km(motorcycle.currentOdometer)).monospacedDigit()
                 }
             }
+
             consumptionSection
+
             Section {
                 Button {
                     showingFuelLog = true
                 } label: {
-                    Label("Novo abastecimento", systemImage: "fuelpump")
-                }
-                NavigationLink {
-                    FuelLogListView(motorcycle: motorcycle)
-                } label: {
-                    HStack {
-                        Text("Abastecimentos")
-                        Spacer()
-                        Text("\(motorcycle.fuelLogs.count)")
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        IconTile(systemName: "fuelpump.fill", tint: .green)
+                        Text("Novo abastecimento")
                     }
                 }
             }
+
             Section {
+                NavigationLink {
+                    FuelLogListView(motorcycle: motorcycle)
+                } label: {
+                    navRow(icon: "list.bullet", tint: .blue,
+                           title: "Abastecimentos", count: motorcycle.fuelLogs.count)
+                }
                 NavigationLink {
                     MaintenanceListView(motorcycle: motorcycle)
                 } label: {
-                    HStack {
-                        Label("Manutenções", systemImage: "wrench.and.screwdriver")
-                        Spacer()
-                        Text("\(motorcycle.maintenanceLogs.count)")
-                            .foregroundStyle(.secondary)
-                    }
+                    navRow(icon: "wrench.and.screwdriver.fill", tint: .orange,
+                           title: "Manutenções", count: motorcycle.maintenanceLogs.count)
                 }
             }
         }
@@ -72,20 +72,31 @@ struct MotorcycleProfileView: View {
         }
     }
 
+    private func navRow(icon: String, tint: Color, title: String, count: Int) -> some View {
+        HStack(spacing: 12) {
+            IconTile(systemName: icon, tint: tint)
+            Text(title)
+            Spacer()
+            Text(count.formatted())
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+    }
+
     @ViewBuilder
     private var consumptionSection: some View {
         let summary = motorcycle.consumptionSummary
         Section("Consumo") {
             if let avg = summary.averageKmPerLiter {
                 LabeledContent("Consumo médio") {
-                    Text("\(avg, format: .number.precision(.fractionLength(1))) km/l")
+                    Text(AppFormat.kmPerLiter(avg)).monospacedDigit()
                 }
                 LabeledContent("Distância medida") {
-                    Text("\(summary.totalDistance, format: .number) km")
+                    Text(AppFormat.km(summary.totalDistance)).monospacedDigit()
                 }
                 if let cpk = summary.costPerKm {
                     LabeledContent("Custo por km") {
-                        Text("R$ \(cpk, format: .number.precision(.fractionLength(2)))")
+                        Text(AppFormat.currency(cpk)).monospacedDigit()
                     }
                 }
             } else {

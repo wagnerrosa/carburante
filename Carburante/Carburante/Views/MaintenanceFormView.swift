@@ -21,11 +21,13 @@ struct MaintenanceFormView: View {
     @State private var mileage: Double?
     @State private var cost: Double?
     @State private var notes: String = ""
+    @State private var saveError: String?
+    @FocusState private var fieldFocused: Bool
 
     private var isEditing: Bool { maintenanceLog != nil }
 
     private var mileagePrompt: String {
-        motorcycle.currentOdometer > 0 ? "Atual: \(Int(motorcycle.currentOdometer))" : "Hodômetro"
+        motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "Hodômetro"
     }
 
     var body: some View {
@@ -41,17 +43,26 @@ struct MaintenanceFormView: View {
                     HStack {
                         TextField("Hodômetro", value: $mileage, format: .number, prompt: Text(mileagePrompt))
                             .keyboardType(.decimalPad)
+                            .focused($fieldFocused)
                         Text("km").foregroundStyle(.secondary)
                     }
                     HStack {
                         TextField("Custo", value: $cost, format: .number, prompt: Text("Custo"))
                             .keyboardType(.decimalPad)
+                            .focused($fieldFocused)
                         Text("R$").foregroundStyle(.secondary)
                     }
                 }
                 Section("Observações") {
                     TextField("Opcional", text: $notes, axis: .vertical)
-                        .lineLimit(1...4)
+                        .lineLimit(1...6)
+                }
+
+                if let saveError {
+                    Section {
+                        Label(saveError, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                    }
                 }
             }
             .navigationTitle(isEditing ? "Editar Manutenção" : "Nova Manutenção")
@@ -63,6 +74,10 @@ struct MaintenanceFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { save() }
                         .disabled((mileage ?? 0) <= 0)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Concluir") { fieldFocused = false }
                 }
             }
             .onAppear(perform: loadIfEditing)
@@ -101,7 +116,13 @@ struct MaintenanceFormView: View {
             )
             modelContext.insert(log)
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            saveError = "Não foi possível salvar. Tente novamente."
+            return
+        }
+        Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         dismiss()
