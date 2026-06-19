@@ -2,9 +2,10 @@
 //  DashboardView.swift
 //  Carburante
 //
-//  Resumo: número-herói (consumo médio) + faixa de status + grade de métricas
-//  + card "Último abastecimento" (padrões Saúde/Fitness/Casa/Wallet). A ação
-//  nº 1 — abastecer — fica a um toque: botão proeminente + "+" na toolbar.
+//  Resumo: número-herói (consumo médio) + grade de métricas neutra + card
+//  "Último abastecimento" (padrão Saúde — disciplina, não decoração). A ação
+//  nº 1 — abastecer — fica a um toque pelo "+" na toolbar (padrão Saúde/Wallet);
+//  estado de manutenção só aparece como aviso quando vencido (silêncio = ok).
 //
 
 import SwiftUI
@@ -93,20 +94,11 @@ struct DashboardView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                if let status {
-                    statusBanner(status)
-                }
-
                 heroBlock(summary, moto: moto)
 
-                Button {
-                    showingFuelLog = true
-                } label: {
-                    Label("Abastecer", systemImage: "fuelpump.fill")
-                        .frame(maxWidth: .infinity)
+                if let status, status.isOverdue {
+                    overdueWarning
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
 
                 metricsGrid(summary, moto: moto)
 
@@ -131,17 +123,13 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
-    private func statusBanner(_ status: OilChangeStatus) -> some View {
-        if status.isOverdue {
-            StatusBanner(text: "Troca de óleo vencida",
-                         systemImage: "exclamationmark.triangle.fill",
-                         tint: .orange)
-        } else {
-            StatusBanner(text: "Manutenção em dia",
-                         systemImage: "checkmark.seal.fill",
-                         tint: .green)
-        }
+    /// Aviso de manutenção só quando há algo a fazer (padrão Apple: estado "ok"
+    /// é silêncio, não banner). Texto secundário, sem faixa colorida de fundo.
+    private var overdueWarning: some View {
+        Label("Troca de óleo vencida", systemImage: "exclamationmark.triangle.fill")
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -177,23 +165,20 @@ struct DashboardView: View {
     }
 
     private func metricsGrid(_ summary: ConsumptionSummary, moto: Motorcycle) -> some View {
+        // Ícones neutros (.secondary): cor reservada a sinal real, não decoração.
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             MetricTile(label: "Custo por km",
                        value: summary.costPerKm.map(AppFormat.currency) ?? "—",
-                       systemImage: "brazilianrealsign.circle.fill",
-                       tint: .green)
+                       systemImage: "brazilianrealsign.circle")
             MetricTile(label: "Distância medida",
                        value: AppFormat.km(summary.totalDistance),
-                       systemImage: "ruler.fill",
-                       tint: .blue)
+                       systemImage: "ruler")
             MetricTile(label: "Hodômetro",
                        value: AppFormat.km(moto.currentOdometer),
-                       systemImage: "gauge.with.dots.needle.bottom.50percent",
-                       tint: .indigo)
+                       systemImage: "gauge.with.dots.needle.bottom.50percent")
             MetricTile(label: "Abastecimentos",
                        value: moto.fuelLogs.count.formatted(),
-                       systemImage: "fuelpump.fill",
-                       tint: .orange)
+                       systemImage: "fuelpump")
         }
     }
 
@@ -261,11 +246,31 @@ struct DashboardView: View {
             }
             .buttonStyle(.plain)
         } else {
-            GroupedCard {
-                Text("Nenhum abastecimento registrado.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            // Estado vazio acionável: no onboarding (sem registros), a ação nº1
+            // ganha proeminência aqui — depois do 1º registro some, restando só
+            // o "+" no toolbar (calma para o uso recorrente).
+            Button {
+                showingFuelLog = true
+            } label: {
+                GroupedCard {
+                    HStack(spacing: 12) {
+                        IconTile(systemName: "fuelpump.fill", tint: .green, size: 38)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Registrar primeiro abastecimento")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
+                            Text("Toque para começar a acompanhar o consumo.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
+            .buttonStyle(.plain)
         }
     }
 }

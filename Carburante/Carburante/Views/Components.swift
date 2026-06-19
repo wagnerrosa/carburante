@@ -4,8 +4,8 @@
 //
 //  Componentes nativos reaproveitados (Fase 11 — refinamento UI):
 //  tile de ícone colorido (padrão Ajustes), mini-card de métrica (padrão
-//  Esportes/Fitness) e faixa de status (padrão Casa). Sem libs externas,
-//  sem sombras custom — só hierarquia, SF Symbols e cores semânticas.
+//  Esportes/Fitness) e card agrupado. Sem libs externas, sem sombras custom —
+//  só hierarquia, SF Symbols e cores semânticas (cor = sinal, não decoração).
 //
 
 import SwiftUI
@@ -51,23 +51,6 @@ struct MetricTile: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground),
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-/// Faixa de status no topo (padrão Casa "Tudo seguro").
-struct StatusBanner: View {
-    let text: String
-    let systemImage: String
-    let tint: Color
-
-    var body: some View {
-        Label(text, systemImage: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(tint)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(tint.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
