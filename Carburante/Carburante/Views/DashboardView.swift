@@ -10,6 +10,7 @@
 
 import SwiftUI
 import SwiftData
+import Charts
 
 struct DashboardView: View {
     @Query(sort: \Motorcycle.createdAt, order: .reverse) private var motorcycles: [Motorcycle]
@@ -126,6 +127,10 @@ struct DashboardView: View {
     private func dashboard(for moto: Motorcycle) -> some View {
         let summary = moto.consumptionSummary
         let status = moto.oilChangeStatus()
+        // Segmentos full-to-full, mais antigo → mais novo (para o mini-gráfico do card).
+        let segments = ConsumptionCalculator
+            .segments(from: moto.fuelLogs.map(\.asFuelEntry))
+            .sorted { $0.endDate < $1.endDate }
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -133,11 +138,11 @@ struct DashboardView: View {
                     NavigationLink {
                         ConsumptionChartView(motorcycle: moto)
                     } label: {
-                        heroBlock(summary, showChevron: true)
+                        consumptionCard(summary, segments: segments)
                     }
                     .buttonStyle(.plain)
                 } else {
-                    heroBlock(summary, showChevron: false)
+                    consumptionCard(summary, segments: [])
                 }
 
                 if let status, status.isOverdue {
@@ -176,41 +181,125 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Card de Consumo no padrão Saúde "Energia Ativa": cabeçalho com ícone +
+    /// chevron, **frase-manchete** que interpreta o dado (a alma do card Saúde),
+    /// e um gráfico de barras (km/l por segmento) com a linha de média
+    /// atravessando. Card inteiro toca → tela Consumo cheia. Com < 2 segmentos
+    /// não há gráfico (anti-Apple), só a manchete/dica.
     @ViewBuilder
-    private func heroBlock(_ summary: ConsumptionSummary, showChevron: Bool) -> some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(summary.averageKmPerLiter.map {
-                        $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
-                    } ?? "—")
-                        .font(.system(size: 52, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                    Text("km/l")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
+    private func consumptionCard(_ summary: ConsumptionSummary, segments: [ConsumptionSegment]) -> some View {
+        let hasChart = segments.count >= 2
+        GroupedCard {
+            VStack(alignment: .leading, spacing: 12) {
+                // Cabeçalho do card (estilo Saúde): ícone + título + chevron.
+                HStack(spacing: 6) {
+                    Image(systemName: "fuelpump.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tint)
+                    Text("Consumo")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.tint)
+                    Spacer()
+                    if !segments.isEmpty {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
 
-                if summary.averageKmPerLiter == nil {
-                    Text("Registre dois abastecimentos com tanque cheio para medir o consumo.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Consumo médio")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
+                // Manchete que conta a história (padrão Saúde): frase grande em
+                // negrito, com o número km/l destacado no meio do texto.
+                consumptionHeadline(summary.averageKmPerLiter, segments: segments)
 
-            if showChevron {
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                if hasChart {
+                    Divider()
+                    consumptionMiniChart(segments, average: summary.averageKmPerLiter)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Frase-manchete do card (estilo "Você queimou uma média de 161 cal/dia…").
+    private func consumptionHeadline(_ average: Double?, segments: [ConsumptionSegment]) -> some View {
+        Group {
+            if let average {
+                let value = average.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
+                Text("Sua moto faz em média ")
+                    + Text(value).fontWeight(.bold).monospacedDigit()
+                    + Text(" km/l").fontWeight(.bold)
+                    + Text(headlinePeriodSuffix(segments))
+            } else {
+                Text("Registre dois abastecimentos com tanque cheio para medir o consumo.")
+            }
+        }
+        .font(.title3.weight(.semibold))
+        .foregroundStyle(.primary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// Sufixo temporal da manchete ("nos últimos meses" / "neste período").
+    private func headlinePeriodSuffix(_ segments: [ConsumptionSegment]) -> String {
+        guard let first = segments.first?.endDate, let last = segments.last?.endDate else { return "." }
+        let months = Calendar.current.dateComponents([.month], from: first, to: last).month ?? 0
+        return months >= 1 ? " nos últimos meses." : "."
+    }
+
+    /// Mini-gráfico do card: barras uniformes e juntas (km/l por segmento), uma
+    /// por posição (não por data real) — igual ao "Energia Ativa" do Saúde, onde
+    /// as barras têm espaçamento igual. A linha de média (a manchete) atravessa.
+    /// Eixo X rotula os meses dos segmentos. Sem eixo Y (o herói dá a escala).
+    private func consumptionMiniChart(_ segments: [ConsumptionSegment], average: Double?) -> some View {
+        // Rótulo de mês por posição: só mostra quando o mês muda (evita repetir).
+        let monthLabels: [Int: String] = {
+            var out: [Int: String] = [:]
+            var lastMonth = -1
+            let cal = Calendar.current
+            for (i, seg) in segments.enumerated() {
+                let m = cal.component(.month, from: seg.endDate)
+                if m != lastMonth {
+                    out[i] = seg.endDate.formatted(.dateTime.month(.abbreviated).locale(AppFormat.locale))
+                    lastMonth = m
+                }
+            }
+            return out
+        }()
+
+        // Topo do eixo Y: um respiro acima da maior barra/média (baseline = 0,
+        // senão barras quase iguais viram slivers invisíveis).
+        let maxY = (segments.map(\.kmPerLiter) + [average ?? 0]).max() ?? 1
+        return Chart {
+            // Barras neutras em posição uniforme; a média é a manchete (Saúde).
+            // X categórico (String do índice) → espaçamento igual, não escala por data.
+            ForEach(Array(segments.enumerated()), id: \.offset) { index, seg in
+                BarMark(
+                    x: .value("Segmento", String(index)),
+                    y: .value("km/l", seg.kmPerLiter),
+                    width: .ratio(0.62)
+                )
+                .foregroundStyle(Color(.systemGray3))
+                .cornerRadius(3)
+            }
+            if let average {
+                RuleMark(y: .value("Média", average))
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    .foregroundStyle(.tint)
+            }
+        }
+        .chartYScale(domain: 0...(maxY * 1.15))
+        .chartYAxis(.hidden)
+        .chartXAxis {
+            AxisMarks(values: monthLabels.keys.sorted().map(String.init)) { value in
+                AxisValueLabel {
+                    if let s = value.as(String.self), let i = Int(s), let label = monthLabels[i] {
+                        Text(label)
+                            .font(.caption2)
+                            .foregroundStyle(Color(.secondaryLabel))
+                    }
+                }
+            }
+        }
+        .chartLegend(.hidden)
+        .frame(height: 120)
     }
 
     private func metricsGrid(_ summary: ConsumptionSummary, moto: Motorcycle) -> some View {
@@ -325,6 +414,32 @@ struct DashboardView: View {
 }
 
 #Preview {
-    DashboardView()
-        .modelContainer(for: Motorcycle.self, inMemory: true)
+    let container = try! ModelContainer(
+        for: Motorcycle.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                          country: "Brasil", currentOdometer: 21_800)
+    container.mainContext.insert(moto)
+
+    // 6 cheios → 5 segmentos full-to-full → gráfico do card Consumo aparece.
+    let base = Date()
+    let day = 86_400.0
+    let cheios: [(Double, Double, Double, Double)] = [   // (kmAtrás, odômetro, litros, custo)
+        (150, 20_000, 12.0, 72),
+        (120, 20_420, 11.5, 69),
+        (90,  20_870, 12.2, 73),
+        (60,  21_290, 11.8, 71),
+        (30,  21_540, 12.5, 75),
+        (0,   21_800, 11.9, 72),
+    ]
+    for (daysAgo, odo, liters, cost) in cheios {
+        let log = FuelLog(date: base.addingTimeInterval(-daysAgo * day),
+                          odometer: odo, liters: liters, totalCost: cost,
+                          fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto)
+        container.mainContext.insert(log)
+    }
+
+    return DashboardView()
+        .modelContainer(container)
 }
