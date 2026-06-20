@@ -179,6 +179,21 @@ struct FuelLogFormView: View {
                     }
                 }
 
+                if let log = fuelLog, let lat = log.latitude, let lon = log.longitude {
+                    Section {
+                        FuelLocationMap(latitude: lat, longitude: lon, label: log.city ?? "Abastecimento")
+                            .listRowInsets(EdgeInsets())
+                    } header: {
+                        Text("Local")
+                    } footer: {
+                        if let place = [log.city, log.state].compactMap({ $0 }).first {
+                            Text(place)
+                        } else {
+                            Text("Onde você abasteceu. Toque para abrir no Mapas.")
+                        }
+                    }
+                }
+
                 if let warning = odometerWarning {
                     Section {
                         Label(warning, systemImage: "exclamationmark.triangle")
