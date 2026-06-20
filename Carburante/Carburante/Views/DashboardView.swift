@@ -118,7 +118,16 @@ struct DashboardView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                heroBlock(summary)
+                if summary.segmentCount > 0 {
+                    NavigationLink {
+                        ConsumptionChartView(motorcycle: moto)
+                    } label: {
+                        heroBlock(summary, showChevron: true)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    heroBlock(summary, showChevron: false)
+                }
 
                 if let status, status.isOverdue {
                     overdueWarning
@@ -157,28 +166,37 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func heroBlock(_ summary: ConsumptionSummary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(summary.averageKmPerLiter.map {
-                    $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
-                } ?? "—")
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("km/l")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.secondary)
+    private func heroBlock(_ summary: ConsumptionSummary, showChevron: Bool) -> some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(summary.averageKmPerLiter.map {
+                        $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
+                    } ?? "—")
+                        .font(.system(size: 52, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text("km/l")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                if summary.averageKmPerLiter == nil {
+                    Text("Registre dois abastecimentos com tanque cheio para medir o consumo.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Consumo médio")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            if summary.averageKmPerLiter == nil {
-                Text("Registre dois abastecimentos com tanque cheio para medir o consumo.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Consumo médio")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            if showChevron {
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
