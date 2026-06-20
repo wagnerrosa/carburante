@@ -16,8 +16,9 @@ struct ConsumptionChartView: View {
     @Bindable var motorcycle: Motorcycle
 
     @State private var period: Period = .all
-    /// Data sob o dedo durante o scrub (nil = sem seleção → mostra a média).
-    @State private var rawSelection: Date?
+    /// Índice (String) da posição sob o dedo durante o scrub — o eixo X é
+    /// categórico por posição. nil = sem seleção → mostra a média.
+    @State private var rawSelection: String?
 
     /// Segmentos full-to-full, mais antigo → mais novo.
     private var allSegments: [ConsumptionSegment] {
@@ -42,10 +43,10 @@ struct ConsumptionChartView: View {
         return liters > 0 ? distance / liters : nil
     }
 
-    /// Barra destacada pelo scrub (a mais próxima da data sob o dedo).
+    /// Barra destacada pelo scrub (a da posição sob o dedo).
     private var selectedBar: Bar? {
-        guard let raw = rawSelection else { return nil }
-        return bars.min { abs($0.date.timeIntervalSince(raw)) < abs($1.date.timeIntervalSince(raw)) }
+        guard let raw = rawSelection, let i = Int(raw) else { return nil }
+        return bars.first { $0.id == i }
     }
 
     var body: some View {
@@ -94,8 +95,9 @@ struct ConsumptionChartView: View {
         let showingSelection = selectedBar != nil
         let value = selectedBar?.value ?? average
         return VStack(alignment: .leading, spacing: 2) {
-            Text(showingSelection ? "Consumo do segmento" : "Média do período")
-                .font(.subheadline.weight(.medium))
+            // Rótulo em CAPS pequeno (padrão Saúde tela cheia: "MÉDIA").
+            Text(showingSelection ? "CONSUMO" : "MÉDIA")
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Text(value.map { $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale)) } ?? "—")
@@ -107,65 +109,87 @@ struct ConsumptionChartView: View {
                     .foregroundStyle(.secondary)
             }
             Text(subtitle)
-                .font(.footnote)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.default, value: selectedBar?.id)
     }
 
+    /// Subtítulo do herói: na seleção, data + distância do segmento; sem seleção,
+    /// o intervalo de datas coberto (padrão Saúde: "13–19 de jun. de 2026").
     private var subtitle: String {
         if let sel = selectedBar {
             return "\(AppFormat.date(sel.date)) · \(AppFormat.km(sel.distance))"
         }
-        let count = bars.count
-        return "\(count) \(count == 1 ? "segmento medido" : "segmentos medidos")"
+        guard let first = bars.first?.date, let last = bars.last?.date else {
+            return "Sem dados"
+        }
+        return first == last
+            ? AppFormat.date(last)
+            : "\(AppFormat.date(first)) – \(AppFormat.date(last))"
     }
 
     // MARK: - Gráfico
 
     private var chart: some View {
-        Chart {
-            ForEach(bars) { bar in
-                BarMark(
-                    x: .value("Data", bar.date, unit: .day),
-                    y: .value("km/l", bar.value),
-                    width: .fixed(18)
-                )
-                .foregroundStyle(selectedBar == nil || selectedBar?.id == bar.id
-                                 ? motorcycle.themeColor.gradient
-                                 : motorcycle.themeColor.opacity(0.25).gradient)
-                .cornerRadius(5)
+        // Rótulo de mês por posição: só quando o mês muda (evita repetir no eixo X).
+        let monthLabels: [Int: String] = {
+            var out: [Int: String] = [:]
+            var lastMonth = -1
+            let cal = Calendar.current
+            for (i, bar) in bars.enumerated() {
+                let m = cal.component(.month, from: bar.date)
+                if m != lastMonth {
+                    out[i] = bar.date.formatted(.dateTime.month(.abbreviated).locale(AppFormat.locale))
+                    lastMonth = m
+                }
             }
+            return out
+        }()
 
-            if let average {
-                RuleMark(y: .value("Média", average))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 4]))
-                    .foregroundStyle(.secondary)
-                    .annotation(position: .top, alignment: .leading) {
-                        Text("Média \(average.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale)))")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    }
+        return Chart {
+            // X categórico por posição (espaçamento uniforme, como o Saúde) — não
+            // escala temporal real (datas irregulares deixariam barras desencontradas).
+            // Barras grossas, cor SÓLIDA do tema; sem linha de média (a média fica no
+            // cabeçalho, como na tela cheia do Saúde). Scrub esmaece as não-selecionadas.
+            ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
+                BarMark(
+                    x: .value("Segmento", String(index)),
+                    y: .value("km/l", bar.value),
+                    width: .ratio(0.6)
+                )
+                .foregroundStyle(motorcycle.themeColor
+                    .opacity(selectedBar == nil || selectedBar?.id == bar.id ? 1 : 0.3))
+                .cornerRadius(4)
             }
         }
         .chartXSelection(value: $rawSelection)
+        // Grid + eixo Y à direita (padrão Saúde tela cheia): linhas horizontais com
+        // rótulos km/l à direita.
         .chartYAxis {
-            AxisMarks { value in
+            AxisMarks(position: .trailing) { value in
                 AxisGridLine()
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
                         Text(v.formatted(.number.precision(.fractionLength(0)).locale(AppFormat.locale)))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
         }
+        // Verticais sutis separando as posições + rótulo de mês quando muda.
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                AxisValueLabel(format: .dateTime.month(.abbreviated).locale(AppFormat.locale))
+            AxisMarks(values: Array(bars.indices).map(String.init)) { value in
+                AxisGridLine().foregroundStyle(Color(.systemGray5))
+                if let s = value.as(String.self), let i = Int(s), let label = monthLabels[i] {
+                    AxisValueLabel {
+                        Text(label).foregroundStyle(.secondary)
+                    }
+                }
             }
         }
-        .frame(height: 240)
+        .frame(height: 260)
     }
 
     /// Uma barra do gráfico (segmento + posição).
