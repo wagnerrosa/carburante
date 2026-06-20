@@ -13,6 +13,7 @@ struct FuelLogListView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: FuelLog?
+    @State private var showingAdd = false
 
     private var logs: [FuelLog] {
         motorcycle.fuelLogs.sorted { $0.date > $1.date }
@@ -21,11 +22,14 @@ struct FuelLogListView: View {
     var body: some View {
         Group {
             if logs.isEmpty {
-                ContentUnavailableView(
-                    "Nenhum abastecimento",
-                    systemImage: "fuelpump",
-                    description: Text("Registre um abastecimento no perfil da moto.")
-                )
+                ContentUnavailableView {
+                    Label("Nenhum abastecimento", systemImage: "fuelpump")
+                } description: {
+                    Text("Registre o primeiro abastecimento desta moto.")
+                } actions: {
+                    Button("Registrar abastecimento") { showingAdd = true }
+                        .buttonStyle(.borderedProminent)
+                }
             } else {
                 List {
                     ForEach(logs) { log in
@@ -42,6 +46,18 @@ struct FuelLogListView: View {
         }
         .navigationTitle("Abastecimentos")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingAdd = true
+                } label: {
+                    Label("Adicionar abastecimento", systemImage: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingAdd) {
+            FuelLogFormView(motorcycle: motorcycle)
+        }
         .sheet(item: $editingLog) { log in
             FuelLogFormView(motorcycle: motorcycle, fuelLog: log)
         }
