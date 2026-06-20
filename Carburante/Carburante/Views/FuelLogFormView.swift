@@ -107,6 +107,21 @@ struct FuelLogFormView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Identidade da moto — abrindo do Resumo (com seletor) não fica
+                // claro pra qual moto é o registro; esta linha confirma.
+                Section {
+                    HStack(spacing: 12) {
+                        IconTile(systemName: "motorcycle", tint: .blue, size: 34)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(motorcycle.displayName)
+                                .font(.headline)
+                            Text(isEditing ? "Editando abastecimento" : "Novo abastecimento")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
                 ocrSection
                 Section {
                     DatePicker("Data", selection: $date, displayedComponents: [.date, .hourAndMinute])
