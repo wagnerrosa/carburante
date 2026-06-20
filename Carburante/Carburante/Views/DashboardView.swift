@@ -38,7 +38,7 @@ struct DashboardView: View {
             .toolbar {
                 if let moto = motorcycle {
                     ToolbarItem(placement: .topBarTrailing) {
-                        bikeMenu(for: moto)
+                        bikeControl(for: moto)
                     }
                 }
             }
@@ -65,50 +65,61 @@ struct DashboardView: View {
         }
     }
 
-    /// Controle único de contexto (padrão app Esportes "Meus times"): mostra a
-    /// moto atual e, ao tocar, oferece a ação nº1 (abastecer) + troca de moto +
-    /// adicionar — consolida o seletor e o "+" num só elemento nomeado.
-    private func bikeMenu(for moto: Motorcycle) -> some View {
-        Menu {
+    /// Controle "duplo" no topo-direito (padrão app Bolsa: busca | •••):
+    /// à esquerda, a ação nº1 (abastecer) a UM toque; à direita, o menu de
+    /// contexto da moto (trocar / adicionar). Os dois zonas dividem uma só
+    /// cápsula, separadas por um divisor.
+    private func bikeControl(for moto: Motorcycle) -> some View {
+        HStack(spacing: 0) {
+            // Zona 1 — ação direta: abastecer.
             Button {
                 showingFuelLog = true
             } label: {
-                Label("Novo abastecimento", systemImage: "fuelpump.fill")
+                Image(systemName: "fuelpump.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.tint)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .contentShape(.rect)
             }
+            .buttonStyle(.plain)
 
-            Divider()
+            Divider().frame(height: 20)
 
-            Picker("Moto", selection: Binding(
-                get: { motorcycle?.persistentModelID },
-                set: { selectedID = $0 }
-            )) {
-                ForEach(motorcycles) { m in
-                    Text(m.displayName).tag(Optional(m.persistentModelID))
+            // Zona 2 — menu de contexto: trocar / adicionar moto. Só o modelo
+            // (compacto); nome completo no menu.
+            Menu {
+                Picker("Moto", selection: Binding(
+                    get: { motorcycle?.persistentModelID },
+                    set: { selectedID = $0 }
+                )) {
+                    ForEach(motorcycles) { m in
+                        Text(m.displayName).tag(Optional(m.persistentModelID))
+                    }
                 }
-            }
 
-            Divider()
+                Divider()
 
-            Button {
-                showingAddMoto = true
+                Button {
+                    showingAddMoto = true
+                } label: {
+                    Label("Adicionar moto", systemImage: "plus")
+                }
             } label: {
-                Label("Adicionar moto", systemImage: "plus")
+                HStack(spacing: 4) {
+                    Image(systemName: "motorcycle")
+                    Text(moto.model)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.bold))
+                }
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .contentShape(.rect)
             }
-        } label: {
-            // Só o modelo no botão (compacto — nomes completos podem ser longos,
-            // ex. "Harley Davidson Iron"); o nome completo aparece no menu.
-            HStack(spacing: 4) {
-                Image(systemName: "motorcycle")
-                Text(moto.model)
-                    .lineLimit(1)
-                Image(systemName: "chevron.down")
-                    .font(.caption2.weight(.bold))
-            }
-            .font(.subheadline.weight(.semibold))
+            .buttonStyle(.plain)
         }
-        .menuStyle(.button)
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
     }
 
     @ViewBuilder
