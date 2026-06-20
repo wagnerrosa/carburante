@@ -20,12 +20,15 @@ struct MotorcycleFormView: View {
     @State private var year: Int = Calendar.current.component(.year, from: Date())
     @State private var country: String = "Brasil"
     @State private var currentOdometer: Double = 0
+    @State private var saveError: String?
+    @FocusState private var odometerFocused: Bool
 
     private var isEditing: Bool { motorcycle != nil }
 
     private var canSave: Bool {
         !make.trimmingCharacters(in: .whitespaces).isEmpty
             && !model.trimmingCharacters(in: .whitespaces).isEmpty
+            && !country.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     private let yearRange = Array(1950...Calendar.current.component(.year, from: Date()) + 1).reversed()
@@ -43,16 +46,27 @@ struct MotorcycleFormView: View {
                             Text(String(y)).tag(y)
                         }
                     }
-                    TextField("País", text: $country)
-                        .textInputAutocapitalization(.words)
+                    LabeledContent("País") {
+                        TextField("País", text: $country)
+                            .multilineTextAlignment(.trailing)
+                            .textInputAutocapitalization(.words)
+                    }
                 }
 
                 Section("Hodômetro") {
                     HStack {
                         TextField("Quilometragem atual", value: $currentOdometer, format: .number)
                             .keyboardType(.decimalPad)
+                            .focused($odometerFocused)
                         Text("km")
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let saveError {
+                    Section {
+                        Label(saveError, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
                     }
                 }
             }
@@ -65,6 +79,10 @@ struct MotorcycleFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { save() }
                         .disabled(!canSave)
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Concluir") { odometerFocused = false }
                 }
             }
             .onAppear(perform: loadIfEditing)
@@ -101,7 +119,14 @@ struct MotorcycleFormView: View {
             )
             modelContext.insert(new)
         }
-        try? modelContext.save()
+
+        do {
+            try modelContext.save()
+        } catch {
+            saveError = "Não foi possível salvar. Tente novamente."
+            return
+        }
+        Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         dismiss()
