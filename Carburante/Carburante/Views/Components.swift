@@ -11,17 +11,28 @@
 import SwiftUI
 
 /// Tile de ícone colorido à esquerda de uma linha (padrão Ajustes/Casa).
+/// `tint` nil → usa a accent color do ambiente (o tema da marca) — para ícones
+/// decorativos (abastecimento, navegação). Tipos de manutenção passam cor
+/// própria (semântica: cor = qual serviço), que NÃO segue o tema.
 struct IconTile: View {
     let systemName: String
-    let tint: Color
+    var tint: Color?
     var size: CGFloat = 29
+
+    init(systemName: String, tint: Color? = nil, size: CGFloat = 29) {
+        self.systemName = systemName
+        self.tint = tint
+        self.size = size
+    }
 
     var body: some View {
         Image(systemName: systemName)
             .font(.system(size: size * 0.52, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+            // tint nil → accentColor (segue o `.tint()` do ambiente = tema da marca).
+            .background(tint ?? Color.accentColor,
+                        in: RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
     }
 }
 

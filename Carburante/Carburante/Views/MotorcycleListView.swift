@@ -34,7 +34,7 @@ struct MotorcycleListView: View {
                                 MotorcycleProfileView(motorcycle: moto)
                             } label: {
                                 HStack(spacing: 12) {
-                                    IconTile(systemName: "motorcycle", tint: .blue, size: 38)
+                                    IconTile(systemName: "motorcycle", tint: moto.themeColor, size: 38)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(moto.displayName)
                                             .font(.headline)

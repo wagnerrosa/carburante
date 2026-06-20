@@ -15,6 +15,9 @@ struct MotorcycleFormView: View {
     /// Nil = cadastro novo. Não-nil = edição.
     var motorcycle: Motorcycle?
 
+    /// Marca selecionada no Picker. "Outra…" revela o campo livre `make`.
+    @State private var selectedMake: String = MotorcycleMake.catalog.first ?? ""
+    /// Marca efetiva persistida. Espelha o Picker, exceto quando "Outra…" → texto livre.
     @State private var make: String = ""
     @State private var model: String = ""
     @State private var year: Int = Calendar.current.component(.year, from: Date())
@@ -25,8 +28,15 @@ struct MotorcycleFormView: View {
 
     private var isEditing: Bool { motorcycle != nil }
 
+    /// "Outra…" → usa o texto livre; senão a própria marca do Picker.
+    private var effectiveMake: String {
+        selectedMake == MotorcycleMake.other ? make : selectedMake
+    }
+
+    private var isOther: Bool { selectedMake == MotorcycleMake.other }
+
     private var canSave: Bool {
-        !make.trimmingCharacters(in: .whitespaces).isEmpty
+        !effectiveMake.trimmingCharacters(in: .whitespaces).isEmpty
             && !model.trimmingCharacters(in: .whitespaces).isEmpty
             && !country.trimmingCharacters(in: .whitespaces).isEmpty
     }
@@ -37,8 +47,15 @@ struct MotorcycleFormView: View {
         NavigationStack {
             Form {
                 Section("Moto") {
-                    TextField("Marca", text: $make)
-                        .textInputAutocapitalization(.words)
+                    Picker("Marca", selection: $selectedMake) {
+                        ForEach(MotorcycleMake.catalog, id: \.self) { mk in
+                            Text(mk).tag(mk)
+                        }
+                    }
+                    if isOther {
+                        TextField("Nome da marca", text: $make)
+                            .textInputAutocapitalization(.words)
+                    }
                     TextField("Modelo", text: $model)
                         .textInputAutocapitalization(.words)
                     Picker("Ano", selection: $year) {
@@ -91,7 +108,14 @@ struct MotorcycleFormView: View {
 
     private func loadIfEditing() {
         guard let m = motorcycle else { return }
-        make = m.make
+        if MotorcycleMake.isKnown(m.make) {
+            selectedMake = m.make
+            make = m.make
+        } else {
+            // Marca fora do catálogo → começa em "Outra…" com o texto preenchido.
+            selectedMake = MotorcycleMake.other
+            make = m.make
+        }
         model = m.model
         year = m.year
         country = m.country
@@ -99,7 +123,7 @@ struct MotorcycleFormView: View {
     }
 
     private func save() {
-        let trimmedMake = make.trimmingCharacters(in: .whitespaces)
+        let trimmedMake = effectiveMake.trimmingCharacters(in: .whitespaces)
         let trimmedModel = model.trimmingCharacters(in: .whitespaces)
         let trimmedCountry = country.trimmingCharacters(in: .whitespaces)
 

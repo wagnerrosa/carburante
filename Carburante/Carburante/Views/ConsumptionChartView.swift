@@ -62,6 +62,8 @@ struct ConsumptionChartView: View {
         }
         .navigationTitle("Consumo")
         .navigationBarTitleDisplayMode(.inline)
+        // Gráfico e seletor usam o tema desta moto.
+        .tint(motorcycle.themeColor)
     }
 
     private var content: some View {
@@ -131,8 +133,8 @@ struct ConsumptionChartView: View {
                     width: .fixed(18)
                 )
                 .foregroundStyle(selectedBar == nil || selectedBar?.id == bar.id
-                                 ? Color.accentColor.gradient
-                                 : Color.accentColor.opacity(0.25).gradient)
+                                 ? motorcycle.themeColor.gradient
+                                 : motorcycle.themeColor.opacity(0.25).gradient)
                 .cornerRadius(5)
             }
 

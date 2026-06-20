@@ -46,6 +46,8 @@ struct FuelLogListView: View {
         }
         .navigationTitle("Abastecimentos")
         .navigationBarTitleDisplayMode(.inline)
+        // Histórico desta moto usa o tema da própria moto.
+        .tint(motorcycle.themeColor)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -76,7 +78,7 @@ private struct FuelLogRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            IconTile(systemName: "fuelpump.fill", tint: .green, size: 38)
+            IconTile(systemName: "fuelpump.fill", size: 38)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(AppFormat.dateTime(log.date))

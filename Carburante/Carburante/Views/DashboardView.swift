@@ -14,13 +14,15 @@ import Charts
 
 struct DashboardView: View {
     @Query(sort: \Motorcycle.createdAt, order: .reverse) private var motorcycles: [Motorcycle]
-    @State private var selectedID: PersistentIdentifier?
+    /// Moto ativa, persistida entre sessões (UUID estável). Fonte única que
+    /// também define o tema global — ver RootTabView.
+    @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
     @State private var showingFuelLog = false
     @State private var showingAddMoto = false
 
-    /// Moto exibida: a selecionada, ou a primeira disponível.
+    /// Moto exibida: a ativa (persistida), ou a primeira disponível.
     private var motorcycle: Motorcycle? {
-        if let id = selectedID, let m = motorcycles.first(where: { $0.persistentModelID == id }) {
+        if let m = motorcycles.first(where: { $0.id.uuidString == activeMotorcycleID }) {
             return m
         }
         return motorcycles.first
@@ -51,8 +53,10 @@ struct DashboardView: View {
             .sheet(isPresented: $showingAddMoto) {
                 MotorcycleFormView()
             }
-            .onChange(of: selectedID) { Haptics.selection() }
+            .onChange(of: activeMotorcycleID) { Haptics.selection() }
         }
+        // Tema da moto ativa tinge a aba Resumo (CTA, controles, gráfico, links).
+        .tint(motorcycle?.themeColor ?? BrandTheme.default)
     }
 
     private var emptyState: some View {
@@ -91,11 +95,11 @@ struct DashboardView: View {
             // (compacto); nome completo no menu.
             Menu {
                 Picker("Moto", selection: Binding(
-                    get: { motorcycle?.persistentModelID },
-                    set: { selectedID = $0 }
+                    get: { motorcycle?.id.uuidString ?? "" },
+                    set: { activeMotorcycleID = $0 }
                 )) {
                     ForEach(motorcycles) { m in
-                        Text(m.displayName).tag(Optional(m.persistentModelID))
+                        Text(m.displayName).tag(m.id.uuidString)
                     }
                 }
 
@@ -181,14 +185,28 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// Quantos segmentos um gráfico precisa para parecer "cheio" (padrão Saúde:
+    /// nunca 2-3 barras tortas). Abaixo disso o card mostra só a manchete + número
+    /// — o visual calmo que o usuário aprovou (sem gráfico ralo).
+    private static let minBarsForChart = 6
+    /// Teto de barras no mini-gráfico do card: além disso fica apertado. A tela
+    /// Consumo cheia (com período e scrub) mostra o histórico completo.
+    private static let maxBarsInCard = 12
+    /// Vão vazio à esquerda do gráfico onde cabe o rótulo de média + número, com
+    /// folga até as barras (gap do padrão Saúde).
+    private static let avgLabelGutter: CGFloat = 110
+
     /// Card de Consumo no padrão Saúde "Energia Ativa": cabeçalho com ícone +
     /// chevron, **frase-manchete** que interpreta o dado (a alma do card Saúde),
-    /// e um gráfico de barras (km/l por segmento) com a linha de média
-    /// atravessando. Card inteiro toca → tela Consumo cheia. Com < 2 segmentos
-    /// não há gráfico (anti-Apple), só a manchete/dica.
+    /// e um gráfico de barras (km/l por segmento) com o rótulo de média à esquerda
+    /// e a linha de média atravessando — igual ao print do Saúde. Card inteiro
+    /// toca → tela Consumo cheia. Com < `minBarsForChart` segmentos não há gráfico
+    /// (anti-Apple: barras tortas), só a manchete/dica.
     @ViewBuilder
     private func consumptionCard(_ summary: ConsumptionSummary, segments: [ConsumptionSegment]) -> some View {
-        let hasChart = segments.count >= 2
+        let hasChart = segments.count >= Self.minBarsForChart
+        // Mostra só as barras mais recentes (as mais relevantes p/ tendência atual).
+        let barSegments = Array(segments.suffix(Self.maxBarsInCard))
         GroupedCard {
             VStack(alignment: .leading, spacing: 12) {
                 // Cabeçalho do card (estilo Saúde): ícone + título + chevron.
@@ -213,7 +231,10 @@ struct DashboardView: View {
 
                 if hasChart {
                     Divider()
-                    consumptionMiniChart(segments, average: summary.averageKmPerLiter)
+                    // Média das barras visíveis (não a global) — a linha tem de bater
+                    // com o que está desenhado.
+                    let visibleAverage = barsWeightedAverage(barSegments)
+                    consumptionMiniChart(barSegments, average: visibleAverage)
                 }
             }
         }
@@ -244,10 +265,20 @@ struct DashboardView: View {
         return months >= 1 ? " nos últimos meses." : "."
     }
 
-    /// Mini-gráfico do card: barras uniformes e juntas (km/l por segmento), uma
-    /// por posição (não por data real) — igual ao "Energia Ativa" do Saúde, onde
-    /// as barras têm espaçamento igual. A linha de média (a manchete) atravessa.
-    /// Eixo X rotula os meses dos segmentos. Sem eixo Y (o herói dá a escala).
+    /// Média ponderada (distância ÷ litros) dos segmentos dados — mesma
+    /// metodologia do `ConsumptionCalculator`, não a média simples das barras.
+    private func barsWeightedAverage(_ segments: [ConsumptionSegment]) -> Double? {
+        let liters = segments.reduce(0) { $0 + $1.liters }
+        let distance = segments.reduce(0) { $0 + $1.distance }
+        return liters > 0 ? distance / liters : nil
+    }
+
+    /// Mini-gráfico do card no padrão Saúde "Energia Ativa": barras (km/l por
+    /// segmento) nascendo do chão (baseline 0, inteiras) + linha de média
+    /// atravessando, e — sobreposto sobre a área vazia à esquerda — o rótulo de
+    /// média ("Média de km/l" + número grande) com o número grudado **na linha**
+    /// (igual ao Saúde: rótulo acima da linha, número logo abaixo). Eixo X rotula
+    /// os meses. Sem eixo Y (o número dá a escala). Barras cinza, linha colorida.
     private func consumptionMiniChart(_ segments: [ConsumptionSegment], average: Double?) -> some View {
         // Rótulo de mês por posição: só mostra quando o mês muda (evita repetir).
         let monthLabels: [Int: String] = {
@@ -264,11 +295,26 @@ struct DashboardView: View {
             return out
         }()
 
-        // Topo do eixo Y: um respiro acima da maior barra/média (baseline = 0,
-        // senão barras quase iguais viram slivers invisíveis).
-        let maxY = (segments.map(\.kmPerLiter) + [average ?? 0]).max() ?? 1
+        let avg = average ?? (segments.map(\.kmPerLiter).reduce(0, +) / Double(max(segments.count, 1)))
+        // Baseline = 0 (barras inteiras, do chão — padrão Saúde). Topo: respiro
+        // acima da maior barra/média. A linha de média cai naturalmente em avg/top.
+        let top = ((segments.map(\.kmPerLiter) + [avg]).max() ?? 1) * 1.15
+
+        let avgLabel = average.map {
+            $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
+        }
+
         return Chart {
-            // Barras neutras em posição uniforme; a média é a manchete (Saúde).
+            // Ordem do padrão Saúde: a linha de média (cor CHEIA, uniforme) é desenhada
+            // PRIMEIRO → fica embaixo; as barras vêm DEPOIS, por cima dela, e são
+            // semi-transparentes → onde a barra cruza a linha, a faixa colorida aparece
+            // através da barra (a barra escurece, a linha não muda de cor). `.tint`
+            // segue o tema da marca.
+            if average != nil {
+                RuleMark(y: .value("Média", avg))
+                    .lineStyle(StrokeStyle(lineWidth: 5, lineCap: .round))
+                    .foregroundStyle(.tint)
+            }
             // X categórico (String do índice) → espaçamento igual, não escala por data.
             ForEach(Array(segments.enumerated()), id: \.offset) { index, seg in
                 BarMark(
@@ -276,16 +322,11 @@ struct DashboardView: View {
                     y: .value("km/l", seg.kmPerLiter),
                     width: .ratio(0.62)
                 )
-                .foregroundStyle(Color(.systemGray3))
+                .foregroundStyle(Color(.systemGray3).opacity(0.55))
                 .cornerRadius(3)
             }
-            if let average {
-                RuleMark(y: .value("Média", average))
-                    .lineStyle(StrokeStyle(lineWidth: 2))
-                    .foregroundStyle(.tint)
-            }
         }
-        .chartYScale(domain: 0...(maxY * 1.15))
+        .chartYScale(domain: 0...top)
         .chartYAxis(.hidden)
         .chartXAxis {
             AxisMarks(values: monthLabels.keys.sorted().map(String.init)) { value in
@@ -299,7 +340,62 @@ struct DashboardView: View {
             }
         }
         .chartLegend(.hidden)
-        .frame(height: 120)
+        // Rótulo de média no vão à esquerda, fora do plot. O plot é full-width (eixo
+        // X alinha com as barras); o gutter vem do `.padding(.leading)` no Chart todo,
+        // e o rótulo escapa para dentro dele com offset negativo. Número cravado na
+        // altura da linha + linha estendida pelo vão = leitura do Saúde.
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                if let avgLabel, let plot = proxy.plotFrame {
+                    let frame = geo[plot]
+                    let lineY = frame.minY + (proxy.position(forY: avg) ?? 0)
+                    // Distância do topo do bloco até a linha de média. A linha passa no
+                    // vão entre "Média de" e o número, com respiro dos dois lados (igual
+                    // Saúde): altura do rótulo (~16) + metade do espaço entre as linhas.
+                    let labelH: CGFloat = 24
+
+                    // Linha de média estendida pelo vão (RuleMark só cobre as barras).
+                    // Capsule (pontas arredondadas) p/ casar com o lineCap .round do
+                    // RuleMark. `.tint` = tema da marca.
+                    Capsule()
+                        .fill(.tint)
+                        .frame(width: Self.avgLabelGutter, height: 5)
+                        .position(x: frame.minX, y: lineY)
+                        .offset(x: -Self.avgLabelGutter / 2)
+
+                    // Espaço entre "Média de" e o número — a linha de média passa no
+                    // meio dele, com respiro dos dois lados (padrão Saúde).
+                    VStack(alignment: .leading, spacing: 10) {
+                        // Rótulo "Média de" + número e unidade na MESMA linha ("30,6 km/l"),
+                        // padrão Saúde "Média de Calorias / 161 cal". Rótulo e unidade na
+                        // MESMA fonte (.subheadline secondary); número grande title rounded.
+                        Text("Média de")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            Text(avgLabel)
+                                .font(.system(.title, design: .rounded).weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(.primary)
+                            Text("km/l")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .fixedSize()
+                    // Topo do bloco acima da linha → o número fica cravado na linha de
+                    // média; "Média de" acima (igual Saúde: linha entre rótulo e número).
+                    .padding(.top, max(lineY - labelH, 0))
+                    // Escapa para o vão à esquerda do plot (criado pelo padding abaixo).
+                    .offset(x: -Self.avgLabelGutter)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+            }
+        }
+        // Cria o vão à esquerda empurrando o gráfico todo (plot + eixo juntos →
+        // eixo X continua alinhado às barras, ao contrário de chartPlotStyle).
+        .padding(.leading, Self.avgLabelGutter)
+        .frame(height: 184)
     }
 
     private func metricsGrid(_ summary: ConsumptionSummary, moto: Motorcycle) -> some View {
@@ -352,7 +448,7 @@ struct DashboardView: View {
             } label: {
                 GroupedCard {
                     HStack(spacing: 12) {
-                        IconTile(systemName: "fuelpump.fill", tint: .green, size: 38)
+                        IconTile(systemName: "fuelpump.fill", size: 38)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(AppFormat.dateTime(last.date))
                                 .font(.subheadline.weight(.medium))
@@ -392,7 +488,7 @@ struct DashboardView: View {
             } label: {
                 GroupedCard {
                     HStack(spacing: 12) {
-                        IconTile(systemName: "fuelpump.fill", tint: .green, size: 38)
+                        IconTile(systemName: "fuelpump.fill", size: 38)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Registrar primeiro abastecimento")
                                 .font(.subheadline.weight(.medium))
@@ -422,10 +518,12 @@ struct DashboardView: View {
                           country: "Brasil", currentOdometer: 21_800)
     container.mainContext.insert(moto)
 
-    // 6 cheios → 5 segmentos full-to-full → gráfico do card Consumo aparece.
+    // 7 cheios → 6 segmentos full-to-full → atinge o mínimo p/ o gráfico do card
+    // Consumo aparecer (Self.minBarsForChart). km/l varia entre os segmentos.
     let base = Date()
     let day = 86_400.0
     let cheios: [(Double, Double, Double, Double)] = [   // (kmAtrás, odômetro, litros, custo)
+        (180, 19_600, 11.0, 66),
         (150, 20_000, 12.0, 72),
         (120, 20_420, 11.5, 69),
         (90,  20_870, 12.2, 73),

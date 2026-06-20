@@ -111,7 +111,7 @@ struct FuelLogFormView: View {
                 // claro pra qual moto é o registro; esta linha confirma.
                 Section {
                     HStack(spacing: 12) {
-                        IconTile(systemName: "motorcycle", tint: .blue, size: 34)
+                        IconTile(systemName: "motorcycle", tint: motorcycle.themeColor, size: 34)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(motorcycle.displayName)
                                 .font(.headline)
@@ -210,6 +210,7 @@ struct FuelLogFormView: View {
             }
             .navigationTitle(isEditing ? "Editar" : "Abastecimento")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(motorcycle.themeColor)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") { dismiss() }
