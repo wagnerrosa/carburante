@@ -111,8 +111,12 @@ struct DashboardView: View {
                     Label("Adicionar moto", systemImage: "plus")
                 }
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "motorcycle")
+                HStack(spacing: 6) {
+                    if let logo = moto.logoAsset {
+                        BrandLogoTile(assetName: logo, size: 22)
+                    } else {
+                        Image(systemName: "motorcycle")
+                    }
                     Text(moto.model)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
@@ -399,20 +403,30 @@ struct DashboardView: View {
     }
 
     private func metricsGrid(_ summary: ConsumptionSummary, moto: Motorcycle) -> some View {
-        // Ícones neutros (.secondary): cor reservada a sinal real, não decoração.
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        // Séries de tendência para as sparklines (estilo Fitness). Custo/km e
+        // preço/L têm tendência útil; gasto/mês idem. Hodômetro só sobe → sem
+        // sparkline (linha reta crescente não informa nada — anti-Fitness).
+        let expense = moto.monthlyExpenseSeries()
+        // Número = km do mês-civil atual; barras = km por SEMANA (densas, estilo
+        // Fitness) com grid + rótulos de mês. Hodômetro absoluto saiu da grade
+        // (estado da moto; segue no perfil e no card de último abastecimento).
+        let distanceThisMonth = moto.distanceThisMonth()
+        let weeklyBars = moto.weeklyDistanceSeries()
+        // Sem ícones (padrão Fitness: mini-cards de estatística não usam ícone —
+        // só número grande + rótulo + mini-gráfico).
+        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             MetricTile(label: "Custo por km",
                        value: summary.costPerKm.map(AppFormat.currency) ?? "—",
-                       systemImage: "brazilianrealsign.circle")
-            MetricTile(label: "Distância medida",
-                       value: AppFormat.km(summary.totalDistance),
-                       systemImage: "ruler")
-            MetricTile(label: "Hodômetro",
-                       value: AppFormat.km(moto.currentOdometer),
-                       systemImage: "gauge.with.dots.needle.bottom.50percent")
-            MetricTile(label: "Abastecimentos",
-                       value: moto.fuelLogs.count.formatted(),
-                       systemImage: "fuelpump")
+                       sparkline: moto.costPerKmSeries)
+            MetricTile(label: "Gasto este mês",
+                       value: AppFormat.currency(expense.last?.total ?? 0),
+                       sparkline: expense.map(\.total))
+            MetricTile(label: "Rodados este mês",
+                       value: AppFormat.km(distanceThisMonth),
+                       distanceBars: weeklyBars)
+            MetricTile(label: "Preço médio/L",
+                       value: moto.averagePricePerLiter.map(AppFormat.currency) ?? "—",
+                       sparkline: moto.pricePerLiterSeries)
         }
     }
 
