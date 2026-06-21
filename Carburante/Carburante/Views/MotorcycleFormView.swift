@@ -23,8 +23,11 @@ struct MotorcycleFormView: View {
     @State private var year: Int = Calendar.current.component(.year, from: Date())
     @State private var country: String = "Brasil"
     @State private var currentOdometer: Double = 0
+    @State private var category: MotorcycleCategory = .street
+    @State private var displacementCC: Int?
     @State private var saveError: String?
     @FocusState private var odometerFocused: Bool
+    @FocusState private var displacementFocused: Bool
 
     private var isEditing: Bool { motorcycle != nil }
 
@@ -39,6 +42,7 @@ struct MotorcycleFormView: View {
         !effectiveMake.trimmingCharacters(in: .whitespaces).isEmpty
             && !model.trimmingCharacters(in: .whitespaces).isEmpty
             && !country.trimmingCharacters(in: .whitespaces).isEmpty
+            && (displacementCC ?? 0) > 0
     }
 
     private let yearRange = Array(1950...Calendar.current.component(.year, from: Date()) + 1).reversed()
@@ -62,6 +66,18 @@ struct MotorcycleFormView: View {
                         ForEach(yearRange, id: \.self) { y in
                             Text(String(y)).tag(y)
                         }
+                    }
+                    Picker("Categoria", selection: $category) {
+                        ForEach(MotorcycleCategory.allCases) { cat in
+                            Text(cat.label).tag(cat)
+                        }
+                    }
+                    HStack {
+                        TextField("Cilindrada", value: $displacementCC, format: .number)
+                            .keyboardType(.numberPad)
+                            .focused($displacementFocused)
+                        Text("cc")
+                            .foregroundStyle(.secondary)
                     }
                     LabeledContent("País") {
                         TextField("País", text: $country)
@@ -99,7 +115,10 @@ struct MotorcycleFormView: View {
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Concluir") { odometerFocused = false }
+                    Button("Concluir") {
+                        odometerFocused = false
+                        displacementFocused = false
+                    }
                 }
             }
             .onAppear(perform: loadIfEditing)
@@ -120,6 +139,8 @@ struct MotorcycleFormView: View {
         year = m.year
         country = m.country
         currentOdometer = m.currentOdometer
+        category = m.categoryEnum ?? .street
+        displacementCC = m.displacementCC
     }
 
     private func save() {
@@ -133,13 +154,17 @@ struct MotorcycleFormView: View {
             m.year = year
             m.country = trimmedCountry
             m.currentOdometer = currentOdometer
+            m.categoryEnum = category
+            m.displacementCC = displacementCC
         } else {
             let new = Motorcycle(
                 make: trimmedMake,
                 model: trimmedModel,
                 year: year,
                 country: trimmedCountry,
-                currentOdometer: currentOdometer
+                currentOdometer: currentOdometer,
+                category: category.rawValue,
+                displacementCC: displacementCC
             )
             modelContext.insert(new)
         }
