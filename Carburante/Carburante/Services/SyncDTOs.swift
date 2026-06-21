@@ -37,8 +37,11 @@ struct FuelLogDTO: Codable {
     let country: String?
     let temperature_c: Double?
     let receipt_image_url: String?
+    let odometer_photo_url: String?
     let ocr_processed: Bool
     let ocr_confidence: Double?
+    let date_was_edited: Bool
+    let location_was_edited: Bool
 }
 
 struct MaintenanceLogDTO: Codable {

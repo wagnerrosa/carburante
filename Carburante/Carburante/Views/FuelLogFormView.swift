@@ -105,6 +105,17 @@ struct FuelLogFormView: View {
     }
 
     var body: some View {
+        // Registro NOVO usa o fluxo progressivo (foco PIX); edição mantém o
+        // Form clássico — editar log histórico não se beneficia do passo a passo
+        // e relaxa a regra monotônica do hodômetro.
+        if fuelLog == nil {
+            FuelEntryFlowView(motorcycle: motorcycle)
+        } else {
+            editForm
+        }
+    }
+
+    private var editForm: some View {
         NavigationStack {
             Form {
                 // Identidade da moto — abrindo do Resumo (com seletor) não fica

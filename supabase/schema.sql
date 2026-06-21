@@ -50,10 +50,20 @@ create table if not exists public.fuel_logs (
     country           text,
     temperature_c     double precision,
     receipt_image_url text,
+    odometer_photo_url text,
     ocr_processed     boolean not null default false,
     ocr_confidence    double precision,
+    -- Proveniência / auditoria (base anti-burla dos desafios Iron Butt):
+    -- marca se o usuário alterou manualmente a data ou o local auto-capturado.
+    date_was_edited     boolean not null default false,
+    location_was_edited boolean not null default false,
     created_at        timestamptz not null default now()
 );
+
+-- Migração de tabelas já criadas (rodar uma vez; no-op se já existem):
+alter table public.fuel_logs add column if not exists odometer_photo_url text;
+alter table public.fuel_logs add column if not exists date_was_edited boolean not null default false;
+alter table public.fuel_logs add column if not exists location_was_edited boolean not null default false;
 create index if not exists fuel_logs_user_id_idx on public.fuel_logs (user_id);
 create index if not exists fuel_logs_motorcycle_id_idx on public.fuel_logs (motorcycle_id);
 

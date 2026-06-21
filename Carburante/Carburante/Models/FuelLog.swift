@@ -49,8 +49,19 @@ final class FuelLog {
 
     // Metadados OCR — nulo no MVP (Fase 6).
     var receiptImageURL: String?
+    /// URL/caminho da foto do hodômetro (comprovante de leitura). Nulo no MVP —
+    /// quando o Storage existir, guarda a foto que prova o km rodado (base para
+    /// o diff foto-anterior e auditoria anti-burla dos desafios Iron Butt).
+    var odometerPhotoURL: String?
     var ocrProcessed: Bool
     var ocrConfidence: Double?
+
+    // Proveniência / auditoria — base anti-burla (desafios Iron Butt no futuro).
+    // Marca se o usuário alterou MANUALMENTE o contexto auto-capturado: uma data
+    // ou local mexido à mão é sinal de possível fraude num desafio de distância.
+    // Default false (zero migração quebrada — mesmo padrão de `isFullTank`).
+    var dateWasEdited: Bool = false
+    var locationWasEdited: Bool = false
 
     var createdAt: Date
 
