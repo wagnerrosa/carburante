@@ -315,6 +315,139 @@ final class CarburanteTests: XCTestCase {
         DateComponents(calendar: .current, year: y, month: m, day: d).date!
     }
 
+    // MARK: - Métricas do Resumo (séries das sparklines)
+
+    /// FuelEntry com data explícita (ano/mês/dia) — para as séries por mês.
+    private func entryOn(_ y: Int, _ m: Int, _ d: Int, odo: Double, liters: Double, cost: Double) -> FuelEntry {
+        FuelEntry(odometer: odo, liters: liters, totalCost: cost, isFullTank: true, date: day(y, m, d))
+    }
+
+    /// Gasto por mês: soma por mês-civil, janela de N meses até `now`, com zeros.
+    func testMonthlyExpenseBucketsAndZeros() {
+        let entries = [
+            entryOn(2026, 4, 5,  odo: 1000, liters: 10, cost: 50),
+            entryOn(2026, 4, 20, odo: 1100, liters: 10, cost: 60),   // mesmo mês → soma 110
+            entryOn(2026, 6, 3,  odo: 1300, liters: 10, cost: 80),   // mai. fica zero
+        ]
+        let series = ConsumptionCalculator.monthlyExpense(
+            from: entries, monthCount: 3, now: day(2026, 6, 18))
+        XCTAssertEqual(series.count, 3)
+        XCTAssertEqual(series.map(\.total), [110, 0, 80])   // abr, mai, jun
+    }
+
+    /// Abastecimentos fora da janela não entram.
+    func testMonthlyExpenseIgnoresOutsideWindow() {
+        let entries = [
+            entryOn(2026, 1, 5, odo: 900, liters: 10, cost: 999),   // fora (jan, janela = abr-jun)
+            entryOn(2026, 6, 3, odo: 1300, liters: 10, cost: 80),
+        ]
+        let series = ConsumptionCalculator.monthlyExpense(
+            from: entries, monthCount: 3, now: day(2026, 6, 18))
+        XCTAssertEqual(series.map(\.total), [0, 0, 80])
+    }
+
+    /// km rodados/mês: delta do maior odômetro de cada mês vs. mês anterior.
+    func testMonthlyDistanceDeltasWithBaseline() {
+        let entries = [
+            entryOn(2026, 3, 10, odo: 1000, liters: 10, cost: 0),   // baseline (fora da janela abr-jun)
+            entryOn(2026, 4, 10, odo: 1400, liters: 10, cost: 0),   // abr: 1400-1000 = 400
+            entryOn(2026, 4, 25, odo: 1600, liters: 10, cost: 0),   // ainda abr, fecha em 1600 → 600
+            entryOn(2026, 6, 5,  odo: 2000, liters: 10, cost: 0),   // mai vazio (0); jun: 2000-1600 = 400
+        ]
+        let series = ConsumptionCalculator.monthlyDistance(
+            from: entries, monthCount: 3, now: day(2026, 6, 18))
+        XCTAssertEqual(series.map(\.distance), [600, 0, 400])   // abr, mai, jun
+    }
+
+    /// Sem baseline (nenhum abastecimento antes da janela) o 1º mês fica 0.
+    func testMonthlyDistanceNoBaselineFirstMonthZero() {
+        let entries = [
+            entryOn(2026, 4, 10, odo: 1000, liters: 10, cost: 0),   // 1º da história → âncora, delta 0
+            entryOn(2026, 5, 10, odo: 1250, liters: 10, cost: 0),   // mai: 250
+        ]
+        let series = ConsumptionCalculator.monthlyDistance(
+            from: entries, monthCount: 3, now: day(2026, 6, 18))
+        XCTAssertEqual(series.map(\.distance), [0, 250, 0])   // abr, mai, jun(vazio)
+    }
+
+    /// Distância semanal: nº de barras = weekCount, e a soma dos deltas iguala
+    /// (último odômetro − baseline) — robusto à fronteira de semana do locale.
+    func testWeeklyDistanceCountAndTotal() {
+        let entries = [
+            entryOn(2026, 4, 1,  odo: 1000, liters: 10, cost: 0),   // baseline (antes da janela de 4 semanas até 18/jun? não — ver below)
+            entryOn(2026, 6, 1,  odo: 1200, liters: 10, cost: 0),
+            entryOn(2026, 6, 15, odo: 1500, liters: 10, cost: 0),
+        ]
+        let bars = ConsumptionCalculator.weeklyDistance(
+            from: entries, weekCount: 4, now: day(2026, 6, 18))
+        XCTAssertEqual(bars.count, 4)
+        // Janela = 4 semanas até 18/jun (≈ 21/mai–18/jun). Baseline = maior odômetro
+        // antes dela (1200, do dia 1/jun? não — 1/jun pode cair na janela). Asserção
+        // robusta: nenhum delta negativo e total ≤ distância total da história.
+        XCTAssertTrue(bars.allSatisfy { $0.distance >= 0 })
+        let total = bars.reduce(0) { $0 + $1.distance }
+        XCTAssertLessThanOrEqual(total, 500)   // 1500 − 1000 (toda a história)
+        XCTAssertGreaterThan(total, 0)
+    }
+
+    /// A 1ª barra nunca é rotulada (evita "djan." colado na borda); rótulos só
+    /// nas transições de mês seguintes.
+    func testWeeklyDistanceFirstBarUnlabeled() {
+        let entries = [entryOn(2026, 6, 1, odo: 1000, liters: 10, cost: 0)]
+        let bars = ConsumptionCalculator.weeklyDistance(
+            from: entries, weekCount: 8, now: day(2026, 6, 18))
+        XCTAssertNil(bars.first?.monthLabel)
+        // Numa janela de 8 semanas há ao menos uma virada de mês → ≥ 1 rótulo.
+        XCTAssertGreaterThanOrEqual(bars.compactMap(\.monthLabel).count, 1)
+    }
+
+    /// Preço/L por abastecimento, ordenado por data, ignora litros zero.
+    func testPricePerLiterSeriesOrdered() {
+        let entries = [
+            entryOn(2026, 5, 1, odo: 1100, liters: 10, cost: 60),   // 6,0
+            entryOn(2026, 4, 1, odo: 1000, liters: 10, cost: 55),   // 5,5 (data anterior → vem antes)
+            entryOn(2026, 6, 1, odo: 1200, liters: 0,  cost: 10),   // litros 0 → some
+        ]
+        let series = ConsumptionCalculator.pricePerLiterSeries(from: entries)
+        XCTAssertEqual(series, [5.5, 6.0])
+    }
+
+    /// Anel de óleo: progresso = km rodados no intervalo ÷ 3.000.
+    func testOilProgressMidway() {
+        // troca @ 5000, atual 6500 → rodou 1500 de 3000 = 0,5.
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 6500, now: day(2026, 6, 10))
+        XCTAssertEqual(status?.kmIntoInterval, 1500)
+        XCTAssertEqual(status?.progress ?? 0, 0.5, accuracy: 0.0001)
+    }
+
+    /// Vencido por km → progresso satura em 1 (anel cheio).
+    func testOilProgressSaturatesWhenOverdue() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 9000, now: day(2026, 6, 10))
+        XCTAssertEqual(status?.progress, 1)
+        XCTAssertEqual(status?.isOverdue, true)
+    }
+
+    /// Logo após a troca → progresso ~0 (não negativo).
+    func testOilProgressZeroAtStart() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 5000, now: day(2026, 6, 2))
+        XCTAssertEqual(status?.kmIntoInterval, 0)
+        XCTAssertEqual(status?.progress, 0)
+    }
+
+    /// Custo/km por segmento full-to-full, mais antigo → mais novo.
+    func testCostPerKmSeries() {
+        let entries = [
+            entryOn(2026, 4, 1, odo: 1000, liters: 10, cost: 0),    // âncora
+            entryOn(2026, 5, 1, odo: 1100, liters: 10, cost: 50),   // seg 1: 50/100 = 0,5
+            entryOn(2026, 6, 1, odo: 1300, liters: 10, cost: 80),   // seg 2: 80/200 = 0,4
+        ]
+        let series = ConsumptionCalculator.costPerKmSeries(from: entries)
+        XCTAssertEqual(series, [0.5, 0.4])
+    }
+
     func testOilStatusNilWithoutHistory() {
         let status = MaintenanceSchedule.oilChangeStatus(
             lastOilDate: nil, lastOilMileage: nil, currentMileage: 5000, now: day(2026, 6, 18))

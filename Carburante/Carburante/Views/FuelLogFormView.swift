@@ -105,13 +105,28 @@ struct FuelLogFormView: View {
     }
 
     var body: some View {
+        // Registro NOVO usa o fluxo progressivo (foco PIX); edição mantém o
+        // Form clássico — editar log histórico não se beneficia do passo a passo
+        // e relaxa a regra monotônica do hodômetro.
+        if fuelLog == nil {
+            FuelEntryFlowView(motorcycle: motorcycle)
+        } else {
+            editForm
+        }
+    }
+
+    private var editForm: some View {
         NavigationStack {
             Form {
                 // Identidade da moto — abrindo do Resumo (com seletor) não fica
                 // claro pra qual moto é o registro; esta linha confirma.
                 Section {
                     HStack(spacing: 12) {
-                        IconTile(systemName: "motorcycle", tint: .blue, size: 34)
+                        if let logo = motorcycle.logoAsset {
+                            BrandLogoTile(assetName: logo, size: 34)
+                        } else {
+                            IconTile(systemName: "motorcycle", tint: motorcycle.themeColor, size: 34)
+                        }
                         VStack(alignment: .leading, spacing: 1) {
                             Text(motorcycle.displayName)
                                 .font(.headline)
@@ -179,6 +194,21 @@ struct FuelLogFormView: View {
                     }
                 }
 
+                if let log = fuelLog, let lat = log.latitude, let lon = log.longitude {
+                    Section {
+                        FuelLocationMap(latitude: lat, longitude: lon, label: log.city ?? "Abastecimento")
+                            .listRowInsets(EdgeInsets())
+                    } header: {
+                        Text("Local")
+                    } footer: {
+                        if let place = [log.city, log.state].compactMap({ $0 }).first {
+                            Text(place)
+                        } else {
+                            Text("Onde você abasteceu. Toque para abrir no Mapas.")
+                        }
+                    }
+                }
+
                 if let warning = odometerWarning {
                     Section {
                         Label(warning, systemImage: "exclamationmark.triangle")
@@ -195,6 +225,7 @@ struct FuelLogFormView: View {
             }
             .navigationTitle(isEditing ? "Editar" : "Abastecimento")
             .navigationBarTitleDisplayMode(.inline)
+            .tint(motorcycle.themeColor)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") { dismiss() }

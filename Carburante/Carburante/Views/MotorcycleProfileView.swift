@@ -35,7 +35,7 @@ struct MotorcycleProfileView: View {
                     showingFuelLog = true
                 } label: {
                     HStack(spacing: 12) {
-                        IconTile(systemName: "fuelpump.fill", tint: .green)
+                        IconTile(systemName: "fuelpump.fill")
                         Text("Novo abastecimento")
                     }
                 }
@@ -45,19 +45,21 @@ struct MotorcycleProfileView: View {
                 NavigationLink {
                     FuelLogListView(motorcycle: motorcycle)
                 } label: {
-                    navRow(icon: "list.bullet", tint: .blue,
+                    navRow(icon: "list.bullet",
                            title: "Abastecimentos", count: motorcycle.fuelLogs.count)
                 }
                 NavigationLink {
                     MaintenanceListView(motorcycle: motorcycle)
                 } label: {
-                    navRow(icon: "wrench.and.screwdriver.fill", tint: .orange,
+                    navRow(icon: "wrench.and.screwdriver.fill",
                            title: "Manutenções", count: motorcycle.maintenanceLogs.count)
                 }
             }
         }
         .navigationTitle(motorcycle.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        // Perfil desta moto usa o tema da própria moto.
+        .tint(motorcycle.themeColor)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Editar") { showingEdit = true }
@@ -71,9 +73,9 @@ struct MotorcycleProfileView: View {
         }
     }
 
-    private func navRow(icon: String, tint: Color, title: String, count: Int) -> some View {
+    private func navRow(icon: String, title: String, count: Int) -> some View {
         HStack(spacing: 12) {
-            IconTile(systemName: icon, tint: tint)
+            IconTile(systemName: icon)
             Text(title)
             Spacer()
             Text(count.formatted())

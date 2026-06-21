@@ -11,3 +11,6 @@ DerivedData/
 build/
 *.xcscmblueprint
 .DS_Store
+
+telas/
+logos/

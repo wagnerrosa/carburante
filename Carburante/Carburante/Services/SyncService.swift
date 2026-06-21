@@ -79,8 +79,9 @@ final class SyncService {
                         fuel_type: f.fuelTypeRaw, is_full_tank: f.isFullTank,
                         latitude: f.latitude, longitude: f.longitude, city: f.city,
                         state: f.state, country: f.country, temperature_c: f.temperatureC,
-                        receipt_image_url: f.receiptImageURL, ocr_processed: f.ocrProcessed,
-                        ocr_confidence: f.ocrConfidence
+                        receipt_image_url: f.receiptImageURL, odometer_photo_url: f.odometerPhotoURL,
+                        ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
+                        date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited
                     )
                 }
             }

@@ -31,9 +31,24 @@ struct ConsumptionSegment: Equatable {
     let cost: Double
     /// data do cheio que fecha o segmento (eixo X dos gráficos / filtro de período).
     let endDate: Date
+    /// odômetro do cheio que fecha o segmento — casa o segmento ao `FuelLog`
+    /// correspondente (pílula de km/l no histórico).
+    let endOdometer: Double
 
     /// km por litro.
     var kmPerLiter: Double { liters > 0 ? distance / liters : 0 }
+}
+
+/// Uma barra do mini-gráfico de distância (km rodados num período — semana).
+/// `monthLabel` não-nil marca a 1ª barra de um mês-âncora → vira rótulo no eixo
+/// X (ex.: "jan."), no estilo Fitness que rotula só alguns pontos.
+struct DistanceBar: Equatable {
+    /// Início do período (semana) que a barra cobre.
+    let start: Date
+    /// km rodados na semana (delta de odômetro).
+    let distance: Double
+    /// Rótulo de mês quando esta barra abre um mês-âncora; nil caso contrário.
+    let monthLabel: String?
 }
 
 /// Resumo agregado para uma moto.
@@ -67,6 +82,51 @@ extension Motorcycle {
     var latestFuelLog: FuelLog? {
         fuelLogs.max { $0.date < $1.date }
     }
+
+    // MARK: - Métricas do Resumo (gasto / preço por litro)
+
+    /// Gasto somado por mês para a sparkline (últimos 6 meses, com zeros).
+    func monthlyExpenseSeries(now: Date = Date()) -> [(month: Date, total: Double)] {
+        ConsumptionCalculator.monthlyExpense(from: fuelLogs.map(\.asFuelEntry), now: now)
+    }
+
+    /// Gasto do mês-civil atual.
+    func expenseThisMonth(now: Date = Date()) -> Double {
+        monthlyExpenseSeries(now: now).last?.total ?? 0
+    }
+
+    /// Preço por litro de cada abastecimento (série da sparkline).
+    var pricePerLiterSeries: [Double] {
+        ConsumptionCalculator.pricePerLiterSeries(from: fuelLogs.map(\.asFuelEntry))
+    }
+
+    /// Preço médio por litro = gasto total ÷ litros totais (ponderado pelo
+    /// volume, não média simples dos preços). nil sem litros.
+    var averagePricePerLiter: Double? {
+        let liters = fuelLogs.reduce(0) { $0 + $1.liters }
+        let cost = fuelLogs.reduce(0) { $0 + $1.totalCost }
+        return liters > 0 ? cost / liters : nil
+    }
+
+    /// Custo por km de cada segmento (série da sparkline do tile Custo/km).
+    var costPerKmSeries: [Double] {
+        ConsumptionCalculator.costPerKmSeries(from: fuelLogs.map(\.asFuelEntry))
+    }
+
+    /// km rodados por mês.
+    func monthlyDistanceSeries(now: Date = Date()) -> [(month: Date, distance: Double)] {
+        ConsumptionCalculator.monthlyDistance(from: fuelLogs.map(\.asFuelEntry), now: now)
+    }
+
+    /// km rodados por semana (barras densas do tile "Rodados", estilo Fitness).
+    func weeklyDistanceSeries(now: Date = Date()) -> [DistanceBar] {
+        ConsumptionCalculator.weeklyDistance(from: fuelLogs.map(\.asFuelEntry), now: now)
+    }
+
+    /// km rodados no mês-civil atual (número grande do tile).
+    func distanceThisMonth(now: Date = Date()) -> Double {
+        monthlyDistanceSeries(now: now).last?.distance ?? 0
+    }
 }
 
 enum ConsumptionCalculator {
@@ -97,7 +157,8 @@ enum ConsumptionCalculator {
                             distance: distance,
                             liters: litersSinceAnchor,
                             cost: costSinceAnchor,
-                            endDate: entry.date
+                            endDate: entry.date,
+                            endOdometer: entry.odometer
                         ))
                     }
                     anchor = entry
@@ -113,6 +174,153 @@ enum ConsumptionCalculator {
         }
 
         return segments
+    }
+
+    // MARK: - Séries para os mini-gráficos do Resumo
+    //
+    // Despesa e preço/litro valem por ABASTECIMENTO (não dependem de tanque
+    // cheio, ao contrário do consumo). Funções puras, ordenam internamente,
+    // recebem `now`/`calendar` por parâmetro → testáveis e determinísticas.
+
+    /// Gasto somado por mês-civil, dos `monthCount` meses até `now` (inclusive),
+    /// na ordem mais antigo → mais novo. Meses sem abastecimento entram com 0
+    /// (série contínua → sparkline sem buracos). O `Date` é o 1º dia do mês.
+    static func monthlyExpense(
+        from entries: [FuelEntry],
+        monthCount: Int = 6,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [(month: Date, total: Double)] {
+        guard monthCount > 0 else { return [] }
+        let thisMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        // Eixo de meses: thisMonth, mês anterior, … (monthCount posições).
+        let months: [Date] = (0..<monthCount).reversed().compactMap {
+            calendar.date(byAdding: .month, value: -$0, to: thisMonth)
+        }
+        // Soma os gastos no balde do mês correspondente.
+        var totals: [Date: Double] = Dictionary(uniqueKeysWithValues: months.map { ($0, 0) })
+        for e in entries {
+            guard let m = calendar.dateInterval(of: .month, for: e.date)?.start,
+                  totals[m] != nil else { continue }
+            totals[m, default: 0] += e.totalCost
+        }
+        return months.map { (month: $0, total: totals[$0] ?? 0) }
+    }
+
+    /// km rodados por mês-civil, dos `monthCount` meses até `now` (inclusive),
+    /// mais antigo → mais novo. Como o odômetro é cumulativo, os km de um mês =
+    /// (maior odômetro lido nesse mês) − (último odômetro conhecido antes dele).
+    /// Mês sem abastecimento → 0 (nenhuma leitura nova). Para a sparkline de
+    /// barras "rodados por mês".
+    static func monthlyDistance(
+        from entries: [FuelEntry],
+        monthCount: Int = 6,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [(month: Date, distance: Double)] {
+        guard monthCount > 0 else { return [] }
+        let thisMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        let months: [Date] = (0..<monthCount).reversed().compactMap {
+            calendar.date(byAdding: .month, value: -$0, to: thisMonth)
+        }
+        guard let firstMonth = months.first else { return [] }
+
+        let ordered = entries.sorted { $0.odometer < $1.odometer }
+        // Maior odômetro lido em cada mês da janela.
+        var maxByMonth: [Date: Double] = [:]
+        // Baseline = último odômetro ANTES da janela (para o 1º mês ter referência).
+        var baseline: Double?
+        for e in ordered {
+            guard let m = calendar.dateInterval(of: .month, for: e.date)?.start else { continue }
+            if m < firstMonth {
+                baseline = e.odometer            // ordenado por odômetro → fica o maior
+            } else if maxByMonth[m] != nil || months.contains(m) {
+                maxByMonth[m] = max(maxByMonth[m] ?? 0, e.odometer)
+            }
+        }
+
+        // Caminha os meses acumulando: cada mês fecha no seu maior odômetro;
+        // meses vazios herdam o anterior (delta 0).
+        var prev = baseline
+        return months.map { month in
+            let end = maxByMonth[month] ?? prev
+            let dist: Double = {
+                guard let end, let p = prev else { return 0 }
+                return max(end - p, 0)
+            }()
+            if let end { prev = end }
+            return (month: month, distance: dist)
+        }
+    }
+
+    /// km rodados por SEMANA, das `weekCount` semanas até `now` (inclusive),
+    /// mais antigo → mais novo. Mesma lógica de delta de odômetro do
+    /// `monthlyDistance`, mas em baldes semanais → barras densas (estilo
+    /// Fitness). Cada barra ganha `monthLabel` na 1ª semana de um mês novo, para
+    /// rotular o eixo X só em pontos-âncora. `locale` formata o rótulo do mês.
+    static func weeklyDistance(
+        from entries: [FuelEntry],
+        weekCount: Int = 26,
+        now: Date,
+        calendar: Calendar = .current,
+        locale: Locale = AppFormat.locale
+    ) -> [DistanceBar] {
+        guard weekCount > 0 else { return [] }
+        let thisWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        let weeks: [Date] = (0..<weekCount).reversed().compactMap {
+            calendar.date(byAdding: .weekOfYear, value: -$0, to: thisWeek)
+        }
+        guard let firstWeek = weeks.first else { return [] }
+
+        let ordered = entries.sorted { $0.odometer < $1.odometer }
+        // Maior odômetro lido em cada semana da janela + baseline antes dela.
+        var maxByWeek: [Date: Double] = [:]
+        var baseline: Double?
+        let weekSet = Set(weeks)
+        for e in ordered {
+            guard let w = calendar.dateInterval(of: .weekOfYear, for: e.date)?.start else { continue }
+            if w < firstWeek {
+                baseline = e.odometer
+            } else if weekSet.contains(w) {
+                maxByWeek[w] = max(maxByWeek[w] ?? 0, e.odometer)
+            }
+        }
+
+        var prev = baseline
+        // Inicia no mês da 1ª semana → a 1ª barra NÃO é rotulada (senão dois meses
+        // colam na borda esquerda, ex.: "dez"+"jan"="djan"). Rótulo só nas
+        // transições de mês dentro da janela — como o Fitness rotula só alguns X.
+        var lastMonth = weeks.first.map { calendar.component(.month, from: $0) } ?? -1
+        return weeks.map { week in
+            let end = maxByWeek[week] ?? prev
+            let dist: Double = {
+                guard let end, let p = prev else { return 0 }
+                return max(end - p, 0)
+            }()
+            if let end { prev = end }
+            let month = calendar.component(.month, from: week)
+            let label: String? = month != lastMonth
+                ? week.formatted(.dateTime.month(.abbreviated).locale(locale))
+                : nil
+            lastMonth = month
+            return DistanceBar(start: week, distance: dist, monthLabel: label)
+        }
+    }
+
+    /// Preço por litro de cada abastecimento (mais antigo → mais novo), só os
+    /// com litros > 0. Para a sparkline de tendência de preço.
+    static func pricePerLiterSeries(from entries: [FuelEntry]) -> [Double] {
+        entries
+            .sorted { $0.date < $1.date }
+            .compactMap { $0.liters > 0 ? $0.totalCost / $0.liters : nil }
+    }
+
+    /// Custo por km de cada segmento full-to-full (mais antigo → mais novo).
+    /// Para a sparkline do tile "Custo por km".
+    static func costPerKmSeries(from entries: [FuelEntry]) -> [Double] {
+        segments(from: entries)
+            .sorted { $0.endDate < $1.endDate }
+            .compactMap { $0.distance > 0 ? $0.cost / $0.distance : nil }
     }
 
     /// Resumo agregado. `averageKmPerLiter` é nil quando não há segmento medível.

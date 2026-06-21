@@ -61,6 +61,9 @@ struct MaintenanceListView: View {
         }
         .navigationTitle("Manutenções")
         .navigationBarTitleDisplayMode(.inline)
+        // Botões/links usam o tema desta moto; ícones de tipo (IconTile)
+        // mantêm sua cor semântica própria.
+        .tint(motorcycle.themeColor)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

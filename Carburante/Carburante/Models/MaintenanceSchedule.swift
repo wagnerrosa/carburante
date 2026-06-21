@@ -21,6 +21,17 @@ struct OilChangeStatus: Equatable {
     let kmRemaining: Double
     /// já passou do ponto (por km ou por data)?
     let isOverdue: Bool
+
+    /// km já rodados no intervalo atual (rumo aos 3.000). Saturado em ≥ 0.
+    var kmIntoInterval: Double {
+        max(MaintenanceSchedule.oilIntervalKm - kmRemaining, 0)
+    }
+
+    /// Progresso 0…1 rumo à próxima troca (para o anel do Fitness). Satura em 1
+    /// quando vencido — o anel cheio + a cor já comunicam o estouro.
+    var progress: Double {
+        min(kmIntoInterval / MaintenanceSchedule.oilIntervalKm, 1)
+    }
 }
 
 extension Motorcycle {
