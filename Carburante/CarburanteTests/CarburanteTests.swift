@@ -412,6 +412,31 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(series, [5.5, 6.0])
     }
 
+    /// Anel de óleo: progresso = km rodados no intervalo ÷ 3.000.
+    func testOilProgressMidway() {
+        // troca @ 5000, atual 6500 → rodou 1500 de 3000 = 0,5.
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 6500, now: day(2026, 6, 10))
+        XCTAssertEqual(status?.kmIntoInterval, 1500)
+        XCTAssertEqual(status?.progress ?? 0, 0.5, accuracy: 0.0001)
+    }
+
+    /// Vencido por km → progresso satura em 1 (anel cheio).
+    func testOilProgressSaturatesWhenOverdue() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 9000, now: day(2026, 6, 10))
+        XCTAssertEqual(status?.progress, 1)
+        XCTAssertEqual(status?.isOverdue, true)
+    }
+
+    /// Logo após a troca → progresso ~0 (não negativo).
+    func testOilProgressZeroAtStart() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 5000, now: day(2026, 6, 2))
+        XCTAssertEqual(status?.kmIntoInterval, 0)
+        XCTAssertEqual(status?.progress, 0)
+    }
+
     /// Custo/km por segmento full-to-full, mais antigo → mais novo.
     func testCostPerKmSeries() {
         let entries = [

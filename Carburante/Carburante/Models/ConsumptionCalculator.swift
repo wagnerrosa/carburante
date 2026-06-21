@@ -31,6 +31,9 @@ struct ConsumptionSegment: Equatable {
     let cost: Double
     /// data do cheio que fecha o segmento (eixo X dos gráficos / filtro de período).
     let endDate: Date
+    /// odômetro do cheio que fecha o segmento — casa o segmento ao `FuelLog`
+    /// correspondente (pílula de km/l no histórico).
+    let endOdometer: Double
 
     /// km por litro.
     var kmPerLiter: Double { liters > 0 ? distance / liters : 0 }
@@ -154,7 +157,8 @@ enum ConsumptionCalculator {
                             distance: distance,
                             liters: litersSinceAnchor,
                             cost: costSinceAnchor,
-                            endDate: entry.date
+                            endDate: entry.date,
+                            endOdometer: entry.odometer
                         ))
                     }
                     anchor = entry

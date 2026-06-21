@@ -19,6 +19,21 @@ struct FuelLogListView: View {
         motorcycle.fuelLogs.sorted { $0.date > $1.date }
     }
 
+    /// km/l por abastecimento que FECHA um segmento full-to-full, casado por
+    /// odômetro. Logs sem medição (1º cheio, parcial) não entram → sem pílula.
+    private var kmPerLiterByOdometer: [Double: Double] {
+        Dictionary(
+            ConsumptionCalculator.segments(from: motorcycle.fuelLogs.map(\.asFuelEntry))
+                .map { ($0.endOdometer, $0.kmPerLiter) },
+            uniquingKeysWith: { _, new in new }
+        )
+    }
+
+    /// Média global de consumo — referência para a cor/seta da pílula.
+    private var averageKmPerLiter: Double? {
+        motorcycle.consumptionSummary.averageKmPerLiter
+    }
+
     var body: some View {
         Group {
             if logs.isEmpty {
@@ -31,12 +46,16 @@ struct FuelLogListView: View {
                         .buttonStyle(.borderedProminent)
                 }
             } else {
+                let kmpl = kmPerLiterByOdometer
+                let avg = averageKmPerLiter
                 List {
                     ForEach(logs) { log in
                         Button {
                             editingLog = log
                         } label: {
-                            FuelLogRow(log: log)
+                            FuelLogRow(log: log,
+                                       kmPerLiter: kmpl[log.odometer],
+                                       averageKmPerLiter: avg)
                         }
                         .buttonStyle(.plain)
                     }
@@ -75,6 +94,10 @@ struct FuelLogListView: View {
 
 private struct FuelLogRow: View {
     let log: FuelLog
+    /// km/l deste abastecimento (nil se não fecha um segmento medível).
+    var kmPerLiter: Double?
+    /// Média global — referência para cor/seta da pílula.
+    var averageKmPerLiter: Double?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -94,8 +117,12 @@ private struct FuelLogRow: View {
                     Text("•")
                     Text(AppFormat.currency(log.totalCost))
                     Spacer()
-                    Text(log.fuelType.rawValue)
-                        .foregroundStyle(.secondary)
+                    if let kmPerLiter {
+                        VariationPill(kmPerLiter: kmPerLiter, average: averageKmPerLiter)
+                    } else {
+                        Text(log.fuelType.rawValue)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .font(.subheadline)
                 .monospacedDigit()
@@ -109,5 +136,33 @@ private struct FuelLogRow: View {
         }
         .padding(.vertical, 2)
         .contentShape(.rect)
+    }
+}
+
+/// Pílula de variação de consumo (estilo app Bolsa): km/l do abastecimento +
+/// seta ↑/↓ comparando à média. Verde ≥ média, vermelho < média. Usa seta
+/// ALÉM da cor (acessível a daltônicos). Cor semântica — não segue o tema.
+private struct VariationPill: View {
+    let kmPerLiter: Double
+    var average: Double?
+
+    var body: some View {
+        // Sem média (1 só segmento) → neutro, sem julgar acima/abaixo.
+        let above = average.map { kmPerLiter >= $0 }
+        let color: Color = above == nil ? .secondary : (above! ? .green : .red)
+        let symbol = above == nil ? nil : (above! ? "arrow.up" : "arrow.down")
+
+        HStack(spacing: 2) {
+            if let symbol {
+                Image(systemName: symbol).font(.caption2.weight(.bold))
+            }
+            Text(AppFormat.kmPerLiter(kmPerLiter))
+        }
+        .font(.caption.weight(.semibold))
+        .monospacedDigit()
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(color.opacity(0.14), in: Capsule())
     }
 }

@@ -430,26 +430,56 @@ struct DashboardView: View {
         }
     }
 
+    /// Cor do anel de óleo por progresso (padrão semáforo do Fitness): verde
+    /// folgado → laranja perto → vermelho vencido. Semântica (NÃO segue o tema
+    /// da marca): é sinal de estado, não decoração.
+    private func oilRingColor(_ status: OilChangeStatus) -> Color {
+        if status.isOverdue { return .red }
+        return status.progress >= 0.8 ? .orange : .green
+    }
+
+    /// Card de manutenção no estilo Activity Rings do Fitness: anel de progresso
+    /// (km rodados rumo aos 3.000) à esquerda, com o nº de km no miolo, e o
+    /// resumo (faltam / vencida + data prevista) à direita.
     private func maintenanceCard(_ status: OilChangeStatus) -> some View {
-        GroupedCard {
-            VStack(spacing: 10) {
-                LabeledContent("Próxima troca de óleo") {
-                    Text(AppFormat.km(status.dueMileage)).monospacedDigit()
-                }
-                Divider()
-                if status.isOverdue {
-                    LabeledContent("Situação") {
-                        Text("Vencida").foregroundStyle(.orange).fontWeight(.semibold)
+        let color = oilRingColor(status)
+        return GroupedCard {
+            HStack(spacing: 16) {
+                Gauge(value: status.progress) {
+                    EmptyView()
+                } currentValueLabel: {
+                    VStack(spacing: 0) {
+                        Text(AppFormat.odometer(status.kmIntoInterval))
+                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                            .monospacedDigit()
+                        Text("km")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
-                } else {
-                    LabeledContent("Faltam") {
-                        Text(AppFormat.km(status.kmRemaining)).monospacedDigit()
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
+                .tint(color)
+                .scaleEffect(1.1)
+                .frame(width: 72, height: 72)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    if status.isOverdue {
+                        Label("Troca de óleo vencida", systemImage: "exclamationmark.triangle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(color)
+                    } else {
+                        Text("Faltam \(AppFormat.km(status.kmRemaining))")
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                        Text("até a próxima troca de óleo")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
+                    Text("Prevista para \(AppFormat.date(status.dueDate))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Divider()
-                LabeledContent("Prevista para") {
-                    Text(AppFormat.date(status.dueDate))
-                }
+                Spacer(minLength: 0)
             }
         }
     }
