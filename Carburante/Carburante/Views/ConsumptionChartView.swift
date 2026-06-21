@@ -83,6 +83,12 @@ struct ConsumptionChartView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
+                // Card próprio para a comparação com a categoria (padrão Apple:
+                // gráficos distintos em cards separados, não tudo num só).
+                if let reference = motorcycle.categoryReferenceKmPerLiter {
+                    categoryCard(reference)
+                }
             }
             .padding()
         }
@@ -128,6 +134,93 @@ struct ConsumptionChartView: View {
         return first == last
             ? AppFormat.date(last)
             : "\(AppFormat.date(first)) – \(AppFormat.date(last))"
+    }
+
+    // MARK: - Card de comparação com a categoria
+
+    /// Card dedicado (padrão Apple: um gráfico por card) que compara a média real
+    /// da moto com a estimativa da categoria, via duas barras horizontais de
+    /// comprimento proporcional — verde (tema) = sua moto, cinza = categoria.
+    /// Rotulado como ESTIMATIVA e antecipa as camadas futuras (histórico, peers).
+    private func categoryCard(_ reference: Double) -> some View {
+        let mine = average
+        let delta = mine.map { ($0 - reference) / reference }
+        // Escala comum às duas barras (a maior preenche ~100%).
+        let scale = max(mine ?? 0, reference)
+        return GroupedCard {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 6) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("Comparação com a categoria")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                comparisonBar(label: "Sua moto", value: mine,
+                              scale: scale, color: motorcycle.themeColor)
+                comparisonBar(label: "Média da categoria", value: reference,
+                              scale: scale, color: Color(.systemGray))
+
+                if let delta {
+                    comparisonHeadline(delta)
+                }
+                Text("Estimativa da categoria. Em breve: comparação com seu próprio histórico e com outros pilotos da mesma moto.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    /// Uma linha do card: rótulo + valor à direita, e abaixo a barra horizontal
+    /// proporcional (largura = value / scale). GeometryReader dá a largura útil.
+    private func comparisonBar(label: String, value: Double?, scale: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(value.map { $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale)) } ?? "—")
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                    Text("km/l")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            GeometryReader { geo in
+                let frac = (scale > 0 ? (value ?? 0) / scale : 0)
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color(.systemGray5))
+                    Capsule().fill(color)
+                        .frame(width: max(geo.size.width * frac, frac > 0 ? 8 : 0))
+                }
+            }
+            .frame(height: 10)
+        }
+    }
+
+    /// Frase curta interpretando o delta vs categoria. Faixa de ±5% = "na média"
+    /// (estimativa grosseira não justifica precisão maior).
+    @ViewBuilder
+    private func comparisonHeadline(_ delta: Double) -> some View {
+        let pct = abs(delta * 100).formatted(.number.precision(.fractionLength(0)).locale(AppFormat.locale))
+        let (text, color): (String, Color) = {
+            if delta > 0.05 {
+                return ("Sua moto faz \(pct)% a mais que a média da categoria.", .green)
+            } else if delta < -0.05 {
+                return ("Sua moto faz \(pct)% a menos que a média da categoria.", .orange)
+            } else {
+                return ("Sua moto está na média da categoria.", .secondary)
+            }
+        }()
+        Text(text)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(color)
     }
 
     // MARK: - Gráfico
