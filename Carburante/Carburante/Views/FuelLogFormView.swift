@@ -111,7 +111,11 @@ struct FuelLogFormView: View {
                 // claro pra qual moto é o registro; esta linha confirma.
                 Section {
                     HStack(spacing: 12) {
-                        IconTile(systemName: "motorcycle", tint: motorcycle.themeColor, size: 34)
+                        if let logo = motorcycle.logoAsset {
+                            BrandLogoTile(assetName: logo, size: 34)
+                        } else {
+                            IconTile(systemName: "motorcycle", tint: motorcycle.themeColor, size: 34)
+                        }
                         VStack(alignment: .leading, spacing: 1) {
                             Text(motorcycle.displayName)
                                 .font(.headline)

@@ -19,8 +19,9 @@
 import SwiftUI
 
 enum BrandTheme {
-    /// Accent padrão do app quando a marca não tem cor mapeada.
-    static let `default`: Color = .orange  // iOS systemOrange
+    /// Accent padrão do app quando a marca não tem cor mapeada ("Outra…").
+    /// Azul do sistema (tint padrão do iOS) — neutro e nativo.
+    static let `default`: Color = .blue  // iOS systemBlue
 
     /// Cor de destaque por marca. Tons sólidos derivados das marcas, mas
     /// adaptados ao visual nativo (sem saturação excessiva — legibilidade).
@@ -42,11 +43,38 @@ enum BrandTheme {
     /// Cor de destaque para uma moto. `model` aceito desde já para suportar
     /// override por modelo no futuro (hoje ignorado — decide só pela marca).
     static func color(make: String, model: String? = nil) -> Color {
-        let key = make
-            .folding(options: .diacriticInsensitive, locale: nil)
+        return byMake[normalizedKey(make)] ?? Self.default
+    }
+
+    /// Nome do asset (imageset em `Assets.xcassets/BrandLogos/`) com o logo
+    /// da marca, ou nil se a marca não tem logo no catálogo (cai no ícone
+    /// genérico). Os logos são tiles full-bleed na cor da marca — desenhados
+    /// como ícone de app — então quem desenha só recorta os cantos e aplica
+    /// o brilho glass por cima.
+    private static let logoAssetByMake: [String: String] = [
+        "honda":           "BrandLogos/honda",
+        "yamaha":          "BrandLogos/yamaha",
+        "bmw":             "BrandLogos/bmw",
+        "suzuki":          "BrandLogos/suzuki",
+        "harley-davidson": "BrandLogos/harley-davidson",
+        "royal enfield":   "BrandLogos/royal-enfield",
+        "ducati":          "BrandLogos/ducati",
+        "kawasaki":        "BrandLogos/kawasaki",
+        "triumph":         "BrandLogos/triumph",
+        "ktm":             "BrandLogos/ktm",
+    ]
+
+    /// Asset do logo para uma marca (nil = sem logo → fallback no ícone).
+    static func logoAsset(make: String) -> String? {
+        logoAssetByMake[normalizedKey(make)]
+    }
+
+    /// Chave normalizada (minúscula, sem acento, sem espaço nas pontas) para
+    /// casar `make` mesmo com pequenas variações de grafia.
+    private static func normalizedKey(_ make: String) -> String {
+        make.folding(options: .diacriticInsensitive, locale: nil)
             .lowercased()
             .trimmingCharacters(in: .whitespaces)
-        return byMake[key] ?? Self.default
     }
 }
 
@@ -92,5 +120,10 @@ extension Motorcycle {
     /// Cor de destaque desta moto — fonte única que as telas consomem.
     var themeColor: Color {
         BrandTheme.color(make: make, model: model)
+    }
+
+    /// Asset do logo da marca, ou nil (marca fora do catálogo → ícone genérico).
+    var logoAsset: String? {
+        BrandTheme.logoAsset(make: make)
     }
 }
