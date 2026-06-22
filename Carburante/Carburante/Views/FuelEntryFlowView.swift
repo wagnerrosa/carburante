@@ -436,9 +436,11 @@ struct FuelEntryFlowView: View {
     /// faltam — e por que um abastecimento parcial não fecha a conta.
     @ViewBuilder
     private var fullToFullExplainer: some View {
-        let alreadyFull = motorcycle.fullTanksUntilConsumption   // cheios faltando, sem contar este
-        // Este registro, se cheio, abate 1 da conta (mas nunca abaixo de 0).
-        let remaining = max(alreadyFull - (isFullTank ? 1 : 0), 0)
+        // Quantos cheios salvos já existem, mais este se for cheio.
+        let savedFullTanks = motorcycle.fuelLogs.filter(\.isFullTank).count
+        let afterThisSave = savedFullTanks + (isFullTank ? 1 : 0)
+        // Faltam quantos para 2? (máximo 2, mínimo 0).
+        let remaining = max(2 - afterThisSave, 0)
 
         VStack(spacing: 6) {
             Image(systemName: "fuelpump.circle.fill")

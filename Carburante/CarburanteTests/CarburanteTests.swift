@@ -213,6 +213,26 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: entries), 2)
     }
 
+    /// Valida que consumo headline diz "Registre 2" com 0 cheios e "Falta 1" com 1.
+    func testFullTanksUntilConsistency() {
+        // 0 cheios — faltam 2.
+        var summary = ConsumptionCalculator.summary(from: [])
+        XCTAssertNil(summary.averageKmPerLiter)
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: []), 2)
+
+        // 1 cheio — falta 1.
+        let oneFullTank = [entry(1000, 8)]
+        summary = ConsumptionCalculator.summary(from: oneFullTank)
+        XCTAssertNil(summary.averageKmPerLiter)
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: oneFullTank), 1)
+
+        // 2 cheios com avanço — 0 faltam (consumo existe).
+        let twoFullTanks = [entry(1000, 8), entry(1100, 10)]
+        summary = ConsumptionCalculator.summary(from: twoFullTanks)
+        XCTAssertNotNil(summary.averageKmPerLiter)
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: twoFullTanks), 0)
+    }
+
     /// Entradas fora de ordem são ordenadas por odômetro.
     func testOutOfOrderEntries() {
         let entries = [entry(1200, 8), entry(1000, 10), entry(1100, 5, full: false)]
