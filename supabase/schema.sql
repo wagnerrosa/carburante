@@ -81,8 +81,10 @@ create table if not exists public.maintenance_logs (
     mileage        double precision not null,
     cost           double precision not null default 0,
     notes          text not null default '',
+    oil_change_interval_km double precision,
     created_at     timestamptz not null default now()
 );
+alter table public.maintenance_logs add column if not exists oil_change_interval_km double precision;
 create index if not exists maintenance_logs_user_id_idx on public.maintenance_logs (user_id);
 create index if not exists maintenance_logs_motorcycle_id_idx on public.maintenance_logs (motorcycle_id);
 

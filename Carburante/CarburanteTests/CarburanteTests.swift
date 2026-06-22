@@ -296,6 +296,16 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(log.typeRaw, "Freios")
     }
 
+    func testOilChangeIntervalUsesDefaultForOldRecords() {
+        let log = MaintenanceLog(mileage: 100, type: .oleo)
+        XCTAssertEqual(log.effectiveOilChangeIntervalKm, 3000)
+    }
+
+    func testOilChangeIntervalUsesCustomValue() {
+        let log = MaintenanceLog(mileage: 100, type: .oleo, oilChangeIntervalKm: 5000)
+        XCTAssertEqual(log.effectiveOilChangeIntervalKm, 5000)
+    }
+
     func testMaintenanceCascadeDelete() throws {
         let ctx = try makeContext()
         let moto = Motorcycle(make: "Yamaha", model: "MT-07", year: 2021, country: "Brasil")
@@ -412,7 +422,7 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(series, [5.5, 6.0])
     }
 
-    /// Anel de óleo: progresso = km rodados no intervalo ÷ 3.000.
+    /// Progresso = km rodados ÷ intervalo configurado.
     func testOilProgressMidway() {
         // troca @ 5000, atual 6500 → rodou 1500 de 3000 = 0,5.
         let status = MaintenanceSchedule.oilChangeStatus(
@@ -421,7 +431,7 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(status?.progress ?? 0, 0.5, accuracy: 0.0001)
     }
 
-    /// Vencido por km → progresso satura em 1 (anel cheio).
+    /// Vencido por km → progresso satura em 1.
     func testOilProgressSaturatesWhenOverdue() {
         let status = MaintenanceSchedule.oilChangeStatus(
             lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 9000, now: day(2026, 6, 10))
@@ -435,6 +445,27 @@ final class CarburanteTests: XCTestCase {
             lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 5000, now: day(2026, 6, 2))
         XCTAssertEqual(status?.kmIntoInterval, 0)
         XCTAssertEqual(status?.progress, 0)
+    }
+
+    /// Vencimento por data não falseia o progresso de distância.
+    func testOilProgressKeepsDistanceWhenOverdueByDate() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2025, 1, 1), lastOilMileage: 5000, currentMileage: 5100, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.progress ?? 0, 100.0 / 3000.0, accuracy: 0.0001)
+    }
+
+    func testOilStatusUsesCustomInterval() {
+        let status = MaintenanceSchedule.oilChangeStatus(
+            lastOilDate: day(2026, 6, 1),
+            lastOilMileage: 5000,
+            intervalKm: 5000,
+            currentMileage: 6000,
+            now: day(2026, 6, 18)
+        )
+        XCTAssertEqual(status?.intervalKm, 5000)
+        XCTAssertEqual(status?.dueMileage, 10000)
+        XCTAssertEqual(status?.kmRemaining, 4000)
+        XCTAssertEqual(status?.progress ?? 0, 0.2, accuracy: 0.0001)
     }
 
     /// Custo/km por segmento full-to-full, mais antigo → mais novo.

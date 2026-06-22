@@ -3,7 +3,8 @@
 //  Carburante
 //
 //  Manutenção da moto. Relação Motorcycle 1—N MaintenanceLog.
-//  Espelha o schema do Supabase (type/date/mileage/cost/notes).
+//  Espelha o schema do Supabase
+//  (type/date/mileage/cost/notes/oil_change_interval_km).
 //
 
 import Foundation
@@ -44,6 +45,9 @@ final class MaintenanceLog {
     var mileage: Double
     var cost: Double
     var notes: String
+    /// Intervalo escolhido nesta troca de óleo para calcular a próxima.
+    /// Nil em outros tipos e em registros antigos (fallback para 3.000 km).
+    var oilChangeIntervalKm: Double?
     /// Persistido como String (rawValue de `MaintenanceType`) via `type`.
     var typeRaw: String
 
@@ -58,6 +62,7 @@ final class MaintenanceLog {
         cost: Double = 0,
         notes: String = "",
         type: MaintenanceType,
+        oilChangeIntervalKm: Double? = nil,
         motorcycle: Motorcycle? = nil,
         createdAt: Date = Date()
     ) {
@@ -65,6 +70,7 @@ final class MaintenanceLog {
         self.mileage = mileage
         self.cost = cost
         self.notes = notes
+        self.oilChangeIntervalKm = oilChangeIntervalKm
         self.typeRaw = type.rawValue
         self.motorcycle = motorcycle
         self.createdAt = createdAt
@@ -75,5 +81,13 @@ extension MaintenanceLog {
     var type: MaintenanceType {
         get { MaintenanceType(rawValue: typeRaw) ?? .outro }
         set { typeRaw = newValue.rawValue }
+    }
+
+    /// Registros anteriores à personalização continuam usando o padrão.
+    var effectiveOilChangeIntervalKm: Double {
+        guard type == .oleo, let oilChangeIntervalKm, oilChangeIntervalKm > 0 else {
+            return MaintenanceSchedule.defaultOilIntervalKm
+        }
+        return oilChangeIntervalKm
     }
 }
