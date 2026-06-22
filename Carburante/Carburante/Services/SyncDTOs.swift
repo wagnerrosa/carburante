@@ -55,5 +55,7 @@ struct MaintenanceLogDTO: Codable {
     let mileage: Double
     let cost: Double
     let notes: String
-    let oil_change_interval_km: Double?
+    let interval_km: Double?
+    let interval_months: Int?
+    let part_of_maintenance_id: UUID?
 }

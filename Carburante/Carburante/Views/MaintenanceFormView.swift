@@ -15,14 +15,21 @@ struct MaintenanceFormView: View {
     let motorcycle: Motorcycle
     /// Nil = nova manutenção. Não-nil = edição.
     var maintenanceLog: MaintenanceLog?
+    /// Tipo inicial p/ nova manutenção (ex.: tocar numa linha "Programadas").
+    /// Ignorado em edição.
+    var initialType: MaintenanceType?
 
     @State private var date: Date = Date()
     @State private var type: MaintenanceType = .oleo
     @State private var mileage: Double?
     @State private var cost: Double?
-    @State private var oilChangeIntervalKm: Double? = MaintenanceSchedule.defaultOilIntervalKm
+    @State private var intervalKm: Double? = MaintenanceType.oleo.defaultIntervalKm
+    @State private var intervalMonths: Int? = MaintenanceType.oleo.defaultIntervalMonths
     @State private var notes: String = ""
     @State private var saveError: String?
+    /// Evita que o `onChange(of: type)` (disparado ao carregar) sobrescreva os
+    /// valores carregados/iniciais com os defaults do tipo.
+    @State private var didLoad = false
     @FocusState private var fieldFocused: Bool
 
     private var isEditing: Bool { maintenanceLog != nil }
@@ -55,24 +62,37 @@ struct MaintenanceFormView: View {
                     }
                 }
 
-                if type == .oleo {
-                    Section {
-                        HStack {
-                            TextField(
-                                "Intervalo",
-                                value: $oilChangeIntervalKm,
-                                format: .number,
-                                prompt: Text(AppFormat.odometer(MaintenanceSchedule.defaultOilIntervalKm))
-                            )
-                            .keyboardType(.numberPad)
-                            .focused($fieldFocused)
-                            Text("km").foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        Text("Próxima troca")
-                    } footer: {
-                        Text("Use a recomendação do fabricante da moto ou do óleo. O padrão é 3.000 km.")
+                Section {
+                    HStack {
+                        Text("A cada")
+                        TextField(
+                            "Intervalo",
+                            value: $intervalKm,
+                            format: .number,
+                            prompt: Text(type.defaultIntervalKm.map(AppFormat.odometer) ?? "—")
+                        )
+                        .keyboardType(.numberPad)
+                        .focused($fieldFocused)
+                        .multilineTextAlignment(.trailing)
+                        Text("km").foregroundStyle(.secondary)
                     }
+                    HStack {
+                        Text("A cada")
+                        TextField(
+                            "Intervalo",
+                            value: $intervalMonths,
+                            format: .number,
+                            prompt: Text(type.defaultIntervalMonths.map { "\($0)" } ?? "—")
+                        )
+                        .keyboardType(.numberPad)
+                        .focused($fieldFocused)
+                        .multilineTextAlignment(.trailing)
+                        Text("meses").foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Próxima manutenção")
+                } footer: {
+                    Text("A cada quanto repetir esta manutenção — por km, por tempo, ou ambos (vence pelo que vier primeiro). Pré-preenchido com uma sugestão; ajuste conforme o manual da sua moto.")
                 }
 
                 Section("Observações") {
@@ -102,32 +122,47 @@ struct MaintenanceFormView: View {
                     Button("Concluir") { fieldFocused = false }
                 }
             }
-            .onAppear(perform: loadIfEditing)
+            .onAppear(perform: load)
+            // Trocar o tipo repõe os intervalos com os defaults do novo tipo
+            // (só após o carregamento inicial, p/ não apagar valores carregados).
+            .onChange(of: type) { _, newType in
+                guard didLoad else { return }
+                intervalKm = newType.defaultIntervalKm
+                intervalMonths = newType.defaultIntervalMonths
+            }
         }
     }
 
-    private func loadIfEditing() {
-        guard let log = maintenanceLog else { return }
-        date = log.date
-        type = log.type
-        mileage = log.mileage
-        cost = log.cost
-        oilChangeIntervalKm = log.effectiveOilChangeIntervalKm
-        notes = log.notes
+    private func load() {
+        defer { didLoad = true }
+        if let log = maintenanceLog {
+            date = log.date
+            type = log.type
+            mileage = log.mileage
+            cost = log.cost
+            intervalKm = log.effectiveIntervalKm
+            intervalMonths = log.effectiveIntervalMonths
+            notes = log.notes
+        } else if let initialType {
+            type = initialType
+            intervalKm = initialType.defaultIntervalKm
+            intervalMonths = initialType.defaultIntervalMonths
+        }
     }
 
     private var canSave: Bool {
-        guard (mileage ?? 0) > 0 else { return false }
-        return type != .oleo || (oilChangeIntervalKm ?? 0) > 0
+        (mileage ?? 0) > 0
     }
 
     private func save() {
         let km = mileage ?? 0
         guard km > 0 else { return }
-        let intervalKm = type == .oleo ? (oilChangeIntervalKm ?? 0) : nil
-        guard type != .oleo || (intervalKm ?? 0) > 0 else { return }
         let c = cost ?? 0
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Em branco → nil → cai no padrão do tipo (effectiveInterval*). Valores
+        // > 0 personalizam este registro e os seguintes do mesmo tipo.
+        let ik = (intervalKm ?? 0) > 0 ? intervalKm : nil
+        let im = (intervalMonths ?? 0) > 0 ? intervalMonths : nil
 
         if let log = maintenanceLog {
             log.date = date
@@ -135,7 +170,8 @@ struct MaintenanceFormView: View {
             log.mileage = km
             log.cost = c
             log.notes = trimmedNotes
-            log.oilChangeIntervalKm = intervalKm
+            log.intervalKm = ik
+            log.intervalMonths = im
         } else {
             let log = MaintenanceLog(
                 date: date,
@@ -143,7 +179,8 @@ struct MaintenanceFormView: View {
                 cost: c,
                 notes: trimmedNotes,
                 type: type,
-                oilChangeIntervalKm: intervalKm,
+                intervalKm: ik,
+                intervalMonths: im,
                 motorcycle: motorcycle
             )
             modelContext.insert(log)
@@ -157,9 +194,10 @@ struct MaintenanceFormView: View {
         Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
-        // Registrar/editar uma troca reinicia o intervalo → recalcula o alerta.
-        let oilStatus = motorcycle.oilChangeStatus()
-        Task { await NotificationService.shared.rescheduleOilChange(status: oilStatus) }
+        // Registrar/editar uma manutenção reinicia o intervalo do tipo →
+        // recalcula os lembretes de todos os tipos.
+        let statuses = motorcycle.maintenanceStatuses()
+        Task { await NotificationService.shared.rescheduleMaintenance(statuses: statuses) }
         dismiss()
     }
 }
