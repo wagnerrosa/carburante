@@ -906,4 +906,77 @@ final class CarburanteTests: XCTestCase {
             lastDate: day(2025, 1, 1), lastMileage: 5000, current: 5100, now: day(2026, 6, 18))
         XCTAssertEqual(status?.isOverdue, true)
     }
+
+    // MARK: - Combo Revisão Geral (Fase B)
+
+    /// Plano de combo: tudo novo → cria todos os marcados, preservando a ordem
+    /// de `revisaoComboTypes`.
+    func testRevisaoComboPlan_new() {
+        let plan = RevisaoCombo.plan(selected: [.oleo, .relacao], existing: [])
+        XCTAssertEqual(plan.toCreate, [.oleo, .relacao])
+        XCTAssertTrue(plan.toDelete.isEmpty)
+        XCTAssertTrue(plan.toKeep.isEmpty)
+    }
+
+    /// Desmarcar um item existente → entra em toDelete; o mantido em toKeep.
+    func testRevisaoComboPlan_toggleOffDeletes() {
+        let plan = RevisaoCombo.plan(selected: [.oleo], existing: [.oleo, .filtros])
+        XCTAssertEqual(plan.toKeep, [.oleo])
+        XCTAssertEqual(plan.toDelete, [.filtros])
+        XCTAssertTrue(plan.toCreate.isEmpty)
+    }
+
+    /// Marcar um novo item mantendo os antigos → toCreate só o novo.
+    func testRevisaoComboPlan_toggleOnAdds() {
+        let plan = RevisaoCombo.plan(selected: [.oleo, .pneus], existing: [.oleo])
+        XCTAssertEqual(plan.toCreate, [.pneus])
+        XCTAssertEqual(plan.toKeep, [.oleo])
+        XCTAssertTrue(plan.toDelete.isEmpty)
+    }
+
+    /// Itens-filhos: ligação por partOfMaintenanceID, rótulo de inclusos e custo 0.
+    func testRevisaoChildrenLinkLabelAndCost() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 30000)
+        ctx.insert(moto)
+        let parent = MaintenanceLog(date: day(2026, 6, 1), mileage: 30000, cost: 820,
+                                    type: .revisao, motorcycle: moto)
+        ctx.insert(parent)
+        for t in [MaintenanceType.oleo, .filtros] {
+            ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 30000, cost: 0,
+                                      type: t, partOfMaintenanceID: parent.id, motorcycle: moto))
+        }
+        try ctx.save()
+
+        XCTAssertEqual(parent.children.count, 2)
+        XCTAssertEqual(parent.includedItemsLabel, "filtros, troca de óleo")  // ordenado por rawValue
+        XCTAssertTrue(parent.children.allSatisfy { $0.cost == 0 }, "custo da visita fica no pai")
+        XCTAssertTrue(parent.children.allSatisfy(\.isPartOfRevisao))
+        XCTAssertFalse(parent.isPartOfRevisao)
+    }
+
+    /// Um item gerado pela revisão reinicia o contador do seu tipo: o óleo
+    /// vencido (troca antiga) deixa de estar vencido após a revisão recente.
+    func testRevisaoChildResetsSchedule() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 30000)
+        ctx.insert(moto)
+        // Troca de óleo antiga e vencida (km e tempo).
+        ctx.insert(MaintenanceLog(date: day(2025, 1, 1), mileage: 5000, type: .oleo, motorcycle: moto))
+        XCTAssertEqual(moto.maintenanceStatus(for: .oleo, now: day(2026, 6, 10))?.isOverdue, true)
+
+        // Revisão recente que inclui óleo (filho @ 30000).
+        let parent = MaintenanceLog(date: day(2026, 6, 1), mileage: 30000, type: .revisao, motorcycle: moto)
+        ctx.insert(parent)
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 30000, cost: 0,
+                                  type: .oleo, partOfMaintenanceID: parent.id, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.lastService(of: .oleo)?.mileage, 30000, "o filho mais recente é a âncora")
+        let status = moto.maintenanceStatus(for: .oleo, now: day(2026, 6, 10))
+        XCTAssertEqual(status?.isOverdue, false, "contador reiniciado pela revisão")
+        XCTAssertEqual(status?.kmRemaining, 3000)
+    }
 }

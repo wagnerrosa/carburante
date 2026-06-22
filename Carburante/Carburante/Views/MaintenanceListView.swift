@@ -16,6 +16,9 @@ struct MaintenanceListView: View {
     @State private var showingAdd = false
     /// Tipo a registrar ao tocar numa linha "Programadas" (abre o form prefixado).
     @State private var scheduledAddType: MaintenanceType?
+    /// Revisões com itens, aguardando confirmação de exclusão em cascata.
+    @State private var pendingDelete: [MaintenanceLog] = []
+    @State private var showDeleteConfirm = false
 
     private var logs: [MaintenanceLog] {
         motorcycle.maintenanceLogs.sorted { $0.date > $1.date }
@@ -105,13 +108,48 @@ struct MaintenanceListView: View {
         .sheet(item: $scheduledAddType) { type in
             MaintenanceFormView(motorcycle: motorcycle, initialType: type)
         }
+        .confirmationDialog(
+            confirmTitle,
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Excluir tudo", role: .destructive) { performDelete(pendingDelete) }
+            Button("Cancelar", role: .cancel) { pendingDelete = [] }
+        } message: {
+            Text("Os itens incluídos na revisão também serão excluídos.")
+        }
+    }
+
+    private var confirmTitle: String {
+        let children = pendingDelete.reduce(0) { $0 + $1.children.count }
+        return children == 1
+            ? "Excluir revisão e 1 item incluído?"
+            : "Excluir revisão e \(children) itens incluídos?"
     }
 
     private func delete(_ offsets: IndexSet, in groupLogs: [MaintenanceLog]) {
-        for index in offsets {
-            modelContext.delete(groupLogs[index])
+        let targets = offsets.map { groupLogs[$0] }
+        // Excluir uma revisão com itens é destrutivo em cascata → confirma.
+        if targets.contains(where: { $0.type == .revisao && !$0.children.isEmpty }) {
+            pendingDelete = targets
+            showDeleteConfirm = true
+        } else {
+            performDelete(targets)
+        }
+    }
+
+    private func performDelete(_ logs: [MaintenanceLog]) {
+        for log in logs {
+            // Cascata: excluir uma revisão remove seus itens (ligados por UUID,
+            // sem cascade automático do SwiftData).
+            for child in log.children { modelContext.delete(child) }
+            modelContext.delete(log)
         }
         try? modelContext.save()
+        pendingDelete = []
+        // Excluir manutenção muda os contadores → recalcula os lembretes.
+        let statuses = motorcycle.maintenanceStatuses()
+        Task { await NotificationService.shared.rescheduleMaintenance(statuses: statuses) }
     }
 
     /// Grupo de um mês para a `Section`.
@@ -202,6 +240,18 @@ private struct MaintenanceRow: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+
+                // Revisão geral lista os itens incluídos; um item gerado por uma
+                // revisão se identifica como tal (relação visível no histórico).
+                if log.type == .revisao, !log.includedItemsLabel.isEmpty {
+                    Label("Inclui: \(log.includedItemsLabel)", systemImage: "checklist")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if log.isPartOfRevisao {
+                    Label("Parte da revisão geral", systemImage: "arrow.turn.down.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
 
                 if !log.notes.isEmpty {
                     Text(log.notes)

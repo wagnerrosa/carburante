@@ -26,6 +26,9 @@ struct MaintenanceFormView: View {
     @State private var intervalKm: Double? = MaintenanceType.oleo.defaultIntervalKm
     @State private var intervalMonths: Int? = MaintenanceType.oleo.defaultIntervalMonths
     @State private var notes: String = ""
+    /// Itens marcados numa Revisão Geral (combo). Cada um vira um log-filho que
+    /// reinicia o contador do seu tipo. Fase B — ver PLAN/manutencao-programada.md.
+    @State private var revisaoItems: Set<MaintenanceType> = []
     @State private var saveError: String?
     /// Evita que o `onChange(of: type)` (disparado ao carregar) sobrescreva os
     /// valores carregados/iniciais com os defaults do tipo.
@@ -95,6 +98,20 @@ struct MaintenanceFormView: View {
                     Text("A cada quanto repetir esta manutenção — por km, por tempo, ou ambos (vence pelo que vier primeiro). Pré-preenchido com uma sugestão; ajuste conforme o manual da sua moto.")
                 }
 
+                if type == .revisao {
+                    Section {
+                        ForEach(MaintenanceType.revisaoComboTypes) { item in
+                            Toggle(isOn: revisaoBinding(for: item)) {
+                                Label(item.rawValue, systemImage: item.icon)
+                            }
+                        }
+                    } header: {
+                        Text("Itens executados")
+                    } footer: {
+                        Text("Marque o que foi feito nesta revisão — cada item reinicia o próprio contador, na mesma data e km. O custo total fica na revisão.")
+                    }
+                }
+
                 Section("Observações") {
                     TextField("Opcional", text: $notes, axis: .vertical)
                         .lineLimit(1...6)
@@ -143,11 +160,22 @@ struct MaintenanceFormView: View {
             intervalKm = log.effectiveIntervalKm
             intervalMonths = log.effectiveIntervalMonths
             notes = log.notes
+            // Pré-marca os itens já incluídos nesta revisão (logs-filhos).
+            revisaoItems = Set(log.children.map(\.type))
         } else if let initialType {
             type = initialType
             intervalKm = initialType.defaultIntervalKm
             intervalMonths = initialType.defaultIntervalMonths
         }
+    }
+
+    private func revisaoBinding(for item: MaintenanceType) -> Binding<Bool> {
+        Binding(
+            get: { revisaoItems.contains(item) },
+            set: { isOn in
+                if isOn { revisaoItems.insert(item) } else { revisaoItems.remove(item) }
+            }
+        )
     }
 
     private var canSave: Bool {
@@ -164,6 +192,7 @@ struct MaintenanceFormView: View {
         let ik = (intervalKm ?? 0) > 0 ? intervalKm : nil
         let im = (intervalMonths ?? 0) > 0 ? intervalMonths : nil
 
+        let parent: MaintenanceLog
         if let log = maintenanceLog {
             log.date = date
             log.type = type
@@ -172,6 +201,7 @@ struct MaintenanceFormView: View {
             log.notes = trimmedNotes
             log.intervalKm = ik
             log.intervalMonths = im
+            parent = log
         } else {
             let log = MaintenanceLog(
                 date: date,
@@ -184,6 +214,14 @@ struct MaintenanceFormView: View {
                 motorcycle: motorcycle
             )
             modelContext.insert(log)
+            parent = log
+        }
+        // Combo Revisão Geral: sincroniza os logs-filhos com a seleção. Se o tipo
+        // deixou de ser revisão (edição), remove os filhos órfãos.
+        if type == .revisao {
+            syncRevisaoChildren(parent: parent)
+        } else {
+            for child in parent.children { modelContext.delete(child) }
         }
         do {
             try modelContext.save()
@@ -199,5 +237,36 @@ struct MaintenanceFormView: View {
         let statuses = motorcycle.maintenanceStatuses()
         Task { await NotificationService.shared.rescheduleMaintenance(statuses: statuses) }
         dismiss()
+    }
+
+    /// Cria/atualiza/remove os logs-filhos de uma Revisão Geral conforme os itens
+    /// marcados. Cada filho herda a data e o km do pai (reinicia o contador do
+    /// tipo), custo 0 (o custo da visita fica no pai → sem dupla contagem) e
+    /// intervalos nil (cai no padrão do tipo).
+    private func syncRevisaoChildren(parent: MaintenanceLog) {
+        let existing = parent.children
+        let plan = RevisaoCombo.plan(
+            selected: revisaoItems,
+            existing: Set(existing.map(\.type))
+        )
+        for item in plan.toCreate {
+            let child = MaintenanceLog(
+                date: parent.date, mileage: parent.mileage, cost: 0, notes: "",
+                type: item, intervalKm: nil, intervalMonths: nil,
+                partOfMaintenanceID: parent.id, motorcycle: motorcycle
+            )
+            modelContext.insert(child)
+        }
+        for item in plan.toKeep {
+            if let child = existing.first(where: { $0.type == item }) {
+                child.date = parent.date
+                child.mileage = parent.mileage
+            }
+        }
+        for item in plan.toDelete {
+            if let child = existing.first(where: { $0.type == item }) {
+                modelContext.delete(child)
+            }
+        }
     }
 }

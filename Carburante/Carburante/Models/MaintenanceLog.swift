@@ -77,6 +77,11 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
         case .outro: return nil
         }
     }
+
+    /// Itens que uma Revisão Geral pode incluir (combo). Marcar um item gera um
+    /// `MaintenanceLog` filho do tipo, reiniciando o contador daquele item.
+    /// Ver PLAN/manutencao-programada.md §2 (Fase B).
+    static let revisaoComboTypes: [MaintenanceType] = [.oleo, .filtros, .freios, .pneus, .relacao]
 }
 
 @Model
@@ -153,5 +158,55 @@ extension MaintenanceLog {
     var effectiveIntervalMonths: Int? {
         if let intervalMonths, intervalMonths > 0 { return intervalMonths }
         return type.defaultIntervalMonths
+    }
+
+    // MARK: - Combo (Revisão Geral) — Fase B
+
+    /// É um item gerado por uma Revisão Geral (log-filho).
+    var isPartOfRevisao: Bool { partOfMaintenanceID != nil }
+
+    /// Logs-filhos desta manutenção (itens marcados numa Revisão Geral).
+    /// Vazio para tudo que não é uma revisão com itens. Ligação por UUID
+    /// (não relação SwiftData) → a exclusão em cascata é feita manualmente.
+    var children: [MaintenanceLog] {
+        guard let motorcycle else { return [] }
+        return motorcycle.maintenanceLogs.filter { $0.partOfMaintenanceID == id }
+    }
+
+    /// Rótulo curto dos itens incluídos numa revisão. Ex.: "óleo, filtros".
+    var includedItemsLabel: String {
+        children
+            .sorted { $0.type.rawValue < $1.type.rawValue }
+            .map { $0.type.rawValue.lowercased() }
+            .joined(separator: ", ")
+    }
+}
+
+/// Planeja a sincronização dos itens (logs-filhos) de uma Revisão Geral entre o
+/// que está selecionado no form e o que já existe. Puro e testável — o
+/// `MaintenanceFormView` aplica o plano (insere/atualiza/exclui) no contexto.
+enum RevisaoCombo {
+    struct Plan: Equatable {
+        /// Itens a criar (marcados, sem filho ainda).
+        let toCreate: [MaintenanceType]
+        /// Itens a remover (desmarcados, com filho existente).
+        let toDelete: [MaintenanceType]
+        /// Itens mantidos (marcados, já com filho) — atualizam data/km do pai.
+        let toKeep: [MaintenanceType]
+    }
+
+    static func plan(selected: Set<MaintenanceType>, existing: Set<MaintenanceType>) -> Plan {
+        var create: [MaintenanceType] = []
+        var delete: [MaintenanceType] = []
+        var keep: [MaintenanceType] = []
+        for item in MaintenanceType.revisaoComboTypes {
+            switch (selected.contains(item), existing.contains(item)) {
+            case (true, false): create.append(item)
+            case (true, true): keep.append(item)
+            case (false, true): delete.append(item)
+            case (false, false): break
+            }
+        }
+        return Plan(toCreate: create, toDelete: delete, toKeep: keep)
     }
 }
