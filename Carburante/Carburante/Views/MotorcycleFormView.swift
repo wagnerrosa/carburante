@@ -23,7 +23,8 @@ struct MotorcycleFormView: View {
     @State private var year: Int = Calendar.current.component(.year, from: Date())
     @State private var country: String = "Brasil"
     @State private var currentOdometer: Double = 0
-    @State private var category: MotorcycleCategory = .street
+    /// Opcional — nil = "Não informado". Pode ser completado depois.
+    @State private var category: MotorcycleCategory?
     @State private var displacementCC: Int?
     @State private var saveError: String?
     @FocusState private var odometerFocused: Bool
@@ -38,11 +39,11 @@ struct MotorcycleFormView: View {
 
     private var isOther: Bool { selectedMake == MotorcycleMake.other }
 
+    /// Mínimo para registrar: marca + modelo. Categoria, cilindrada e país são
+    /// opcionais (completáveis depois) → menos atrito até o 1º abastecimento.
     private var canSave: Bool {
         !effectiveMake.trimmingCharacters(in: .whitespaces).isEmpty
             && !model.trimmingCharacters(in: .whitespaces).isEmpty
-            && !country.trimmingCharacters(in: .whitespaces).isEmpty
-            && (displacementCC ?? 0) > 0
     }
 
     private let yearRange = Array(1950...Calendar.current.component(.year, from: Date()) + 1).reversed()
@@ -67,9 +68,13 @@ struct MotorcycleFormView: View {
                             Text(String(y)).tag(y)
                         }
                     }
+                }
+
+                Section {
                     Picker("Categoria", selection: $category) {
+                        Text("Não informado").tag(MotorcycleCategory?.none)
                         ForEach(MotorcycleCategory.allCases) { cat in
-                            Text(cat.label).tag(cat)
+                            Text(cat.label).tag(MotorcycleCategory?.some(cat))
                         }
                     }
                     HStack {
@@ -84,6 +89,10 @@ struct MotorcycleFormView: View {
                             .multilineTextAlignment(.trailing)
                             .textInputAutocapitalization(.words)
                     }
+                } header: {
+                    Text("Detalhes (opcional)")
+                } footer: {
+                    Text("Categoria e cilindrada habilitam a comparação de consumo com motos parecidas. Pode completar depois.")
                 }
 
                 Section("Hodômetro") {
@@ -139,7 +148,7 @@ struct MotorcycleFormView: View {
         year = m.year
         country = m.country
         currentOdometer = m.currentOdometer
-        category = m.categoryEnum ?? .street
+        category = m.categoryEnum
         displacementCC = m.displacementCC
     }
 
@@ -166,7 +175,7 @@ struct MotorcycleFormView: View {
                 year: year,
                 country: trimmedCountry,
                 currentOdometer: currentOdometer,
-                category: category.rawValue,
+                category: category?.rawValue,
                 displacementCC: displacementCC
             )
             modelContext.insert(new)

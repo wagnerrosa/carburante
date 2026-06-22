@@ -297,6 +297,34 @@ final class CarburanteTests: XCTestCase {
         XCTAssertTrue(ids.contains("date-due"))
     }
 
+    // MARK: - Cadastro mínimo (categoria/cilindrada/país opcionais)
+
+    /// Moto registrada só com marca/modelo (sem categoria/cilindrada): válida,
+    /// e a referência de categoria fica nil (card de comparação só não aparece).
+    func testMinimalRegistration_noCategoryNoReference() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
+        ctx.insert(moto)
+        try ctx.save()
+
+        XCTAssertNil(moto.categoryEnum)
+        XCTAssertNil(moto.displacementCC)
+        XCTAssertNil(moto.categoryReferenceKmPerLiter, "sem categoria/cc → sem referência, sem crash")
+        XCTAssertEqual(moto.displayName, "Honda CB 500 (2022)")
+    }
+
+    /// Completar categoria + cilindrada depois habilita a referência.
+    func testMinimalRegistration_fillingDetailsEnablesReference() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
+        ctx.insert(moto)
+        moto.categoryEnum = .street
+        moto.displacementCC = 500
+        try ctx.save()
+
+        XCTAssertNotNil(moto.categoryReferenceKmPerLiter, "categoria + cc → referência disponível")
+    }
+
     // MARK: - Validation
 
     func testValidationAcceptsValid() {
