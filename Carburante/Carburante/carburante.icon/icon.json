@@ -1,8 +1,8 @@
 {
   "fill" : {
     "linear-gradient" : [
-      "display-p3:0.18039,0.65882,1.00000,1.00000",
-      "display-p3:0.20476,0.47250,0.96739,1.00000"
+      "display-p3:0.22000,0.22000,0.23000,1.00000",
+      "display-p3:0.05000,0.05000,0.05500,1.00000"
     ],
     "orientation" : {
       "start" : {
@@ -19,33 +19,16 @@
     {
       "layers" : [
         {
-          "blend-mode" : "normal",
-          "glass" : false,
           "hidden" : false,
-          "image-name" : "Red%20Gas%20Pump.H09.2k.png",
-          "name" : "Red%20Gas%20Pump.H09.2k",
-          "opacity" : 0.92,
-          "position-specializations" : [
-            {
-              "value" : {
-                "scale" : 0.51,
-                "translation-in-points" : [
-                  -42.43124999999998,
-                  -10.240000000000009
-                ]
-              }
-            },
-            {
-              "idiom" : "square",
-              "value" : {
-                "scale" : 0.51,
-                "translation-in-points" : [
-                  -42.43124999999998,
-                  -10.240000000000009
-                ]
-              }
-            }
-          ]
+          "image-name" : "Burning Wheel.png",
+          "name" : "Burning Wheel",
+          "position" : {
+            "scale" : 0.3,
+            "translation-in-points" : [
+              -18.604467613139946,
+              -35.588368912988244
+            ]
+          }
         }
       ],
       "shadow" : {
