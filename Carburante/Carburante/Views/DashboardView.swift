@@ -154,10 +154,6 @@ struct DashboardView: View {
                     consumptionCard(summary, segments: [])
                 }
 
-                if let status, status.isOverdue {
-                    overdueWarning
-                }
-
                 metricsGrid(summary, moto: moto)
 
                 // Comparação com a categoria abaixo da grade de métricas (bloco
@@ -172,7 +168,7 @@ struct DashboardView: View {
 
                 if let status {
                     sectionTitle("Próxima manutenção")
-                    maintenanceCard(status)
+                    maintenanceCard(status, moto: moto)
                 }
 
                 sectionTitle("Último abastecimento")
@@ -298,15 +294,6 @@ struct DashboardView: View {
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
             .font(.title3.weight(.bold))
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// Aviso de manutenção só quando há algo a fazer (padrão Apple: estado "ok"
-    /// é silêncio, não banner). Texto secundário, sem faixa colorida de fundo.
-    private var overdueWarning: some View {
-        Label("Troca de óleo vencida", systemImage: "exclamationmark.triangle.fill")
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.orange)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -551,58 +538,125 @@ struct DashboardView: View {
         }
     }
 
-    /// Cor do anel de óleo por progresso (padrão semáforo do Fitness): verde
-    /// folgado → laranja perto → vermelho vencido. Semântica (NÃO segue o tema
-    /// da marca): é sinal de estado, não decoração.
-    private func oilRingColor(_ status: OilChangeStatus) -> Color {
+    /// Cor semântica aparece apenas quando há atenção necessária. Em dia, o
+    /// indicador segue o tema da moto; perto do prazo fica laranja e, vencido,
+    /// vermelho.
+    private func maintenanceColor(_ status: OilChangeStatus, moto: Motorcycle) -> Color {
         if status.isOverdue { return .red }
-        return status.progress >= 0.8 ? .orange : .green
+        return status.progress >= 0.8 ? .orange : moto.themeColor
     }
 
-    /// Card de manutenção no estilo Activity Rings do Fitness: anel de progresso
-    /// (km rodados rumo aos 3.000) à esquerda, com o nº de km no miolo, e o
-    /// resumo (faltam / vencida + data prevista) à direita.
-    private func maintenanceCard(_ status: OilChangeStatus) -> some View {
-        let color = oilRingColor(status)
-        return GroupedCard {
-            HStack(spacing: 16) {
-                Gauge(value: status.progress) {
-                    EmptyView()
-                } currentValueLabel: {
-                    VStack(spacing: 0) {
-                        Text(AppFormat.odometer(status.kmIntoInterval))
-                            .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .monospacedDigit()
-                        Text("km")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .gaugeStyle(.accessoryCircularCapacity)
-                .tint(color)
-                .scaleEffect(1.1)
-                .frame(width: 72, height: 72)
+    /// Card compacto: status e prazo como texto de apoio; a barra ancorada entre
+    /// a última e a próxima troca é o principal elemento de leitura.
+    private func maintenanceCard(_ status: OilChangeStatus, moto: Motorcycle) -> some View {
+        let color = maintenanceColor(status, moto: moto)
+        let startMileage = status.dueMileage - status.intervalKm
 
-                VStack(alignment: .leading, spacing: 4) {
-                    if status.isOverdue {
-                        Label("Troca de óleo vencida", systemImage: "exclamationmark.triangle.fill")
+        return NavigationLink {
+            MaintenanceListView(motorcycle: moto)
+        } label: {
+            GroupedCard {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 7) {
+                        Image(systemName: MaintenanceType.oleo.icon)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(color)
+                        Text("Troca de óleo")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(color)
-                    } else {
-                        Text("Faltam \(AppFormat.km(status.kmRemaining))")
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                        Text("até a próxima troca de óleo")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
-                    Text("Prevista para \(AppFormat.date(status.dueDate))")
-                        .font(.caption)
+
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(maintenanceStatusTitle(status))
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(status.isOverdue ? color : .primary)
+                                .monospacedDigit()
+                            Text(maintenanceDueText(status))
+                                .font(.caption)
+                                .foregroundStyle(status.isOverdue ? color : .secondary)
+                        }
+                        Spacer(minLength: 8)
+                        if status.isOverdue {
+                            Text(maintenanceDistanceText(status))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(color)
+                                .monospacedDigit()
+                        }
+                    }
+
+                    VStack(spacing: 6) {
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color(.quaternaryLabel))
+                                Capsule()
+                                    .fill(color)
+                                    .frame(width: proxy.size.width * status.progress)
+                            }
+                        }
+                        .frame(height: 6)
+                        .accessibilityHidden(true)
+
+                        HStack {
+                            Text("Última \(AppFormat.km(startMileage))")
+                            Spacer()
+                            Text("Próxima \(AppFormat.km(status.dueMileage))")
+                        }
+                        .font(.caption2)
+                        .monospacedDigit()
                         .foregroundStyle(.secondary)
+                    }
                 }
-                Spacer(minLength: 0)
             }
         }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Troca de óleo")
+        .accessibilityValue(maintenanceAccessibilityValue(status))
+        .accessibilityHint("Abre o histórico de manutenções")
+    }
+
+    private func maintenanceAccessibilityValue(_ status: OilChangeStatus) -> String {
+        let distance = status.isOverdue ? ". \(maintenanceDistanceText(status))" : ""
+        return "\(maintenanceStatusTitle(status))\(distance). \(maintenanceDueText(status))"
+    }
+
+    private func maintenanceStatusTitle(_ status: OilChangeStatus) -> String {
+        if status.isOverdue {
+            return status.kmRemaining <= 0 ? "Troca vencida" : "Prazo vencido"
+        }
+        return "Faltam \(AppFormat.km(status.kmRemaining))"
+    }
+
+    private func maintenanceDistanceText(_ status: OilChangeStatus) -> String {
+        if status.kmRemaining < 0 {
+            return "\(AppFormat.km(abs(status.kmRemaining))) além"
+        }
+        if status.isOverdue {
+            let days = overdueDays(since: status.dueDate)
+            if days == 0 { return "Prazo hoje" }
+            return days == 1 ? "1 dia em atraso" : "\(days) dias em atraso"
+        }
+        return "\(AppFormat.km(status.kmRemaining)) restantes"
+    }
+
+    private func maintenanceDueText(_ status: OilChangeStatus) -> String {
+        if status.isOverdue {
+            return "Prazo: \(AppFormat.date(status.dueDate))"
+        }
+        return "Prevista para \(AppFormat.date(status.dueDate))"
+    }
+
+    private func overdueDays(since dueDate: Date, now: Date = Date()) -> Int {
+        let calendar = Calendar.current
+        let dueDay = calendar.startOfDay(for: dueDate)
+        let today = calendar.startOfDay(for: now)
+        return max(calendar.dateComponents([.day], from: dueDay, to: today).day ?? 0, 0)
     }
 
     @ViewBuilder

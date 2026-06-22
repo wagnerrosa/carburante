@@ -20,6 +20,7 @@ struct MaintenanceFormView: View {
     @State private var type: MaintenanceType = .oleo
     @State private var mileage: Double?
     @State private var cost: Double?
+    @State private var oilChangeIntervalKm: Double? = MaintenanceSchedule.defaultOilIntervalKm
     @State private var notes: String = ""
     @State private var saveError: String?
     @FocusState private var fieldFocused: Bool
@@ -53,6 +54,27 @@ struct MaintenanceFormView: View {
                         Text("R$").foregroundStyle(.secondary)
                     }
                 }
+
+                if type == .oleo {
+                    Section {
+                        HStack {
+                            TextField(
+                                "Intervalo",
+                                value: $oilChangeIntervalKm,
+                                format: .number,
+                                prompt: Text(AppFormat.odometer(MaintenanceSchedule.defaultOilIntervalKm))
+                            )
+                            .keyboardType(.numberPad)
+                            .focused($fieldFocused)
+                            Text("km").foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("Próxima troca")
+                    } footer: {
+                        Text("Use a recomendação do fabricante da moto ou do óleo. O padrão é 3.000 km.")
+                    }
+                }
+
                 Section("Observações") {
                     TextField("Opcional", text: $notes, axis: .vertical)
                         .lineLimit(1...6)
@@ -73,7 +95,7 @@ struct MaintenanceFormView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { save() }
-                        .disabled((mileage ?? 0) <= 0)
+                        .disabled(!canSave)
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -90,12 +112,20 @@ struct MaintenanceFormView: View {
         type = log.type
         mileage = log.mileage
         cost = log.cost
+        oilChangeIntervalKm = log.effectiveOilChangeIntervalKm
         notes = log.notes
+    }
+
+    private var canSave: Bool {
+        guard (mileage ?? 0) > 0 else { return false }
+        return type != .oleo || (oilChangeIntervalKm ?? 0) > 0
     }
 
     private func save() {
         let km = mileage ?? 0
         guard km > 0 else { return }
+        let intervalKm = type == .oleo ? (oilChangeIntervalKm ?? 0) : nil
+        guard type != .oleo || (intervalKm ?? 0) > 0 else { return }
         let c = cost ?? 0
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -105,6 +135,7 @@ struct MaintenanceFormView: View {
             log.mileage = km
             log.cost = c
             log.notes = trimmedNotes
+            log.oilChangeIntervalKm = intervalKm
         } else {
             let log = MaintenanceLog(
                 date: date,
@@ -112,6 +143,7 @@ struct MaintenanceFormView: View {
                 cost: c,
                 notes: trimmedNotes,
                 type: type,
+                oilChangeIntervalKm: intervalKm,
                 motorcycle: motorcycle
             )
             modelContext.insert(log)
