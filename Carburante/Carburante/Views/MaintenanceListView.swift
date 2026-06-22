@@ -14,9 +14,16 @@ struct MaintenanceListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: MaintenanceLog?
     @State private var showingAdd = false
+    /// Tipo a registrar ao tocar numa linha "Programadas" (abre o form prefixado).
+    @State private var scheduledAddType: MaintenanceType?
 
     private var logs: [MaintenanceLog] {
         motorcycle.maintenanceLogs.sorted { $0.date > $1.date }
+    }
+
+    /// Status agendados por tipo (só os com ≥1 registro), por urgência.
+    private var statuses: [MaintenanceStatus] {
+        motorcycle.maintenanceStatuses()
     }
 
     /// Manutenções agrupadas por mês, em ordem decrescente.
@@ -43,6 +50,22 @@ struct MaintenanceListView: View {
                 }
             } else {
                 List {
+                    if !statuses.isEmpty {
+                        Section {
+                            ForEach(statuses) { status in
+                                Button {
+                                    scheduledAddType = status.type
+                                } label: {
+                                    ScheduledRow(status: status, themeColor: motorcycle.themeColor)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        } header: {
+                            Text("Programadas")
+                        } footer: {
+                            Text("Toque para registrar a próxima.")
+                        }
+                    }
                     ForEach(monthGroups) { group in
                         Section(group.title) {
                             ForEach(group.logs) { log in
@@ -79,6 +102,9 @@ struct MaintenanceListView: View {
         .sheet(item: $editingLog) { log in
             MaintenanceFormView(motorcycle: motorcycle, maintenanceLog: log)
         }
+        .sheet(item: $scheduledAddType) { type in
+            MaintenanceFormView(motorcycle: motorcycle, initialType: type)
+        }
     }
 
     private func delete(_ offsets: IndexSet, in groupLogs: [MaintenanceLog]) {
@@ -97,6 +123,55 @@ struct MaintenanceListView: View {
             id.formatted(Date.FormatStyle().month(.wide).year().locale(AppFormat.locale))
                 .capitalized
         }
+    }
+}
+
+/// Linha da seção "Programadas": status agendado de um tipo com barra de
+/// progresso (km ou tempo, o mais próximo). Cor semântica só quando há atenção.
+private struct ScheduledRow: View {
+    let status: MaintenanceStatus
+    let themeColor: Color
+
+    private var color: Color {
+        if status.isOverdue { return .red }
+        return status.progress >= 0.8 ? .orange : themeColor
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            IconTile(systemName: status.type.icon, tint: status.type.tint, size: 38)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(status.type.rawValue).font(.headline)
+                    Spacer()
+                    Text(status.remainingShort)
+                        .font(.subheadline)
+                        .foregroundStyle(status.isOverdue ? color : .secondary)
+                        .monospacedDigit()
+                }
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color(.quaternaryLabel))
+                        Capsule().fill(color)
+                            .frame(width: proxy.size.width * status.progress)
+                    }
+                }
+                .frame(height: 5)
+                .accessibilityHidden(true)
+
+                if !status.dueDescription.isEmpty {
+                    Text(status.dueDescription)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+        }
+        .padding(.vertical, 2)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(status.type.rawValue)
+        .accessibilityValue("\(status.remainingShort). \(status.dueDescription)")
     }
 }
 

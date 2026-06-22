@@ -238,63 +238,92 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(pending.first { $0.day == 21 }?.fireDate, cal.date(byAdding: .day, value: 21, to: last))
     }
 
-    // MARK: - Alerta proativo de troca de óleo
+    // MARK: - Lembretes de manutenção (genéricos + coalescência)
 
-    private func oilStatus(intervalKm: Double = 3000, dueMileage: Double, dueDate: Date,
-                           kmRemaining: Double, overdue: Bool) -> OilChangeStatus {
-        OilChangeStatus(intervalKm: intervalKm, dueMileage: dueMileage, dueDate: dueDate,
-                        kmRemaining: kmRemaining, isOverdue: overdue)
+    private func mStatus(
+        type: MaintenanceType = .oleo,
+        intervalKm: Double? = 3000,
+        intervalMonths: Int? = 6,
+        dueMileage: Double? = 13000,
+        dueDate: Date? = nil,
+        kmRemaining: Double? = 2900,
+        daysRemaining: Int? = nil,
+        progress: Double = 0.03,
+        overdue: Bool = false
+    ) -> MaintenanceStatus {
+        MaintenanceStatus(
+            type: type, intervalKm: intervalKm, intervalMonths: intervalMonths,
+            lastMileage: 10000, lastDate: day(1), dueMileage: dueMileage, dueDate: dueDate,
+            kmRemaining: kmRemaining, daysRemaining: daysRemaining,
+            progress: progress, isOverdue: overdue)
     }
 
-    /// Sem troca registrada (status nil) → nenhum lembrete.
-    func testOil_noStatusNoPlans() {
-        XCTAssertTrue(OilChangeReminder.plans(for: nil, now: day(1)).isEmpty)
+    /// Sem status → nenhum lembrete.
+    func testMaint_noStatusNoPlans() {
+        XCTAssertTrue(MaintenanceReminder.plans(for: [], now: day(1)).isEmpty)
     }
 
-    /// Longe do prazo (km e data): agenda só o aviso por data (pré + no prazo),
-    /// nada por km (progresso < 80%).
-    func testOil_farFromDueOnlyDatePlans() {
+    /// Longe do prazo: planos por data (pré + no prazo), nada reativo (<80%).
+    func testMaint_farFromDueOnlyDatePlans() {
         let now = day(1)
         let due = Calendar.current.date(byAdding: .day, value: 100, to: now)!
-        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: 2900, overdue: false)
-        let plans = OilChangeReminder.plans(for: status, now: now)
+        let status = mStatus(dueDate: due, kmRemaining: 2900, progress: 0.03)
+        let plans = MaintenanceReminder.plans(for: [status], now: now)
         let ids = Set(plans.map(\.idSuffix))
-        XCTAssertTrue(ids.contains("date-pre"))
-        XCTAssertTrue(ids.contains("date-due"))
-        XCTAssertFalse(ids.contains("km"), "progresso < 80% não dispara km")
+        XCTAssertTrue(ids.contains("oleo-date-pre"))
+        XCTAssertTrue(ids.contains("oleo-date-due"))
+        XCTAssertFalse(plans.contains { $0.idSuffix.hasSuffix("-km") }, "progresso < 80% não dispara reativo")
     }
 
-    /// ≥80% por km: inclui o lembrete por km na manhã seguinte.
-    func testOil_approachingKmAddsKmPlan() {
-        let now = day(1)
-        let due = Calendar.current.date(byAdding: .day, value: 100, to: now)!
-        // kmRemaining 300 de 3000 → 90% → ≥80%.
-        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: 300, overdue: false)
-        let plans = OilChangeReminder.plans(for: status, now: now)
-        let km = plans.first { $0.idSuffix == "km" }
-        XCTAssertNotNil(km)
-        XCTAssertEqual(km?.fireDate, OilChangeReminder.nextMorning(after: now))
-    }
-
-    /// Vencido: sem planos de data (passados), só o lembrete km "vencida".
-    func testOil_overdueOnlyKmPlan() {
-        let now = day(10)
-        let due = day(1)   // já passou
-        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: -50, overdue: true)
-        let plans = OilChangeReminder.plans(for: status, now: now)
-        XCTAssertEqual(plans.map(\.idSuffix), ["km"])
-        XCTAssertEqual(plans.first?.title, "Troca de óleo vencida")
-    }
-
-    /// Aviso por data só entra se a antecedência ainda é futura.
-    func testOil_preWarningSkippedWhenPast() {
+    /// Aviso por data só entra se a antecedência (7 dias) ainda é futura.
+    func testMaint_preWarningSkippedWhenPast() {
         let now = day(20)
-        let due = day(25)   // faltam 5 dias < 7 de antecedência → pré não entra
-        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: 1000, overdue: false)
-        let plans = OilChangeReminder.plans(for: status, now: now)
-        let ids = Set(plans.map(\.idSuffix))
-        XCTAssertFalse(ids.contains("date-pre"))
-        XCTAssertTrue(ids.contains("date-due"))
+        let due = day(25)   // faltam 5 dias < 7 → pré não entra
+        let status = mStatus(dueDate: due, kmRemaining: 1000, progress: 0.6)
+        let ids = Set(MaintenanceReminder.plans(for: [status], now: now).map(\.idSuffix))
+        XCTAssertFalse(ids.contains("oleo-date-pre"))
+        XCTAssertTrue(ids.contains("oleo-date-due"))
+    }
+
+    /// isAttention: ≥80% ou vencido é atenção; abaixo não.
+    func testMaint_isAttentionThreshold() {
+        XCTAssertFalse(MaintenanceReminder.isAttention(mStatus(progress: 0.5)))
+        XCTAssertTrue(MaintenanceReminder.isAttention(mStatus(progress: 0.8)))
+        XCTAssertTrue(MaintenanceReminder.isAttention(mStatus(progress: 0.1, overdue: true)))
+    }
+
+    /// Coalescência: 0 em atenção → nil.
+    func testReactive_noneNil() {
+        XCTAssertNil(MaintenanceReminder.reactivePlan(attention: [], morning: day(2)))
+    }
+
+    /// 1 em atenção → lembrete específico do tipo (id `<tipo>-km`).
+    func testReactive_oneSpecific() {
+        let plan = MaintenanceReminder.reactivePlan(
+            attention: [mStatus(type: .pneus, progress: 0.9)], morning: day(2))
+        XCTAssertEqual(plan?.idSuffix, "pneus-km")
+        XCTAssertEqual(plan?.title, "Pneus: próxima")
+    }
+
+    /// ≥2 em atenção → uma só notificação resumo (anti-spam).
+    func testReactive_manyCoalesceToSummary() {
+        let plan = MaintenanceReminder.reactivePlan(
+            attention: [mStatus(type: .oleo, overdue: true),
+                        mStatus(type: .pneus, progress: 0.85)],
+            morning: day(2))
+        XCTAssertEqual(plan?.idSuffix, "summary-km")
+        XCTAssertEqual(plan?.title, "Manutenções pendentes")
+        XCTAssertTrue(plan?.body.contains("2 itens") ?? false)
+    }
+
+    /// Vencido: sem planos de data (passados); o reativo entra como "vencida".
+    func testMaint_overdueNoDatePlansReactiveOnly() {
+        let now = day(10)
+        let status = mStatus(dueDate: day(1), kmRemaining: -50, progress: 1, overdue: true)
+        let plans = MaintenanceReminder.plans(for: [status], now: now)
+        XCTAssertFalse(plans.contains { $0.idSuffix.contains("date") }, "datas passadas não se agendam")
+        let reactive = plans.first { $0.idSuffix == "oleo-km" }
+        XCTAssertEqual(reactive?.title, "Troca de óleo: vencida")
     }
 
     // MARK: - Cadastro mínimo (categoria/cilindrada/país opcionais)
@@ -570,14 +599,25 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(log.typeRaw, "Freios")
     }
 
-    func testOilChangeIntervalUsesDefaultForOldRecords() {
+    func testIntervalUsesDefaultForOldRecords() {
         let log = MaintenanceLog(mileage: 100, type: .oleo)
-        XCTAssertEqual(log.effectiveOilChangeIntervalKm, 3000)
+        XCTAssertEqual(log.effectiveIntervalKm, 3000)
+        XCTAssertEqual(log.effectiveIntervalMonths, 6)
     }
 
-    func testOilChangeIntervalUsesCustomValue() {
-        let log = MaintenanceLog(mileage: 100, type: .oleo, oilChangeIntervalKm: 5000)
-        XCTAssertEqual(log.effectiveOilChangeIntervalKm, 5000)
+    func testIntervalUsesCustomValue() {
+        let log = MaintenanceLog(mileage: 100, type: .oleo, intervalKm: 5000, intervalMonths: 12)
+        XCTAssertEqual(log.effectiveIntervalKm, 5000)
+        XCTAssertEqual(log.effectiveIntervalMonths, 12)
+    }
+
+    /// Defaults por tipo: todo tipo (menos "Outro") sugere km e meses.
+    func testIntervalDefaultsPerType() {
+        XCTAssertEqual(MaintenanceLog(mileage: 1, type: .pneus).effectiveIntervalKm, 12000)
+        XCTAssertEqual(MaintenanceLog(mileage: 1, type: .pneus).effectiveIntervalMonths, 60)
+        XCTAssertEqual(MaintenanceLog(mileage: 1, type: .relacao).effectiveIntervalKm, 20000)
+        XCTAssertNil(MaintenanceLog(mileage: 1, type: .outro).effectiveIntervalKm)
+        XCTAssertNil(MaintenanceLog(mileage: 1, type: .outro).effectiveIntervalMonths)
     }
 
     func testMaintenanceCascadeDelete() throws {
@@ -696,50 +736,135 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(series, [5.5, 6.0])
     }
 
-    /// Progresso = km rodados ÷ intervalo configurado.
+    /// Atalho p/ status de óleo (defaults 3000 km / 6 meses, salvo override).
+    private func oilSchedule(
+        lastDate: Date?, lastMileage: Double?,
+        intervalKm: Double? = 3000, intervalMonths: Int? = 6,
+        current: Double, now: Date
+    ) -> MaintenanceStatus? {
+        MaintenanceSchedule.status(
+            for: .oleo, lastDate: lastDate, lastMileage: lastMileage,
+            intervalKm: intervalKm, intervalMonths: intervalMonths,
+            currentMileage: current, now: now)
+    }
+
+    /// Progresso = km rodados ÷ intervalo configurado (km é o eixo vinculante aqui).
     func testOilProgressMidway() {
-        // troca @ 5000, atual 6500 → rodou 1500 de 3000 = 0,5.
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 6500, now: day(2026, 6, 10))
+        // troca @ 5000, atual 6500 → rodou 1500 de 3000 = 0,5; poucos dias → tempo < km.
+        let status = oilSchedule(
+            lastDate: day(2026, 6, 1), lastMileage: 5000, current: 6500, now: day(2026, 6, 10))
         XCTAssertEqual(status?.kmIntoInterval, 1500)
         XCTAssertEqual(status?.progress ?? 0, 0.5, accuracy: 0.0001)
     }
 
     /// Vencido por km → progresso satura em 1.
     func testOilProgressSaturatesWhenOverdue() {
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 9000, now: day(2026, 6, 10))
+        let status = oilSchedule(
+            lastDate: day(2026, 6, 1), lastMileage: 5000, current: 9000, now: day(2026, 6, 10))
         XCTAssertEqual(status?.progress, 1)
         XCTAssertEqual(status?.isOverdue, true)
     }
 
-    /// Logo após a troca → progresso ~0 (não negativo).
+    /// No exato momento da troca (mesmo dia) → progresso 0 nos dois eixos.
     func testOilProgressZeroAtStart() {
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 5000, now: day(2026, 6, 2))
+        let status = oilSchedule(
+            lastDate: day(2026, 6, 1), lastMileage: 5000, current: 5000, now: day(2026, 6, 1))
         XCTAssertEqual(status?.kmIntoInterval, 0)
         XCTAssertEqual(status?.progress, 0)
     }
 
-    /// Vencimento por data não falseia o progresso de distância.
-    func testOilProgressKeepsDistanceWhenOverdueByDate() {
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2025, 1, 1), lastOilMileage: 5000, currentMileage: 5100, now: day(2026, 6, 18))
-        XCTAssertEqual(status?.progress ?? 0, 100.0 / 3000.0, accuracy: 0.0001)
+    /// Vencido por DATA com poucos km → progresso satura em 1 (eixo tempo é o
+    /// vinculante; `progress = max(km, tempo)`).
+    func testProgressBindingAxisTimeOverdue() {
+        let status = oilSchedule(
+            lastDate: day(2025, 1, 1), lastMileage: 5000, current: 5100, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.progress, 1)
+        XCTAssertEqual(status?.isOverdue, true)
     }
 
     func testOilStatusUsesCustomInterval() {
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2026, 6, 1),
-            lastOilMileage: 5000,
-            intervalKm: 5000,
-            currentMileage: 6000,
-            now: day(2026, 6, 18)
-        )
+        let status = oilSchedule(
+            lastDate: day(2026, 6, 1), lastMileage: 5000,
+            intervalKm: 5000, current: 6000, now: day(2026, 6, 18))
         XCTAssertEqual(status?.intervalKm, 5000)
         XCTAssertEqual(status?.dueMileage, 10000)
         XCTAssertEqual(status?.kmRemaining, 4000)
         XCTAssertEqual(status?.progress ?? 0, 0.2, accuracy: 0.0001)
+    }
+
+    // MARK: - Agendamento genérico (km / tempo / o que vier primeiro)
+
+    /// Só eixo km (sem tempo): sem dueDate/daysRemaining; vence por km.
+    func testKmOnlyInterval() {
+        let status = MaintenanceSchedule.status(
+            for: .pneus, lastDate: day(2026, 1, 1), lastMileage: 10000,
+            intervalKm: 12000, intervalMonths: nil, currentMileage: 23000, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.dueMileage, 22000)
+        XCTAssertNil(status?.dueDate)
+        XCTAssertNil(status?.daysRemaining)
+        XCTAssertEqual(status?.isOverdue, true, "passou dos 22000")
+    }
+
+    /// Só eixo tempo (sem km): sem dueMileage/kmRemaining; vence por data.
+    func testTimeOnlyInterval() {
+        let status = MaintenanceSchedule.status(
+            for: .freios, lastDate: day(2025, 1, 1), lastMileage: 10000,
+            intervalKm: nil, intervalMonths: 12, currentMileage: 10500, now: day(2026, 6, 18))
+        XCTAssertNil(status?.dueMileage)
+        XCTAssertNil(status?.kmRemaining)
+        XCTAssertNotNil(status?.dueDate)
+        XCTAssertEqual(status?.isOverdue, true, "passou de 12 meses")
+    }
+
+    /// Nenhum eixo configurado → nil (nada a prever).
+    func testNoAxisNoStatus() {
+        let status = MaintenanceSchedule.status(
+            for: .outro, lastDate: day(2026, 1, 1), lastMileage: 10000,
+            intervalKm: nil, intervalMonths: nil, currentMileage: 20000, now: day(2026, 6, 18))
+        XCTAssertNil(status)
+    }
+
+    /// O que vier primeiro — tempo vence antes do km.
+    func testWhatFirst_timeBeforeKm() {
+        // km longe (rodou pouco), mas 18 meses passados > 6 → vencido por tempo.
+        let status = MaintenanceSchedule.status(
+            for: .oleo, lastDate: day(2025, 1, 1), lastMileage: 5000,
+            intervalKm: 3000, intervalMonths: 6, currentMileage: 5200, now: day(2026, 6, 18))
+        XCTAssertEqual(status?.isOverdue, true)
+        XCTAssertGreaterThan(status?.kmRemaining ?? 0, 0, "km ainda não venceu")
+    }
+
+    /// O que vier primeiro — km vence antes do tempo.
+    func testWhatFirst_kmBeforeTime() {
+        // tempo longe (poucos dias), mas rodou além do intervalo → vencido por km.
+        let status = MaintenanceSchedule.status(
+            for: .oleo, lastDate: day(2026, 6, 1), lastMileage: 5000,
+            intervalKm: 3000, intervalMonths: 6, currentMileage: 8500, now: day(2026, 6, 10))
+        XCTAssertEqual(status?.isOverdue, true)
+        XCTAssertNotNil(status?.daysRemaining)
+        XCTAssertGreaterThan(status?.daysRemaining ?? 0, 0, "tempo ainda não venceu")
+    }
+
+    /// Histórico: última manutenção, km e meses desde, e ordenação por urgência.
+    func testHistoryAccessorsAndUrgencySort() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 30000)
+        ctx.insert(moto)
+        // Óleo vencido por km (troca @ 5000, intervalo 3000, atual 30000).
+        ctx.insert(MaintenanceLog(date: day(2026, 1, 1), mileage: 5000, type: .oleo, motorcycle: moto))
+        // Pneus recém-trocados (atual 30000, intervalo 12000).
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 29500, type: .pneus, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.lastService(of: .oleo)?.mileage, 5000)
+        XCTAssertEqual(moto.kmSinceLastService(of: .pneus), 500)
+        XCTAssertNil(moto.kmSinceLastService(of: .freios), "nunca registrado")
+
+        let statuses = moto.maintenanceStatuses(now: day(2026, 6, 18))
+        XCTAssertEqual(statuses.count, 2)
+        XCTAssertEqual(statuses.first?.type, .oleo, "vencido vem primeiro")
+        XCTAssertEqual(moto.nextDueMaintenance(now: day(2026, 6, 18))?.type, .oleo)
     }
 
     /// Custo/km por segmento full-to-full, mais antigo → mais novo.
@@ -754,15 +879,14 @@ final class CarburanteTests: XCTestCase {
     }
 
     func testOilStatusNilWithoutHistory() {
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: nil, lastOilMileage: nil, currentMileage: 5000, now: day(2026, 6, 18))
+        let status = oilSchedule(lastDate: nil, lastMileage: nil, current: 5000, now: day(2026, 6, 18))
         XCTAssertNil(status)
     }
 
     func testOilStatusNotOverdueByKm() {
-        // troca @ 5000 km, atual 6000 → próxima @ 8000, faltam 2000.
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 6000, now: day(2026, 6, 18))
+        // troca @ 5000 km, atual 6000 → próxima @ 8000, faltam 2000; 17 dias < 6 meses.
+        let status = oilSchedule(
+            lastDate: day(2026, 6, 1), lastMileage: 5000, current: 6000, now: day(2026, 6, 18))
         XCTAssertEqual(status?.dueMileage, 8000)
         XCTAssertEqual(status?.kmRemaining, 2000)
         XCTAssertEqual(status?.isOverdue, false)
@@ -770,16 +894,16 @@ final class CarburanteTests: XCTestCase {
 
     func testOilStatusOverdueByKm() {
         // troca @ 5000, atual 8500 → passou dos 8000.
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2026, 6, 1), lastOilMileage: 5000, currentMileage: 8500, now: day(2026, 6, 18))
+        let status = oilSchedule(
+            lastDate: day(2026, 6, 1), lastMileage: 5000, current: 8500, now: day(2026, 6, 18))
         XCTAssertEqual(status?.isOverdue, true)
         XCTAssertEqual(status?.kmRemaining, -500)
     }
 
     func testOilStatusOverdueByDate() {
-        // troca há mais de 180 dias, poucos km → vencida por tempo.
-        let status = MaintenanceSchedule.oilChangeStatus(
-            lastOilDate: day(2025, 1, 1), lastOilMileage: 5000, currentMileage: 5100, now: day(2026, 6, 18))
+        // troca há mais de 6 meses, poucos km → vencida por tempo.
+        let status = oilSchedule(
+            lastDate: day(2025, 1, 1), lastMileage: 5000, current: 5100, now: day(2026, 6, 18))
         XCTAssertEqual(status?.isOverdue, true)
     }
 }

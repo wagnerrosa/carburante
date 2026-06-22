@@ -83,10 +83,22 @@ create table if not exists public.maintenance_logs (
     mileage        double precision not null,
     cost           double precision not null default 0,
     notes          text not null default '',
-    oil_change_interval_km double precision,
+    -- Intervalos genéricos por tipo (ver PLAN/manutencao-programada.md):
+    interval_km            double precision,
+    interval_months        integer,
+    part_of_maintenance_id uuid,
     created_at     timestamptz not null default now()
 );
 alter table public.maintenance_logs add column if not exists oil_change_interval_km double precision;
+-- Generalização do agendamento (óleo → todos os tipos): colunas aditivas +
+-- backfill do intervalo de óleo legado. `oil_change_interval_km` fica órfã por
+-- um release e pode ser dropada depois.
+alter table public.maintenance_logs add column if not exists interval_km double precision;
+alter table public.maintenance_logs add column if not exists interval_months integer;
+alter table public.maintenance_logs add column if not exists part_of_maintenance_id uuid;
+update public.maintenance_logs
+   set interval_km = oil_change_interval_km
+ where interval_km is null and oil_change_interval_km is not null;
 create index if not exists maintenance_logs_user_id_idx on public.maintenance_logs (user_id);
 create index if not exists maintenance_logs_motorcycle_id_idx on public.maintenance_logs (motorcycle_id);
 

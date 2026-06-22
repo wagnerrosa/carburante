@@ -96,7 +96,8 @@ final class SyncService {
                     MaintenanceLogDTO(
                         id: mt.id, motorcycle_id: m.id, user_id: uid, type: mt.typeRaw,
                         date: mt.date, mileage: mt.mileage, cost: mt.cost, notes: mt.notes,
-                        oil_change_interval_km: mt.oilChangeIntervalKm
+                        interval_km: mt.intervalKm, interval_months: mt.intervalMonths,
+                        part_of_maintenance_id: mt.partOfMaintenanceID
                     )
                 }
             }

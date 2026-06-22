@@ -117,14 +117,15 @@ struct NotificationService {
         center.removePendingNotificationRequests(withIdentifiers: ids)
     }
 
-    // MARK: - Troca de óleo
+    // MARK: - Manutenção programada
 
-    /// (Re)agenda os lembretes de troca de óleo a partir do status atual.
-    /// Chamar ao salvar um abastecimento (muda o km/progresso) ou uma troca de
-    /// óleo (reinicia o intervalo). `status` é um valor puro (Sendable).
-    func rescheduleOilChange(status: OilChangeStatus?, now: Date = Date()) async {
-        cancelOilChangeReminders()
-        let plans = OilChangeReminder.plans(for: status, now: now)
+    /// (Re)agenda os lembretes de manutenção a partir dos status de todos os
+    /// tipos. Chamar ao salvar um abastecimento (muda km/progresso) ou uma
+    /// manutenção (reinicia o intervalo do tipo). `statuses` são valores puros.
+    /// A coalescência em `MaintenanceReminder.plans` evita excesso de notificação.
+    func rescheduleMaintenance(statuses: [MaintenanceStatus], now: Date = Date()) async {
+        await cancelMaintenanceReminders()
+        let plans = MaintenanceReminder.plans(for: statuses, now: now)
         guard !plans.isEmpty else { return }
         guard await requestAuthorizationIfNeeded() else { return }
 
@@ -139,7 +140,7 @@ struct NotificationService {
             )
             let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
             let request = UNNotificationRequest(
-                identifier: "\(OilChangeReminder.identifierPrefix)\(plan.idSuffix)",
+                identifier: "\(MaintenanceReminder.identifierPrefix)\(plan.idSuffix)",
                 content: content,
                 trigger: trigger
             )
@@ -147,9 +148,18 @@ struct NotificationService {
         }
     }
 
-    /// Remove os lembretes de troca de óleo pendentes (sem tocar em outros).
-    func cancelOilChangeReminders() {
-        let ids = ["date-pre", "date-due", "km"].map { "\(OilChangeReminder.identifierPrefix)\($0)" }
-        center.removePendingNotificationRequests(withIdentifiers: ids)
+    /// Remove os lembretes de manutenção pendentes (sem tocar em outros, ex.:
+    /// ausência). Como o conjunto de identificadores é dinâmico (por tipo),
+    /// busca os pendentes e filtra pelo prefixo. Também limpa os lembretes
+    /// legados só-óleo (`oil-change-*`) na migração.
+    func cancelMaintenanceReminders() async {
+        let pending = await center.pendingNotificationRequests()
+        let ids = pending.map(\.identifier).filter {
+            $0.hasPrefix(MaintenanceReminder.identifierPrefix)
+                || $0.hasPrefix(MaintenanceReminder.legacyOilPrefix)
+        }
+        if !ids.isEmpty {
+            center.removePendingNotificationRequests(withIdentifiers: ids)
+        }
     }
 }
