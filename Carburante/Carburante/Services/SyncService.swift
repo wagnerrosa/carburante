@@ -64,6 +64,7 @@ final class SyncService {
                 MotorcycleDTO(
                     id: m.id, user_id: uid, make: m.make, model: m.model, year: m.year,
                     country: m.country, current_odometer: m.currentOdometer,
+                    odometer_baseline: m.odometerBaseline,
                     category: m.category, displacement_cc: m.displacementCC,
                     manufacturer_consumption: m.manufacturerConsumption
                 )

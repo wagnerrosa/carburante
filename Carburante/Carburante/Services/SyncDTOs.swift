@@ -16,6 +16,7 @@ struct MotorcycleDTO: Codable {
     let year: Int
     let country: String?
     let current_odometer: Double
+    let odometer_baseline: Double
     let category: String?
     let displacement_cc: Int?
     let manufacturer_consumption: Double?

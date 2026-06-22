@@ -153,7 +153,10 @@ struct MotorcycleFormView: View {
             m.model = trimmedModel
             m.year = year
             m.country = trimmedCountry
-            m.currentOdometer = currentOdometer
+            // O hodômetro do form é a leitura manual (baseline); reconcilia o
+            // efetivo com os abastecimentos existentes (nunca abaixo deles).
+            m.odometerBaseline = currentOdometer
+            m.reconcileOdometer()
             m.categoryEnum = category
             m.displacementCC = displacementCC
         } else {

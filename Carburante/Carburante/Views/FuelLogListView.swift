@@ -88,7 +88,14 @@ struct FuelLogListView: View {
         for index in offsets {
             modelContext.delete(logs[index])
         }
+        // Persiste a exclusão primeiro para o array `fuelLogs` já excluir os
+        // registros apagados, então reconcilia o hodômetro (excluir o mais
+        // recente cai para o próximo maior, ou para o baseline — nunca zera).
         try? modelContext.save()
+        motorcycle.reconcileOdometer()
+        try? modelContext.save()
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
     }
 }
 

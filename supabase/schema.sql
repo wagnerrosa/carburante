@@ -26,6 +26,7 @@ create table if not exists public.motorcycles (
     year                      integer not null,
     country                   text,
     current_odometer          double precision not null default 0,
+    odometer_baseline         double precision not null default 0,
     category                  text,
     displacement_cc           integer,
     manufacturer_consumption  double precision,
@@ -34,6 +35,7 @@ create table if not exists public.motorcycles (
 create index if not exists motorcycles_user_id_idx on public.motorcycles (user_id);
 -- Migração de tabelas já criadas (rodar uma vez; no-op se já existe):
 alter table public.motorcycles add column if not exists displacement_cc integer;
+alter table public.motorcycles add column if not exists odometer_baseline double precision not null default 0;
 
 -- ---------- fuel_logs ----------
 create table if not exists public.fuel_logs (

@@ -405,10 +405,9 @@ struct FuelLogFormView: View {
             }
             modelContext.insert(log)
         }
-        // Avança o hodômetro da moto se este for mais recente.
-        if odo > motorcycle.currentOdometer {
-            motorcycle.currentOdometer = odo
-        }
+        // Reconcilia o hodômetro da moto: cobre tanto avançar (registro novo
+        // ou edição p/ cima) quanto recuar (edição p/ baixo do maior registro).
+        motorcycle.reconcileOdometer(latestEntry: odo)
         do {
             try modelContext.save()
         } catch {

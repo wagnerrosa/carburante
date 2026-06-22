@@ -690,7 +690,7 @@ struct FuelEntryFlowView: View {
         log.dateWasEdited = dateWasEdited
         log.locationWasEdited = locationWasEdited
         modelContext.insert(log)
-        if odo > motorcycle.currentOdometer { motorcycle.currentOdometer = odo }
+        motorcycle.reconcileOdometer(latestEntry: odo)
         do {
             try modelContext.save()
         } catch {

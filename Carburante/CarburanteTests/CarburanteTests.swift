@@ -109,6 +109,99 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(try ctx.fetch(FetchDescriptor<FuelLog>()).count, 0)
     }
 
+    // MARK: - Reconciliação de hodômetro (bug: exclusão do último abastecimento)
+
+    /// Helper: insere a moto + abastecimentos cheios nos odômetros dados.
+    private func motoWithLogs(baseline: Double, odometers: [Double], in ctx: ModelContext) throws -> Motorcycle {
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil", currentOdometer: baseline)
+        ctx.insert(moto)
+        for (i, odo) in odometers.enumerated() {
+            let date = DateComponents(calendar: .current, year: 2026, month: 1, day: i + 1).date!
+            ctx.insert(FuelLog(date: date, odometer: odo, liters: 10, totalCost: 60, fuelType: .gasolinaComum, motorcycle: moto))
+            moto.reconcileOdometer(latestEntry: odo)
+        }
+        try ctx.save()
+        return moto
+    }
+
+    /// Excluir o abastecimento MAIS RECENTE → hodômetro cai para o próximo maior.
+    func testReconcile_deleteNewestFallsToPrevious() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1500, 1800], in: ctx)
+        XCTAssertEqual(moto.currentOdometer, 1800)
+
+        // Exclui o registro de 1800 (o mais recente / maior).
+        let newest = moto.fuelLogs.max { $0.odometer < $1.odometer }!
+        ctx.delete(newest)
+        try ctx.save()
+        moto.reconcileOdometer()
+
+        XCTAssertEqual(moto.currentOdometer, 1500, "deve cair para o próximo maior")
+    }
+
+    /// Excluir um abastecimento INTERMEDIÁRIO não mexe no hodômetro (o maior continua).
+    func testReconcile_deleteMiddleKeepsMax() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1500, 1800], in: ctx)
+
+        let middle = moto.fuelLogs.first { $0.odometer == 1500 }!
+        ctx.delete(middle)
+        try ctx.save()
+        moto.reconcileOdometer()
+
+        XCTAssertEqual(moto.currentOdometer, 1800, "o maior (1800) permanece")
+    }
+
+    /// Excluir o ÚNICO abastecimento → cai para o baseline manual, nunca zera.
+    func testReconcile_deleteOnlyLogFallsToBaseline() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200], in: ctx)
+        XCTAssertEqual(moto.currentOdometer, 1200)
+
+        let only = moto.fuelLogs.first!
+        ctx.delete(only)
+        try ctx.save()
+        moto.reconcileOdometer()
+
+        XCTAssertEqual(moto.currentOdometer, 1000, "volta ao baseline de cadastro, não a zero")
+    }
+
+    /// Editar o maior abastecimento PARA BAIXO reconcilia o hodômetro p/ baixo.
+    func testReconcile_editNewestDownLowersOdometer() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1800], in: ctx)
+        XCTAssertEqual(moto.currentOdometer, 1800)
+
+        let newest = moto.fuelLogs.first { $0.odometer == 1800 }!
+        newest.odometer = 1400          // correção manual p/ baixo
+        moto.reconcileOdometer(latestEntry: 1400)
+        try ctx.save()
+
+        XCTAssertEqual(moto.currentOdometer, 1400, "1400 ainda > 1200 e > baseline 1000")
+    }
+
+    /// Migração preguiçosa: moto antiga (baseline 0) com hodômetro manual acima
+    /// dos logs não é zerada ao excluir o único abastecimento.
+    func testReconcile_legacyBaselineZeroNotWiped() throws {
+        let ctx = try makeContext()
+        // Simula store antigo: baseline 0, currentOdometer manual alto, 1 log abaixo.
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
+        moto.odometerBaseline = 0          // como viria de um registro pré-campo
+        moto.currentOdometer = 20_000      // leitura manual de cadastro
+        ctx.insert(moto)
+        let log = FuelLog(odometer: 20_500, liters: 10, totalCost: 60, fuelType: .gasolinaComum, motorcycle: moto)
+        ctx.insert(log)
+        moto.reconcileOdometer(latestEntry: 20_500)   // currentOdometer = 20500
+        try ctx.save()
+
+        ctx.delete(log)
+        try ctx.save()
+        moto.reconcileOdometer()
+
+        XCTAssertGreaterThan(moto.currentOdometer, 0, "nunca zera uma moto legada")
+        XCTAssertEqual(moto.currentOdometer, 20_500, "preserva o maior valor conhecido como baseline")
+    }
+
     // MARK: - Validation
 
     func testValidationAcceptsValid() {
