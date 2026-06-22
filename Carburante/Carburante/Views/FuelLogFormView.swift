@@ -417,6 +417,8 @@ struct FuelLogFormView: View {
         Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
+        let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
+        Task { await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate) }
         dismiss()
     }
 

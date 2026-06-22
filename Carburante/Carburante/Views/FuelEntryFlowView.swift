@@ -700,6 +700,10 @@ struct FuelEntryFlowView: View {
         Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
+        // Reagenda os lembretes de ausência a partir do abastecimento mais
+        // recente (a data é Sendable; calculada aqui no main actor).
+        let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
+        Task { await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate) }
         dismiss()
     }
 }

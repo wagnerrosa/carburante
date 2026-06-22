@@ -202,6 +202,42 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(moto.currentOdometer, 20_500, "preserva o maior valor conhecido como baseline")
     }
 
+    // MARK: - Lembretes locais de ausência
+
+    private func day(_ d: Int) -> Date {
+        DateComponents(calendar: .current, year: 2026, month: 3, day: d, hour: 12).date!
+    }
+
+    /// Logo após abastecer (mesmo dia): os 3 marcos 7/14/21 estão no futuro.
+    func testAbsence_allFutureRightAfterFueling() {
+        let last = day(1)
+        let pending = AbsenceReminder.pendingFireDates(lastFuelDate: last, now: last)
+        XCTAssertEqual(pending.map(\.day), [7, 14, 21])
+    }
+
+    /// 10 dias depois: o marco de 7 já passou; restam 14 e 21.
+    func testAbsence_dropsPastMilestones() {
+        let last = day(1)
+        let pending = AbsenceReminder.pendingFireDates(lastFuelDate: last, now: day(11))
+        XCTAssertEqual(pending.map(\.day), [14, 21])
+    }
+
+    /// Passados todos os marcos: nada a agendar.
+    func testAbsence_noneAfterAllMilestones() {
+        let last = day(1)
+        let pending = AbsenceReminder.pendingFireDates(lastFuelDate: last, now: day(30))
+        XCTAssertTrue(pending.isEmpty)
+    }
+
+    /// As datas de disparo são exatamente último + N dias.
+    func testAbsence_fireDatesAreOffsetFromLast() {
+        let last = day(1)
+        let pending = AbsenceReminder.pendingFireDates(lastFuelDate: last, now: last)
+        let cal = Calendar.current
+        XCTAssertEqual(pending.first { $0.day == 7 }?.fireDate, cal.date(byAdding: .day, value: 7, to: last))
+        XCTAssertEqual(pending.first { $0.day == 21 }?.fireDate, cal.date(byAdding: .day, value: 21, to: last))
+    }
+
     // MARK: - Validation
 
     func testValidationAcceptsValid() {
