@@ -84,8 +84,6 @@ struct FuelEntryFlowView: View {
 
     // MARK: - Derivados
 
-    private var isFirstFuelUp: Bool { motorcycle.fuelLogs.isEmpty }
-
     private var lastOdometer: Double {
         max(motorcycle.fuelLogs.map(\.odometer).max() ?? 0, motorcycle.currentOdometer)
     }
@@ -384,16 +382,8 @@ struct FuelEntryFlowView: View {
                     .frame(maxWidth: .infinity).padding(.vertical, 18)
                     .background(Color(.secondarySystemGroupedBackground),
                                 in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                } else if isFirstFuelUp, isFullTank {
-                    VStack(spacing: 4) {
-                        Text("Primeiro tanque cheio").font(.subheadline.weight(.semibold))
-                        Text("O consumo é medido a partir do próximo abastecimento cheio.")
-                            .font(.caption).foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity).padding(.vertical, 16)
-                    .background(Color(.secondarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                } else {
+                    fullToFullExplainer
                 }
 
                 VStack(spacing: 0) {
@@ -437,6 +427,54 @@ struct FuelEntryFlowView: View {
                 .padding(.top, 4)
             }
             .padding(20)
+        }
+    }
+
+    /// Explica o método full-to-full na revisão quando ainda não há km/l a
+    /// mostrar (substitui o herói "Consumo deste tanque"). Conta os cheios já
+    /// gravados MAIS este registro, se for cheio, para dizer quantos ainda
+    /// faltam — e por que um abastecimento parcial não fecha a conta.
+    @ViewBuilder
+    private var fullToFullExplainer: some View {
+        let alreadyFull = motorcycle.fullTanksUntilConsumption   // cheios faltando, sem contar este
+        // Este registro, se cheio, abate 1 da conta (mas nunca abaixo de 0).
+        let remaining = max(alreadyFull - (isFullTank ? 1 : 0), 0)
+
+        VStack(spacing: 6) {
+            Image(systemName: "fuelpump.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.tint)
+            Text(explainerTitle(remaining: remaining))
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+            Text(explainerSubtitle(remaining: remaining))
+                .font(.caption).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 16).padding(.horizontal, 12)
+        .background(Color(.secondarySystemGroupedBackground),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func explainerTitle(remaining: Int) -> String {
+        if !isFullTank {
+            return "Abastecimento parcial"
+        }
+        switch remaining {
+        case 0:  return "Tudo pronto para medir"
+        case 1:  return "Falta 1 abastecimento cheio"
+        default: return "Faltam \(remaining) abastecimentos cheios"
+        }
+    }
+
+    private func explainerSubtitle(remaining: Int) -> String {
+        if !isFullTank {
+            return "O consumo só é medido entre dois tanques cheios. Marque \"Tanque cheio\" quando completar o tanque."
+        }
+        switch remaining {
+        case 0:  return "O km/l aparece no Resumo assim que você salvar."
+        case 1:  return "O consumo é medido entre dois tanques cheios. No próximo cheio, seu km/l aparece."
+        default: return "O consumo é medido entre dois tanques cheios. Encha o tanque ao abastecer para liberar o km/l."
         }
     }
 

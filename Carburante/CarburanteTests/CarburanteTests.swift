@@ -175,6 +175,44 @@ final class CarburanteTests: XCTestCase {
         XCTAssertTrue(segs.isEmpty)
     }
 
+    // MARK: - Full-to-full: cheios faltando até o 1º km/l
+
+    /// Sem registros: faltam 2 cheios.
+    func testFullTanksUntil_empty() {
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: []), 2)
+    }
+
+    /// Só a âncora (1 cheio): falta 1.
+    func testFullTanksUntil_oneFullTank() {
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: [entry(1000, 8)]), 1)
+    }
+
+    /// Dois cheios com odômetro avançando: já há consumo → 0.
+    func testFullTanksUntil_twoFullTanksWithDistance() {
+        let entries = [entry(1000, 8), entry(1100, 10)]
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: entries), 0)
+    }
+
+    /// Dois cheios SEM avanço de odômetro (segmento inválido): ainda falta 1.
+    func testFullTanksUntil_twoFullTanksNoDistance() {
+        let entries = [entry(1000, 10), entry(1000, 5)]
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: entries), 1)
+    }
+
+    /// 1 cheio (âncora) + parciais: parciais não fecham segmento → ainda falta 1.
+    func testFullTanksUntil_anchorPlusPartials() {
+        let entries = [entry(1000, 10, full: true),
+                       entry(1100, 5, full: false),
+                       entry(1200, 6, full: false)]
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: entries), 1)
+    }
+
+    /// Só parciais (nenhum cheio): faltam 2 cheios.
+    func testFullTanksUntil_onlyPartials() {
+        let entries = [entry(1000, 5, full: false), entry(1100, 6, full: false)]
+        XCTAssertEqual(ConsumptionCalculator.fullTanksUntilFirstReading(from: entries), 2)
+    }
+
     /// Entradas fora de ordem são ordenadas por odômetro.
     func testOutOfOrderEntries() {
         let entries = [entry(1200, 8), entry(1000, 10), entry(1100, 5, full: false)]

@@ -78,6 +78,12 @@ extension Motorcycle {
         ConsumptionCalculator.summary(from: fuelLogs.map(\.asFuelEntry))
     }
 
+    /// Quantos abastecimentos cheios faltam até o 1º km/l aparecer (0/1/2).
+    /// Base das mensagens que explicam o método full-to-full ao usuário.
+    var fullTanksUntilConsumption: Int {
+        ConsumptionCalculator.fullTanksUntilFirstReading(from: fuelLogs.map(\.asFuelEntry))
+    }
+
     /// Abastecimento mais recente por data.
     var latestFuelLog: FuelLog? {
         fuelLogs.max { $0.date < $1.date }
@@ -321,6 +327,29 @@ enum ConsumptionCalculator {
         segments(from: entries)
             .sorted { $0.endDate < $1.endDate }
             .compactMap { $0.distance > 0 ? $0.cost / $0.distance : nil }
+    }
+
+    /// Quantos abastecimentos COM TANQUE CHEIO ainda faltam até existir a
+    /// primeira leitura de consumo (km/l). O método full-to-full exige dois
+    /// cheios com avanço de odômetro entre eles para fechar um segmento:
+    ///
+    ///   - já há ≥1 segmento medível → 0 (o consumo já aparece);
+    ///   - 0 cheios registrados      → 2 (precisa de dois);
+    ///   - 1 cheio (a âncora)        → 1 (falta o cheio que fecha o 1º segmento);
+    ///   - 2+ cheios mas o odômetro não avançou entre eles (segmento inválido,
+    ///     ex.: leitura repetida)    → 1 (ainda falta um cheio válido).
+    ///
+    /// Abastecimentos parciais NÃO contam (não fecham segmento) — por isso a
+    /// contagem olha só os cheios, e cai para o `segments()` para detectar o
+    /// caso de odômetro que não avançou. Mesma fonte de verdade do gráfico, para
+    /// a mensagem nunca divergir do que está desenhado.
+    static func fullTanksUntilFirstReading(from entries: [FuelEntry]) -> Int {
+        // Já existe consumo medido → nada falta.
+        if !segments(from: entries).isEmpty { return 0 }
+
+        let fullTanks = entries.filter(\.isFullTank).count
+        // 0 cheios → faltam 2; 1+ cheios sem segmento ainda → falta 1.
+        return fullTanks == 0 ? 2 : 1
     }
 
     /// Resumo agregado. `averageKmPerLiter` é nil quando não há segmento medível.

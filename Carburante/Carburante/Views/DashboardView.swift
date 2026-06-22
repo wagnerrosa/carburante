@@ -147,11 +147,11 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 20) {
                 if summary.segmentCount > 0 {
                     Button { showingConsumption = true } label: {
-                        consumptionCard(summary, segments: segments)
+                        consumptionCard(summary, segments: segments, moto: moto)
                     }
                     .buttonStyle(.plain)
                 } else {
-                    consumptionCard(summary, segments: [])
+                    consumptionCard(summary, segments: [], moto: moto)
                 }
 
                 metricsGrid(summary, moto: moto)
@@ -315,7 +315,7 @@ struct DashboardView: View {
     /// toca → tela Consumo cheia. Com < `minBarsForChart` segmentos não há gráfico
     /// (anti-Apple: barras tortas), só a manchete/dica.
     @ViewBuilder
-    private func consumptionCard(_ summary: ConsumptionSummary, segments: [ConsumptionSegment]) -> some View {
+    private func consumptionCard(_ summary: ConsumptionSummary, segments: [ConsumptionSegment], moto: Motorcycle) -> some View {
         let hasChart = segments.count >= Self.minBarsForChart
         // Mostra só as barras mais recentes (as mais relevantes p/ tendência atual).
         let barSegments = Array(segments.suffix(Self.maxBarsInCard))
@@ -339,7 +339,8 @@ struct DashboardView: View {
 
                 // Manchete que conta a história (padrão Saúde): frase grande em
                 // negrito, com o número km/l destacado no meio do texto.
-                consumptionHeadline(summary.averageKmPerLiter, segments: segments)
+                consumptionHeadline(summary.averageKmPerLiter, segments: segments,
+                                    tanksUntilReading: moto.fullTanksUntilConsumption)
 
                 if hasChart {
                     Divider()
@@ -353,7 +354,10 @@ struct DashboardView: View {
     }
 
     /// Frase-manchete do card (estilo "Você queimou uma média de 161 cal/dia…").
-    private func consumptionHeadline(_ average: Double?, segments: [ConsumptionSegment]) -> some View {
+    /// Sem consumo medido ainda, a frase explica QUANTOS cheios faltam (contagem
+    /// dinâmica) — o usuário nunca fica sem saber por que ainda não há km/l.
+    private func consumptionHeadline(_ average: Double?, segments: [ConsumptionSegment],
+                                     tanksUntilReading: Int) -> some View {
         Group {
             if let average {
                 let value = average.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale))
@@ -361,8 +365,12 @@ struct DashboardView: View {
                     + Text(value).fontWeight(.bold).monospacedDigit()
                     + Text(" km/l").fontWeight(.bold)
                     + Text(headlinePeriodSuffix(segments))
+            } else if tanksUntilReading <= 1 {
+                Text("Falta ") + Text("1 abastecimento cheio").fontWeight(.bold)
+                    + Text(" para medir o consumo da sua moto.")
             } else {
-                Text("Registre dois abastecimentos com tanque cheio para medir o consumo.")
+                Text("Registre ") + Text("2 abastecimentos com tanque cheio").fontWeight(.bold)
+                    + Text(" para medir o consumo da sua moto.")
             }
         }
         .font(.title3.weight(.semibold))
@@ -712,9 +720,10 @@ struct DashboardView: View {
                             Text("Registrar primeiro abastecimento")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.primary)
-                            Text("Toque para começar a acompanhar o consumo.")
+                            Text("O consumo aparece após 2 abastecimentos com tanque cheio.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
