@@ -238,6 +238,65 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(pending.first { $0.day == 21 }?.fireDate, cal.date(byAdding: .day, value: 21, to: last))
     }
 
+    // MARK: - Alerta proativo de troca de óleo
+
+    private func oilStatus(intervalKm: Double = 3000, dueMileage: Double, dueDate: Date,
+                           kmRemaining: Double, overdue: Bool) -> OilChangeStatus {
+        OilChangeStatus(intervalKm: intervalKm, dueMileage: dueMileage, dueDate: dueDate,
+                        kmRemaining: kmRemaining, isOverdue: overdue)
+    }
+
+    /// Sem troca registrada (status nil) → nenhum lembrete.
+    func testOil_noStatusNoPlans() {
+        XCTAssertTrue(OilChangeReminder.plans(for: nil, now: day(1)).isEmpty)
+    }
+
+    /// Longe do prazo (km e data): agenda só o aviso por data (pré + no prazo),
+    /// nada por km (progresso < 80%).
+    func testOil_farFromDueOnlyDatePlans() {
+        let now = day(1)
+        let due = Calendar.current.date(byAdding: .day, value: 100, to: now)!
+        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: 2900, overdue: false)
+        let plans = OilChangeReminder.plans(for: status, now: now)
+        let ids = Set(plans.map(\.idSuffix))
+        XCTAssertTrue(ids.contains("date-pre"))
+        XCTAssertTrue(ids.contains("date-due"))
+        XCTAssertFalse(ids.contains("km"), "progresso < 80% não dispara km")
+    }
+
+    /// ≥80% por km: inclui o lembrete por km na manhã seguinte.
+    func testOil_approachingKmAddsKmPlan() {
+        let now = day(1)
+        let due = Calendar.current.date(byAdding: .day, value: 100, to: now)!
+        // kmRemaining 300 de 3000 → 90% → ≥80%.
+        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: 300, overdue: false)
+        let plans = OilChangeReminder.plans(for: status, now: now)
+        let km = plans.first { $0.idSuffix == "km" }
+        XCTAssertNotNil(km)
+        XCTAssertEqual(km?.fireDate, OilChangeReminder.nextMorning(after: now))
+    }
+
+    /// Vencido: sem planos de data (passados), só o lembrete km "vencida".
+    func testOil_overdueOnlyKmPlan() {
+        let now = day(10)
+        let due = day(1)   // já passou
+        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: -50, overdue: true)
+        let plans = OilChangeReminder.plans(for: status, now: now)
+        XCTAssertEqual(plans.map(\.idSuffix), ["km"])
+        XCTAssertEqual(plans.first?.title, "Troca de óleo vencida")
+    }
+
+    /// Aviso por data só entra se a antecedência ainda é futura.
+    func testOil_preWarningSkippedWhenPast() {
+        let now = day(20)
+        let due = day(25)   // faltam 5 dias < 7 de antecedência → pré não entra
+        let status = oilStatus(dueMileage: 13000, dueDate: due, kmRemaining: 1000, overdue: false)
+        let plans = OilChangeReminder.plans(for: status, now: now)
+        let ids = Set(plans.map(\.idSuffix))
+        XCTAssertFalse(ids.contains("date-pre"))
+        XCTAssertTrue(ids.contains("date-due"))
+    }
+
     // MARK: - Validation
 
     func testValidationAcceptsValid() {

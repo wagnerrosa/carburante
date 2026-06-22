@@ -418,7 +418,11 @@ struct FuelLogFormView: View {
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
-        Task { await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate) }
+        let oilStatus = motorcycle.oilChangeStatus()
+        Task {
+            await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
+            await NotificationService.shared.rescheduleOilChange(status: oilStatus)
+        }
         dismiss()
     }
 

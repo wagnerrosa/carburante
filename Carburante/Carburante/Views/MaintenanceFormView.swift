@@ -157,6 +157,9 @@ struct MaintenanceFormView: View {
         Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
+        // Registrar/editar uma troca reinicia o intervalo → recalcula o alerta.
+        let oilStatus = motorcycle.oilChangeStatus()
+        Task { await NotificationService.shared.rescheduleOilChange(status: oilStatus) }
         dismiss()
     }
 }

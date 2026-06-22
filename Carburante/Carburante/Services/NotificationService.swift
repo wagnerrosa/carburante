@@ -116,4 +116,40 @@ struct NotificationService {
         let ids = AbsenceReminder.dayOffsets.map { "\(AbsenceReminder.identifierPrefix)\($0)" }
         center.removePendingNotificationRequests(withIdentifiers: ids)
     }
+
+    // MARK: - Troca de óleo
+
+    /// (Re)agenda os lembretes de troca de óleo a partir do status atual.
+    /// Chamar ao salvar um abastecimento (muda o km/progresso) ou uma troca de
+    /// óleo (reinicia o intervalo). `status` é um valor puro (Sendable).
+    func rescheduleOilChange(status: OilChangeStatus?, now: Date = Date()) async {
+        cancelOilChangeReminders()
+        let plans = OilChangeReminder.plans(for: status, now: now)
+        guard !plans.isEmpty else { return }
+        guard await requestAuthorizationIfNeeded() else { return }
+
+        for plan in plans {
+            let content = UNMutableNotificationContent()
+            content.title = plan.title
+            content.body = plan.body
+            content.sound = .default
+
+            let comps = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute], from: plan.fireDate
+            )
+            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "\(OilChangeReminder.identifierPrefix)\(plan.idSuffix)",
+                content: content,
+                trigger: trigger
+            )
+            try? await center.add(request)
+        }
+    }
+
+    /// Remove os lembretes de troca de óleo pendentes (sem tocar em outros).
+    func cancelOilChangeReminders() {
+        let ids = ["date-pre", "date-due", "km"].map { "\(OilChangeReminder.identifierPrefix)\($0)" }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+    }
 }

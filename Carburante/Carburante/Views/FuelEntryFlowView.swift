@@ -703,7 +703,11 @@ struct FuelEntryFlowView: View {
         // Reagenda os lembretes de ausência a partir do abastecimento mais
         // recente (a data é Sendable; calculada aqui no main actor).
         let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
-        Task { await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate) }
+        let oilStatus = motorcycle.oilChangeStatus()
+        Task {
+            await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
+            await NotificationService.shared.rescheduleOilChange(status: oilStatus)
+        }
         dismiss()
     }
 }

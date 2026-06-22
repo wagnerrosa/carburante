@@ -96,9 +96,13 @@ struct FuelLogListView: View {
         try? modelContext.save()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
-        // Excluir muda o "último abastecimento" → recalcula os lembretes.
+        // Excluir muda o "último abastecimento" e o km → recalcula os lembretes.
         let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
-        Task { await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate) }
+        let oilStatus = motorcycle.oilChangeStatus()
+        Task {
+            await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
+            await NotificationService.shared.rescheduleOilChange(status: oilStatus)
+        }
     }
 }
 

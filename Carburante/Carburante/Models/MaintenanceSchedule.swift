@@ -55,6 +55,73 @@ extension Motorcycle {
     }
 }
 
+/// Um lembrete planejado de troca de óleo (valor puro, Sendable). O
+/// `NotificationService` traduz isto em `UNNotificationRequest`.
+struct OilReminderPlan: Equatable {
+    /// Sufixo estável do identificador (dedupe no reagendamento).
+    let idSuffix: String
+    let fireDate: Date
+    let title: String
+    let body: String
+}
+
+/// Planeja os lembretes de troca de óleo a partir do `OilChangeStatus`.
+/// Duas dimensões: por DATA (determinística → agenda no prazo e antes dele) e
+/// por KM (reativa → como não dá para prever quando o piloto rodará os km, ao
+/// cruzar 80% agenda um lembrete para a próxima manhã). Pura e testável.
+enum OilChangeReminder {
+    static let identifierPrefix = "oil-change-"
+    /// Antecedência do aviso "se aproximando" (por data).
+    static let preWarningDays = 7
+    /// Limiar de progresso (km) que dispara o aviso de aproximação.
+    static let approachingProgress = 0.8
+
+    static func plans(
+        for status: OilChangeStatus?,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [OilReminderPlan] {
+        guard let status else { return [] }
+        var out: [OilReminderPlan] = []
+
+        // Por DATA — só enquanto não vencido (datas passadas não se agendam).
+        if !status.isOverdue {
+            if let pre = calendar.date(byAdding: .day, value: -preWarningDays, to: status.dueDate),
+               pre > now {
+                out.append(OilReminderPlan(
+                    idSuffix: "date-pre", fireDate: pre,
+                    title: "Troca de óleo se aproximando",
+                    body: "Prevista para \(AppFormat.date(status.dueDate))."))
+            }
+            if status.dueDate > now {
+                out.append(OilReminderPlan(
+                    idSuffix: "date-due", fireDate: status.dueDate,
+                    title: "Troca de óleo prevista para hoje",
+                    body: "Recomendada a cada \(AppFormat.km(status.intervalKm)) ou \(MaintenanceSchedule.oilIntervalDays) dias."))
+            }
+        }
+
+        // Por KM — reativo. Ao atingir ≥80% (ou vencido), agenda p/ a manhã
+        // seguinte. O reagendamento a cada abastecimento mantém um só pendente.
+        if status.progress >= approachingProgress || status.isOverdue {
+            if let morning = nextMorning(after: now, calendar: calendar) {
+                let title = status.isOverdue ? "Troca de óleo vencida" : "Troca de óleo próxima"
+                let body = status.isOverdue
+                    ? "Recomendada o quanto antes."
+                    : "Faltam \(AppFormat.km(max(status.kmRemaining, 0)))."
+                out.append(OilReminderPlan(idSuffix: "km", fireDate: morning, title: title, body: body))
+            }
+        }
+        return out
+    }
+
+    /// Próxima manhã (default 9h) após `now`.
+    static func nextMorning(after now: Date, hour: Int = 9, calendar: Calendar = .current) -> Date? {
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return nil }
+        return calendar.date(bySettingHour: hour, minute: 0, second: 0, of: tomorrow)
+    }
+}
+
 enum MaintenanceSchedule {
     static let defaultOilIntervalKm: Double = 3_000
     static let oilIntervalDays: Int = 180
