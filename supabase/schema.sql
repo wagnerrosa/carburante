@@ -96,9 +96,21 @@ alter table public.maintenance_logs add column if not exists oil_change_interval
 alter table public.maintenance_logs add column if not exists interval_km double precision;
 alter table public.maintenance_logs add column if not exists interval_months integer;
 alter table public.maintenance_logs add column if not exists part_of_maintenance_id uuid;
-update public.maintenance_logs
-   set interval_km = oil_change_interval_km
- where interval_km is null and oil_change_interval_km is not null;
+-- Backfill guardado: só roda se a coluna legada existir (ambientes que nunca
+-- aplicaram a feature de intervalo de óleo não têm `oil_change_interval_km`).
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'maintenance_logs'
+       and column_name = 'oil_change_interval_km'
+  ) then
+    update public.maintenance_logs
+       set interval_km = oil_change_interval_km
+     where interval_km is null and oil_change_interval_km is not null;
+  end if;
+end $$;
 create index if not exists maintenance_logs_user_id_idx on public.maintenance_logs (user_id);
 create index if not exists maintenance_logs_motorcycle_id_idx on public.maintenance_logs (motorcycle_id);
 
