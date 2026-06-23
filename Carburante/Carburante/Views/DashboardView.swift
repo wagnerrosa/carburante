@@ -21,6 +21,10 @@ struct DashboardView: View {
     @State private var showingAddMoto = false
     /// Dispara a navegação para a tela Consumo (tap no card de consumo ou comparação).
     @State private var showingConsumption = false
+    /// Navega para a manutenção a partir do checklist de ativação.
+    @State private var showingMaintenance = false
+    /// Checklist de ativação dispensado pelo usuário (persiste localmente).
+    @AppStorage("activationChecklistDismissed") private var activationChecklistDismissed = false
 
     /// Moto exibida: a ativa (persistida), ou a primeira disponível.
     private var motorcycle: Motorcycle? {
@@ -145,6 +149,12 @@ struct DashboardView: View {
         let reference = moto.categoryReferenceKmPerLiter
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if let steps = activationSteps(for: moto) {
+                    ActivationChecklist(steps: steps) {
+                        withAnimation { activationChecklistDismissed = true }
+                    }
+                }
+
                 if summary.segmentCount > 0 {
                     Button { showingConsumption = true } label: {
                         consumptionCard(summary, segments: segments, moto: moto)
@@ -187,6 +197,40 @@ struct DashboardView: View {
         .navigationDestination(isPresented: $showingConsumption) {
             ConsumptionChartView(motorcycle: moto)
         }
+        .navigationDestination(isPresented: $showingMaintenance) {
+            MaintenanceListView(motorcycle: moto)
+        }
+    }
+
+    // MARK: - Checklist de ativação (primeiros passos)
+
+    /// Passos do checklist derivados dos dados reais da moto, ou nil quando não
+    /// deve aparecer (dispensado, ou todos concluídos → some sozinho). Cada passo
+    /// pendente leva à ação que o conclui. Fonte de verdade: PLAN/onboarding.md.
+    private func activationSteps(for moto: Motorcycle) -> [ActivationStep]? {
+        guard !activationChecklistDismissed else { return nil }
+
+        let hasFuel = !moto.fuelLogs.isEmpty
+        let hasMaintenance = !moto.maintenanceLogs.isEmpty
+        let hasConsumption = moto.consumptionSummary.segmentCount > 0
+
+        let steps = [
+            // Já existe moto para chegar aqui → 1º passo sempre concluído.
+            ActivationStep(title: "Cadastre sua primeira moto", isDone: true, action: nil),
+            ActivationStep(title: "Registre seu primeiro abastecimento",
+                           isDone: hasFuel,
+                           action: { showingFuelLog = true }),
+            ActivationStep(title: "Registre uma manutenção",
+                           isDone: hasMaintenance,
+                           action: { showingMaintenance = true }),
+            // Consumo aparece sozinho (não é uma ação direta) → leva à tela Consumo
+            // só depois de existir, para o usuário ver o resultado.
+            ActivationStep(title: "Veja seu primeiro consumo",
+                           isDone: hasConsumption,
+                           action: hasConsumption ? { showingConsumption = true } : nil),
+        ]
+        // Todos concluídos → some.
+        return steps.allSatisfy(\.isDone) ? nil : steps
     }
 
     // MARK: - Card de comparação com a categoria
