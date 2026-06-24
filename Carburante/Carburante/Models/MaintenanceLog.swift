@@ -82,6 +82,14 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
     /// `MaintenanceLog` filho do tipo, reiniciando o contador daquele item.
     /// Ver PLAN/manutencao-programada.md §2 (Fase B).
     static let revisaoComboTypes: [MaintenanceType] = [.oleo, .filtros, .freios, .pneus, .relacao]
+
+    /// Aparece na lista "Programadas" / no Resumo como meta com contador próprio?
+    /// `.revisao` é uma AÇÃO de registro (reinicia os contadores dos itens que
+    /// inclui), não uma meta agendável: seu contador próprio (10.000 km / 12 m)
+    /// não tem relação com o progresso dos itens e geraria uma linha duplicada
+    /// competindo com os próprios componentes. `.outro` não tem intervalo padrão.
+    /// NÃO reverter sem reavaliar: era a causa do nível-misto em Programadas.
+    var isSchedulable: Bool { self != .revisao && self != .outro }
 }
 
 @Model

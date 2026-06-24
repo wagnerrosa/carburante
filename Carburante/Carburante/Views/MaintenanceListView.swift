@@ -20,8 +20,14 @@ struct MaintenanceListView: View {
     @State private var pendingDelete: [MaintenanceLog] = []
     @State private var showDeleteConfirm = false
 
+    /// Histórico mostra só os logs de topo: os filhos de uma Revisão Geral ficam
+    /// dentro do pai (linha "Inclui: …"), não como linhas avulsas — uma revisão
+    /// de 5 itens é 1 linha, não 6. Os filhos seguem existindo (sincronizam,
+    /// reiniciam contadores); aqui é só apresentação.
     private var logs: [MaintenanceLog] {
-        motorcycle.maintenanceLogs.sorted { $0.date > $1.date }
+        motorcycle.maintenanceLogs
+            .filter { !$0.isPartOfRevisao }
+            .sorted { $0.date > $1.date }
     }
 
     /// Status agendados por tipo (só os com ≥1 registro), por urgência.
@@ -241,16 +247,13 @@ private struct MaintenanceRow: View {
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
 
-                // Revisão geral lista os itens incluídos; um item gerado por uma
-                // revisão se identifica como tal (relação visível no histórico).
+                // Revisão geral lista os itens incluídos. Filhos não aparecem no
+                // histórico (filtrados em `logs`), então não há linha "Parte da
+                // revisão geral" — só o pai, com o resumo dos itens.
                 if log.type == .revisao, !log.includedItemsLabel.isEmpty {
                     Label("Inclui: \(log.includedItemsLabel)", systemImage: "checklist")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else if log.isPartOfRevisao {
-                    Label("Parte da revisão geral", systemImage: "arrow.turn.down.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
 
                 if !log.notes.isEmpty {

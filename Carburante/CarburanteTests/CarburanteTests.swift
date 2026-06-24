@@ -979,4 +979,30 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(status?.isOverdue, false, "contador reiniciado pela revisão")
         XCTAssertEqual(status?.kmRemaining, 3000)
     }
+
+    /// `.revisao` é ação de registro, não meta: NÃO aparece em Programadas
+    /// (`maintenanceStatuses`) nem como herói do Resumo, mesmo com um pai logado.
+    /// Guarda de regressão da causa do nível-misto.
+    func testRevisaoNotSchedulable() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 30000)
+        ctx.insert(moto)
+        // Revisão logada que inclui óleo (pai .revisao + filho .oleo).
+        let parent = MaintenanceLog(date: day(2026, 6, 1), mileage: 30000, type: .revisao, motorcycle: moto)
+        ctx.insert(parent)
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 30000, cost: 0,
+                                  type: .oleo, partOfMaintenanceID: parent.id, motorcycle: moto))
+        try ctx.save()
+
+        let statuses = moto.maintenanceStatuses(now: day(2026, 6, 10))
+        XCTAssertFalse(statuses.contains { $0.type == .revisao },
+                       "revisão não é meta agendável")
+        XCTAssertTrue(statuses.contains { $0.type == .oleo },
+                      "o item reiniciado pela revisão aparece por conta própria")
+        XCTAssertNotEqual(moto.nextDueMaintenance(now: day(2026, 6, 10))?.type, .revisao)
+        XCTAssertFalse(MaintenanceType.revisao.isSchedulable)
+        XCTAssertFalse(MaintenanceType.outro.isSchedulable)
+        XCTAssertTrue(MaintenanceType.oleo.isSchedulable)
+    }
 }
