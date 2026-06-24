@@ -65,37 +65,41 @@ struct MaintenanceFormView: View {
                     }
                 }
 
-                Section {
-                    HStack {
-                        Text("A cada")
-                        TextField(
-                            "Intervalo",
-                            value: $intervalKm,
-                            format: .number,
-                            prompt: Text(type.defaultIntervalKm.map(AppFormat.odometer) ?? "—")
-                        )
-                        .keyboardType(.numberPad)
-                        .focused($fieldFocused)
-                        .multilineTextAlignment(.trailing)
-                        Text("km").foregroundStyle(.secondary)
+                // Revisão Geral não tem contador próprio (é ação que reinicia os
+                // itens incluídos, não meta agendável) → sem seção de intervalo.
+                if type != .revisao {
+                    Section {
+                        HStack {
+                            Text("A cada")
+                            TextField(
+                                "Intervalo",
+                                value: $intervalKm,
+                                format: .number,
+                                prompt: Text(type.defaultIntervalKm.map(AppFormat.odometer) ?? "—")
+                            )
+                            .keyboardType(.numberPad)
+                            .focused($fieldFocused)
+                            .multilineTextAlignment(.trailing)
+                            Text("km").foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            Text("A cada")
+                            TextField(
+                                "Intervalo",
+                                value: $intervalMonths,
+                                format: .number,
+                                prompt: Text(type.defaultIntervalMonths.map { "\($0)" } ?? "—")
+                            )
+                            .keyboardType(.numberPad)
+                            .focused($fieldFocused)
+                            .multilineTextAlignment(.trailing)
+                            Text("meses").foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("Próxima manutenção")
+                    } footer: {
+                        Text("A cada quanto repetir esta manutenção — por km, por tempo, ou ambos (vence pelo que vier primeiro). Pré-preenchido com uma sugestão; ajuste conforme o manual da sua moto.")
                     }
-                    HStack {
-                        Text("A cada")
-                        TextField(
-                            "Intervalo",
-                            value: $intervalMonths,
-                            format: .number,
-                            prompt: Text(type.defaultIntervalMonths.map { "\($0)" } ?? "—")
-                        )
-                        .keyboardType(.numberPad)
-                        .focused($fieldFocused)
-                        .multilineTextAlignment(.trailing)
-                        Text("meses").foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text("Próxima manutenção")
-                } footer: {
-                    Text("A cada quanto repetir esta manutenção — por km, por tempo, ou ambos (vence pelo que vier primeiro). Pré-preenchido com uma sugestão; ajuste conforme o manual da sua moto.")
                 }
 
                 if type == .revisao {
@@ -108,7 +112,13 @@ struct MaintenanceFormView: View {
                     } header: {
                         Text("Itens executados")
                     } footer: {
-                        Text("Marque o que foi feito nesta revisão — cada item reinicia o próprio contador, na mesma data e km. O custo total fica na revisão.")
+                        // Revisão sem itens não reinicia contador nenhum nem
+                        // aparece em Programadas (não é agendável) → o serviço se
+                        // perderia. Exige ≥1 item (ver canSave).
+                        Text(revisaoItems.isEmpty
+                             ? "Marque ao menos um item executado."
+                             : "Marque o que foi feito nesta revisão — cada item reinicia o próprio contador, na mesma data e km. O custo total fica na revisão.")
+                        .foregroundStyle(revisaoItems.isEmpty ? .orange : .secondary)
                     }
                 }
 
@@ -179,7 +189,11 @@ struct MaintenanceFormView: View {
     }
 
     private var canSave: Bool {
-        (mileage ?? 0) > 0
+        guard (mileage ?? 0) > 0 else { return false }
+        // Revisão Geral precisa de ≥1 item: sem item não reinicia contador nem
+        // aparece em Programadas (não é agendável) → o serviço se perderia.
+        if type == .revisao, revisaoItems.isEmpty { return false }
+        return true
     }
 
     private func save() {

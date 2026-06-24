@@ -168,10 +168,14 @@ extension Motorcycle {
         )
     }
 
-    /// Status de TODOS os tipos com ≥1 manutenção, ordenados por urgência
-    /// (vencidos primeiro; depois maior progresso).
+    /// Status de TODOS os tipos AGENDÁVEIS com ≥1 manutenção, ordenados por
+    /// urgência (vencidos primeiro; depois maior progresso). `.revisao` fica de
+    /// fora (`isSchedulable == false`): é ação de registro, não meta — os itens
+    /// que ela reinicia já aparecem aqui por conta própria. Chokepoint único:
+    /// alimenta Programadas, o herói do Resumo e os lembretes.
     func maintenanceStatuses(now: Date = Date()) -> [MaintenanceStatus] {
         MaintenanceType.allCases
+            .filter { $0.isSchedulable }
             .compactMap { maintenanceStatus(for: $0, now: now) }
             .sorted {
                 if $0.isOverdue != $1.isOverdue { return $0.isOverdue }
