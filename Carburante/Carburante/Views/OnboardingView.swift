@@ -243,14 +243,18 @@ private struct FullToFullExplainer: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // Fluxo vertical: ícone + texto por etapa, conectados por uma seta.
-            VStack(spacing: 0) {
+            // Fluxo vertical: ícone + texto por etapa, conectados por uma seta
+            // ALINHADA À ESQUERDA, sob a coluna de ícones (largura 28) — a seta
+            // segue o eixo dos ícones, não o centro do card. Senão a seta fica
+            // solta no meio enquanto as etapas encostam na borda.
+            VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
                     stepRow(step)
                     if index < steps.count - 1 {
                         Image(systemName: "arrow.down")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.tertiary)
+                            .frame(width: 28)  // mesma largura do ícone → centra no eixo
                             .padding(.vertical, 6)
                             .accessibilityHidden(true)
                     }
