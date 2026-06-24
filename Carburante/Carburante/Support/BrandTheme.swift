@@ -9,7 +9,7 @@
 //
 //  Fonte única de verdade da cor → todas as telas derivam de `Motorcycle.themeColor`,
 //  que delega a este mapa. Marca fora do catálogo (ou "Outra…") cai no
-//  `.default` (laranja do sistema — accent padrão do app).
+//  `.default` (azul do sistema — accent neutro/nativo padrão do app).
 //
 //  Preparado para tema por-MODELO no futuro: a derivação está centralizada em
 //  `BrandTheme.color(make:model:)`; basta adicionar regras por modelo lá sem
