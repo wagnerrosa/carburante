@@ -71,8 +71,13 @@ struct DashboardView: View {
         } description: {
             Text("Cadastre sua moto para acompanhar consumo e manutenção.")
         } actions: {
-            Button("Cadastrar moto") { showingAddMoto = true }
-                .buttonStyle(.borderedProminent)
+            Button {
+                showingAddMoto = true
+            } label: {
+                Label("Cadastrar moto", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
     }
 
