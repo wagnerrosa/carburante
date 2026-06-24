@@ -39,6 +39,26 @@ struct MotorcycleFormView: View {
 
     private var isOther: Bool { selectedMake == MotorcycleMake.other }
 
+    /// Tema de pré-visualização — reflete a marca escolhida no Picker, antes de
+    /// salvar. "Outra…"/texto livre cai no padrão (azul) já que não há marca
+    /// definida. Tinge o form inteiro ao vivo → efeito de identidade imediato.
+    private var previewTheme: Color {
+        BrandTheme.color(make: effectiveMake)
+    }
+
+    /// Asset do logo da marca selecionada (nil = "Outra…"/fora do catálogo).
+    private var selectedLogo: String? {
+        BrandTheme.logoAsset(make: effectiveMake)
+    }
+
+    /// Título contextual: "Nova {Marca}" quando uma marca do catálogo está
+    /// escolhida (ex.: "Nova Kawasaki"); senão o genérico. Edição usa "Editar".
+    private var titleText: String {
+        if isEditing { return "Editar Moto" }
+        let mk = effectiveMake.trimmingCharacters(in: .whitespaces)
+        return MotorcycleMake.isKnown(mk) ? "Nova \(mk)" : "Nova Moto"
+    }
+
     /// Mínimo para registrar: marca + modelo. Categoria, cilindrada e país são
     /// opcionais (completáveis depois) → menos atrito até o 1º abastecimento.
     private var canSave: Bool {
@@ -52,11 +72,19 @@ struct MotorcycleFormView: View {
         NavigationStack {
             Form {
                 Section("Moto") {
+                    // Logo da marca fica só no título do header (não no Picker).
+                    // O valor do Picker usa accentColor, que NÃO segue o `.tint()`
+                    // do ambiente → tint explícito por Picker p/ pegar a cor da marca.
                     Picker("Marca", selection: $selectedMake) {
                         ForEach(MotorcycleMake.catalog, id: \.self) { mk in
                             Text(mk).tag(mk)
                         }
                     }
+                    .tint(previewTheme)
+                    // O `.tint` do Picker resolve uma vez e não re-avalia quando a
+                    // marca muda → o valor ficava na cor da 1ª marca (Honda/vermelho).
+                    // `.id` força recriar o Picker p/ pegar o tint novo.
+                    .id("marca-\(effectiveMake)")
                     if isOther {
                         TextField("Nome da marca", text: $make)
                             .textInputAutocapitalization(.words)
@@ -68,6 +96,8 @@ struct MotorcycleFormView: View {
                             Text(String(y)).tag(y)
                         }
                     }
+                    .tint(previewTheme)
+                    .id("ano-\(effectiveMake)")
                 }
 
                 Section {
@@ -77,6 +107,8 @@ struct MotorcycleFormView: View {
                             Text(cat.label).tag(MotorcycleCategory?.some(cat))
                         }
                     }
+                    .tint(previewTheme)
+                    .id("cat-\(effectiveMake)")
                     HStack {
                         TextField("Cilindrada", value: $displacementCC, format: .number)
                             .keyboardType(.numberPad)
@@ -112,9 +144,28 @@ struct MotorcycleFormView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Editar Moto" : "Nova Moto")
+            .navigationTitle(titleText)  // VoiceOver / fallback
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Título custom: logo da marca + "Nova {Marca}". Anima a troca.
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 8) {
+                        if let logo = selectedLogo {
+                            BrandLogoTile(assetName: logo, size: 26)
+                                .transition(.scale.combined(with: .opacity))
+                                .id(logo)
+                        }
+                        Text(titleText)
+                            .font(.headline)
+                            .contentTransition(.numericText())
+                            .id(titleText)
+                            .transition(.opacity)
+                    }
+                    // Anima só o header (logo + texto) na troca de marca; o tint
+                    // do resto da tela troca instantâneo (sem blend de cor).
+                    .animation(.smooth(duration: 0.3), value: selectedMake)
+                    .animation(.smooth(duration: 0.3), value: make)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") { dismiss() }
                 }
@@ -131,7 +182,15 @@ struct MotorcycleFormView: View {
                 }
             }
             .onAppear(perform: loadIfEditing)
+            .onChange(of: selectedMake) { Haptics.selection() }
         }
+        // Tema ao vivo no NavigationStack inteiro: form + barra de navegação
+        // (Cancelar/Salvar/título/Pickers) assumem a cor da marca — identidade
+        // total antes de salvar. Tint aplicado SEM animar a cor: animar `tint`
+        // mistura cor-velha→cor-nova quadro a quadro, e o valor dos Pickers fica
+        // num tom intermediário (parecia "vermelho preso"). Snap instantâneo do
+        // tint; só o header (logo + texto) anima a troca.
+        .tint(previewTheme)
     }
 
     private func loadIfEditing() {
