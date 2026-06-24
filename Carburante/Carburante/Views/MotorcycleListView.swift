@@ -24,8 +24,13 @@ struct MotorcycleListView: View {
                     } description: {
                         Text("Cadastre sua moto para começar.")
                     } actions: {
-                        Button("Cadastrar moto") { showingAdd = true }
-                            .buttonStyle(.borderedProminent)
+                        Button {
+                            showingAdd = true
+                        } label: {
+                            Label("Cadastrar moto", systemImage: "plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
                     }
                 } else {
                     List {
