@@ -12,6 +12,17 @@ enum FuelLogValidationError: Error, Equatable {
     case odometerBelowLast(last: Double)
     case litersNotPositive
     case costNegative
+
+    /// Chave estável para analytics — só o TIPO do erro, nunca o valor (o `last`
+    /// é odômetro, dado sensível, fica fora).
+    var analyticsKey: String {
+        switch self {
+        case .odometerNotPositive: return "odometer_not_positive"
+        case .odometerBelowLast:   return "odometer_below_last"
+        case .litersNotPositive:   return "liters_not_positive"
+        case .costNegative:        return "cost_negative"
+        }
+    }
 }
 
 enum FuelLogValidator {

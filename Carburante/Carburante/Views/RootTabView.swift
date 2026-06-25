@@ -11,6 +11,7 @@ import SwiftData
 
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Motorcycle.createdAt, order: .reverse) private var motorcycles: [Motorcycle]
     /// Mesma chave do Resumo — fonte única da moto ativa, define o tema global.
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
@@ -34,6 +35,9 @@ struct RootTabView: View {
             }
             Tab("Motos", systemImage: "motorcycle") {
                 MotorcycleListView()
+            }
+            Tab("Ajustes", systemImage: "gearshape") {
+                SettingsView()
             }
         }
         // Tema global: tinge tudo que herda accent (tab bar, controles, links).
@@ -62,6 +66,15 @@ struct RootTabView: View {
         .task {
             // Garante sessão anônima e envia os dados locais ao Supabase.
             await SyncService.shared.pushAll(from: modelContext)
+        }
+        // Super properties (active_bike_count, app_locale, account_age_days)
+        // recalculadas a cada foreground — account_age_days muda por dia, então
+        // re-registrar evita que congele no valor do 1º setup.
+        .onAppear { Analytics.refreshSuperProperties(activeBikeCount: motorcycles.count) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Analytics.refreshSuperProperties(activeBikeCount: motorcycles.count)
+            }
         }
     }
 

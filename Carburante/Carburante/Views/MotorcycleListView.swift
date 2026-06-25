@@ -115,11 +115,19 @@ struct MotorcycleListView: View {
 
     private func confirmDelete() {
         guard let offsets = pendingDeletion else { return }
+        // Captura sinais ANTES de deletar (depois o objeto some). Distingue
+        // "apaguei cadastro errado sem dados" de "abandonei moto com histórico".
+        let deleted = offsets.map { motorcycles[$0] }
+        let analytics = deleted.map { (hadLogs: !$0.fuelLogs.isEmpty, count: $0.fuelLogs.count) }
         for index in offsets {
             modelContext.delete(motorcycles[index])
         }
         try? modelContext.save()
         Haptics.warning()
+        for a in analytics {
+            Analytics.motorcycleDeleted(hadFuelLogs: a.hadLogs, fuelLogCount: a.count,
+                                        remainingBikeCount: motorcycles.count)
+        }
         pendingDeletion = nil
     }
 }

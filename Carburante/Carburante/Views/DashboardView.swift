@@ -44,6 +44,7 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Resumo")
+            .onAppear { trackDashboard() }
             .toolbar {
                 if let moto = motorcycle {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -59,7 +60,16 @@ struct DashboardView: View {
             .sheet(isPresented: $showingAddMoto) {
                 MotorcycleFormView()
             }
-            .onChange(of: activeMotorcycleID) { Haptics.selection() }
+            .onChange(of: activeMotorcycleID) { _, newID in
+                Haptics.selection()
+                // Só conta como troca real quando há mais de uma moto (ignora o
+                // set inicial / cadastro da 1ª). Categoria da moto-destino revela
+                // que tipo de uso o multi-moto alterna.
+                guard motorcycles.count > 1 else { return }
+                let to = motorcycles.first { $0.id.uuidString == newID }
+                Analytics.motorcycleSwitched(bikeCount: motorcycles.count,
+                                             toCategory: to?.category)
+            }
         }
         // Tema da moto ativa tinge a aba Resumo (CTA, controles, gráfico, links).
         .tint(motorcycle?.themeColor ?? BrandTheme.default)
@@ -204,6 +214,26 @@ struct DashboardView: View {
         }
         .navigationDestination(isPresented: $showingMaintenance) {
             MaintenanceListView(motorcycle: moto)
+        }
+    }
+
+    /// Já emitiu consumption_waiting_shown nesta exibição da tela? (1×/sessão).
+    @State private var trackedWaiting = false
+
+    /// Analytics do Resumo: ativação (1×/passo/moto) + estado de espera do
+    /// consumo (full-to-full). Sem dado sensível — só bools e a contagem 1|2.
+    private func trackDashboard() {
+        guard let moto = motorcycle else { return }
+        ActivationTracker.sync(
+            bikeID: moto.id,
+            fuel: !moto.fuelLogs.isEmpty,
+            maintenance: !moto.maintenanceLogs.isEmpty,
+            consumption: moto.consumptionSummary.segmentCount > 0
+        )
+        let remaining = moto.fullTanksUntilConsumption
+        if remaining > 0, !trackedWaiting {
+            trackedWaiting = true
+            Analytics.consumptionWaitingShown(tanksRemaining: remaining)
         }
     }
 

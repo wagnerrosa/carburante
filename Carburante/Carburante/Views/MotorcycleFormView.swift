@@ -216,6 +216,9 @@ struct MotorcycleFormView: View {
         let trimmedModel = model.trimmingCharacters(in: .whitespaces)
         let trimmedCountry = country.trimmingCharacters(in: .whitespaces)
 
+        let wasEditing = motorcycle != nil
+        var savedMoto: Motorcycle
+
         if let m = motorcycle {
             m.make = trimmedMake
             m.model = trimmedModel
@@ -227,6 +230,7 @@ struct MotorcycleFormView: View {
             m.reconcileOdometer()
             m.categoryEnum = category
             m.displacementCC = displacementCC
+            savedMoto = m
         } else {
             let new = Motorcycle(
                 make: trimmedMake,
@@ -238,6 +242,7 @@ struct MotorcycleFormView: View {
                 displacementCC: displacementCC
             )
             modelContext.insert(new)
+            savedMoto = new
         }
 
         do {
@@ -247,6 +252,18 @@ struct MotorcycleFormView: View {
             return
         }
         Haptics.success()
+        // Analytics: só na criação (não na edição — sem evento _updated p/ moto
+        // no plano v1). is_first_bike calculado antes deste insert virar visível
+        // na Query → contar as motos existentes que NÃO são esta.
+        if !wasEditing {
+            let existingCount = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>())) ?? 1
+            Analytics.motorcycleCreated(
+                savedMoto,
+                isFirstBike: existingCount <= 1,
+                makeFromCatalog: !isOther,
+                filledOptionalDetails: category != nil || displacementCC != nil
+            )
+        }
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         dismiss()

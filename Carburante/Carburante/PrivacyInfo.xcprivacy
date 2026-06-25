@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Carburante NÃO faz tracking no sentido da App Tracking Transparency:
+         sem IDFA, sem cruzar dados com outras apps/data brokers. Analytics de
+         produto é anônimo (sessão anônima do PostHog), só para decisões de
+         produto, e o usuário pode desligar em Ajustes → "Compartilhar dados de
+         uso". Por isso NSPrivacyTracking = false (não dispara prompt ATT). -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <!-- Dados coletados -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <!-- Interação com o produto: eventos de uso (ex.: abasteceu, abriu
+             gráfico). NÃO ligado à identidade (sessão anônima), NÃO usado para
+             tracking entre apps. Finalidade: Analytics de produto. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+        <!-- Crash/diagnóstico: o PostHog iOS embute o PLCrashReporter. Declarado
+             por precaução de compliance, mesmo com session replay/error tracking
+             desligados — o framework está presente. Não ligado, não tracking. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeCrashData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- APIs de "motivo obrigatório" (required reason) usadas pelo app. -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- UserDefaults: flags locais (onboarding, moto ativa, opt-out de
+             analytics, guardas de evento "uma vez"). CA92.1 = acesso restrito ao
+             próprio app/grupo. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

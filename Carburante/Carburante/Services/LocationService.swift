@@ -43,6 +43,13 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             // Aguarda o usuário decidir; quando autorizar, segue para a captura.
             // Se negar, o request abaixo retorna nil rápido.
             try? await Task.sleep(for: .seconds(1))
+            // Analytics: registra a resposta (só na 1ª decisão, contexto = 1º
+            // save de abastecimento, único ponto que chama isto no MVP).
+            let after = manager.authorizationStatus
+            let result = (after == .authorizedWhenInUse || after == .authorizedAlways)
+                ? "granted" : (after == .restricted ? "restricted" : "denied")
+            Analytics.permissionResponded(permission: "location", result: result,
+                                          context: "first_fuel_save")
         default:
             break
         }
