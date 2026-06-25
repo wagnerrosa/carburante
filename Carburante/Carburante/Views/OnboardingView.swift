@@ -28,6 +28,12 @@ struct OnboardingView: View {
     private var ctaIndex: Int { Self.pages.count }
     private var isCTA: Bool { page == ctaIndex }
 
+    /// Nome estável do passo para analytics (índice → slug). CTA é o último.
+    private func stepName(_ index: Int) -> String {
+        let names = ["value_intro", "ocr", "full_to_full", "maintenance"]
+        return index < names.count ? names[index] : "cta"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -47,6 +53,13 @@ struct OnboardingView: View {
             footer
         }
         .background(Color(.systemGroupedBackground))
+        .onAppear {
+            Analytics.onboardingStarted()
+            Analytics.onboardingStepViewed(stepIndex: 0, stepName: stepName(0))
+        }
+        .onChange(of: page) { _, newPage in
+            Analytics.onboardingStepViewed(stepIndex: newPage, stepName: stepName(newPage))
+        }
     }
 
     // MARK: - Cabeçalho (Pular)
@@ -57,9 +70,12 @@ struct OnboardingView: View {
             // "Pular" é o caminho de saída direto (HIG): visível, discreto, sempre
             // disponível. Some na página de CTA, onde "Explorar" cumpre o papel.
             if !isCTA {
-                Button("Pular") { onExplore() }
-                    .font(.body)
-                    .tint(.secondary)
+                Button("Pular") {
+                    Analytics.onboardingCompleted(exit: "skipped", lastStepIndex: page)
+                    onExplore()
+                }
+                .font(.body)
+                .tint(.secondary)
             }
         }
         .frame(height: 28)
@@ -73,15 +89,21 @@ struct OnboardingView: View {
     private var footer: some View {
         VStack(spacing: 12) {
             if isCTA {
-                Button(action: onRegisterMotorcycle) {
+                Button {
+                    Analytics.onboardingCompleted(exit: "added_bike", lastStepIndex: page)
+                    onRegisterMotorcycle()
+                } label: {
                     Text("Cadastrar minha moto")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button("Explorar aplicativo", action: onExplore)
-                    .controlSize(.large)
+                Button("Explorar aplicativo") {
+                    Analytics.onboardingCompleted(exit: "explored", lastStepIndex: page)
+                    onExplore()
+                }
+                .controlSize(.large)
             } else {
                 Button {
                     withAnimation { page += 1 }

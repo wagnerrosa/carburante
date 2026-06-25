@@ -374,6 +374,17 @@ struct FuelLogFormView: View {
         }
 
         if let log = fuelLog {
+            // Diff ANTES de sobrescrever — quais campos o usuário mudou.
+            var changed: [String] = []
+            if log.odometer != odo { changed.append("odometer") }
+            if log.liters != lit { changed.append("liters") }
+            if log.totalCost != cost { changed.append("cost") }
+            if log.fuelType != fuelType { changed.append("fuel_type") }
+            if log.date != date { changed.append("date") }
+            if log.isFullTank != isFullTank { changed.append("full_tank") }
+            let timeSinceCreate = Date().timeIntervalSince(log.createdAt)
+            let wasOcr = log.ocrProcessed
+
             log.date = date
             log.odometer = odo
             log.liters = lit
@@ -383,6 +394,10 @@ struct FuelLogFormView: View {
             if ocrProcessed {
                 log.ocrProcessed = true
                 log.ocrConfidence = ocrConfidence
+            }
+            if !changed.isEmpty {
+                Analytics.fuelUpdated(fieldsChanged: changed, wasOcrFilled: wasOcr,
+                                      timeSinceCreate: timeSinceCreate)
             }
         } else {
             let log = FuelLog(

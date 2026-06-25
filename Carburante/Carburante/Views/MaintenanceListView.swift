@@ -145,6 +145,8 @@ struct MaintenanceListView: View {
     }
 
     private func performDelete(_ logs: [MaintenanceLog]) {
+        // Captura tipo/revisão ANTES de deletar (depois o objeto some).
+        let analytics = logs.map { (type: $0.type, wasRevisao: $0.type == .revisao) }
         for log in logs {
             // Cascata: excluir uma revisão remove seus itens (ligados por UUID,
             // sem cascade automático do SwiftData).
@@ -152,6 +154,9 @@ struct MaintenanceListView: View {
             modelContext.delete(log)
         }
         try? modelContext.save()
+        for a in analytics {
+            Analytics.maintenanceDeleted(type: a.type, wasRevisao: a.wasRevisao)
+        }
         pendingDelete = []
         // Excluir manutenção muda os contadores → recalcula os lembretes.
         let statuses = motorcycle.maintenanceStatuses()

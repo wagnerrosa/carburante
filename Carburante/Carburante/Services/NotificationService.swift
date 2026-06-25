@@ -70,7 +70,13 @@ struct NotificationService {
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .notDetermined:
-            return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+            let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+            // Analytics: só na 1ª decisão. Contexto = algo a agendar (save de
+            // abastecimento ou manutenção) — pedido contextual, não no launch.
+            Analytics.permissionResponded(permission: "notifications",
+                                          result: granted ? "granted" : "denied",
+                                          context: "reminder_scheduling")
+            return granted
         case .authorized, .provisional, .ephemeral:
             return true
         default:
@@ -128,6 +134,13 @@ struct NotificationService {
         let plans = MaintenanceReminder.plans(for: statuses, now: now)
         guard !plans.isEmpty else { return }
         guard await requestAuthorizationIfNeeded() else { return }
+
+        await MainActor.run {
+            Analytics.maintenanceReminderScheduled(
+                planCount: plans.count,
+                hasOverdue: statuses.contains(where: \.isOverdue)
+            )
+        }
 
         for plan in plans {
             let content = UNMutableNotificationContent()

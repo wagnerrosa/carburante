@@ -85,9 +85,12 @@ struct FuelLogListView: View {
     }
 
     private func delete(_ offsets: IndexSet) {
+        // `logs` está ordenado por data desc → índice 0 é o mais recente.
+        let deletedMostRecent = offsets.contains(0)
         for index in offsets {
             modelContext.delete(logs[index])
         }
+        Analytics.fuelDeleted(wasMostRecent: deletedMostRecent)
         // Persiste a exclusão primeiro para o array `fuelLogs` já excluir os
         // registros apagados, então reconcilia o hodômetro (excluir o mais
         // recente cai para o próximo maior, ou para o baseline — nunca zera).
@@ -99,6 +102,7 @@ struct FuelLogListView: View {
         // Excluir muda o "último abastecimento" e o km → recalcula os lembretes.
         let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
         let statuses = motorcycle.maintenanceStatuses()
+        Analytics.evaluateOilOverdue(statuses: statuses, bikeID: motorcycle.id)
         Task {
             await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
             await NotificationService.shared.rescheduleMaintenance(statuses: statuses)

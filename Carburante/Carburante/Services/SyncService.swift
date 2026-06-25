@@ -45,8 +45,16 @@ final class SyncService {
             return userID
         } catch {
             lastError = "Falha ao autenticar: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "auth", errorCode: Self.errorCode(error))
             return nil
         }
+    }
+
+    /// Classe do erro para analytics — NUNCA a mensagem crua (pode conter
+    /// user_id, URL, payload). Erros do Supabase/Postgrest expõem um código.
+    static func errorCode(_ error: Error) -> String {
+        let ns = error as NSError
+        return "\(ns.domain)#\(ns.code)"
     }
 
     /// Faz push de todas as motos do usuário (e seus filhos) para o Supabase.
@@ -108,6 +116,7 @@ final class SyncService {
             lastError = nil
         } catch {
             lastError = "Falha ao sincronizar: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "push", errorCode: Self.errorCode(error))
         }
     }
 }

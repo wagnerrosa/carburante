@@ -207,6 +207,9 @@ struct MaintenanceFormView: View {
         let im = (intervalMonths ?? 0) > 0 ? intervalMonths : nil
 
         let parent: MaintenanceLog
+        let wasEditing = maintenanceLog != nil
+        // Conta antes do insert: 1ª manutenção da moto?
+        let isFirst = !wasEditing && motorcycle.maintenanceLogs.isEmpty
         if let log = maintenanceLog {
             log.date = date
             log.type = type
@@ -244,11 +247,28 @@ struct MaintenanceFormView: View {
             return
         }
         Haptics.success()
+
+        // Analytics — só na criação (sem evento _updated para manutenção no v1).
+        if !wasEditing {
+            Analytics.maintenanceCreated(
+                type: type,
+                isFirst: isFirst,
+                fromScheduledPrompt: initialType != nil,
+                customInterval: ik != nil || im != nil,
+                revisaoItemCount: type == .revisao ? revisaoItems.count : nil
+            )
+            // Registrar a partir do prompt agendado = adoção da manutenção programada.
+            if initialType != nil, AdoptionTracker.markAndCheck(.scheduledMaintenance) {
+                Analytics.featureAdopted(.scheduledMaintenance)
+            }
+        }
+
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         // Registrar/editar uma manutenção reinicia o intervalo do tipo →
         // recalcula os lembretes de todos os tipos.
         let statuses = motorcycle.maintenanceStatuses()
+        Analytics.evaluateOilOverdue(statuses: statuses, bikeID: motorcycle.id)
         Task { await NotificationService.shared.rescheduleMaintenance(statuses: statuses) }
         dismiss()
     }

@@ -28,12 +28,18 @@ struct FuelEntryFlowView: View {
     @Environment(\.dismiss) private var dismiss
 
     let motorcycle: Motorcycle
+    /// De onde o fluxo foi aberto (analytics). Default = toolbar "+".
+    var entryPoint: String = "toolbar_plus"
 
     /// Passo atual. `fill` reúne valor + litros (uma foto traz os dois).
     private enum Step: Int, CaseIterable {
         case odometer, fill, review
     }
     @State private var step: Step = .odometer
+
+    /// Houve correção manual de um campo após o OCR preencher? Distingue OCR
+    /// "aceito" (confiou) de "editado" (corrigiu) no evento fuel_created.
+    @State private var ocrFieldEdited = false
 
     // Campos do FuelLog.
     @State private var date: Date = Date()
@@ -184,6 +190,12 @@ struct FuelEntryFlowView: View {
                 }
             }
             .onAppear(perform: prefill)
+            // Detecta correção manual de campo após o OCR ter preenchido →
+            // ocr_outcome = .edited. Ignora a escrita feita pelo próprio OCR
+            // (isRecognizing) p/ não marcar falso-positivo.
+            .onChange(of: odometer) { markOcrEditIfManual() }
+            .onChange(of: cost) { markOcrEditIfManual() }
+            .onChange(of: liters) { markOcrEditIfManual() }
             .task {
                 let snap = await locationService.currentSnapshot()
                 location = snap
@@ -606,6 +618,13 @@ struct FuelEntryFlowView: View {
 
     private func prefill() {
         if let last = motorcycle.latestFuelLog { fuelType = last.fuelType }
+        Analytics.fuelEntryStarted(entryPoint: entryPoint)
+    }
+
+    /// Marca edição manual pós-OCR (a escrita do próprio OCR ocorre durante
+    /// `isRecognizing` e é ignorada).
+    private func markOcrEditIfManual() {
+        if ocrProcessed && !isRecognizing { ocrFieldEdited = true }
     }
 
     private func processPhoto(_ image: UIImage) async {
@@ -628,11 +647,15 @@ struct FuelEntryFlowView: View {
                 } else {
                     odometerOCRStatus = OCRStatus(text: "Não consegui ler — digite o hodômetro",
                                                   icon: "exclamationmark.triangle.fill", color: .orange)
+                    Analytics.ocrFailed(target: "odometer", reason: "no_fields",
+                                        fieldsParsed: 0, confidence: r.confidence)
                     Haptics.warning()
                 }
             } catch {
                 odometerOCRStatus = OCRStatus(text: "Falha ao ler a foto — digite o hodômetro",
                                               icon: "exclamationmark.triangle.fill", color: .orange)
+                Analytics.ocrFailed(target: "odometer", reason: "no_text",
+                                    fieldsParsed: 0, confidence: nil)
                 Haptics.warning()
             }
         case .receipt:
@@ -650,6 +673,8 @@ struct FuelEntryFlowView: View {
                 if got.isEmpty {
                     receiptOCRStatus = OCRStatus(text: "Não consegui ler — digite os valores",
                                                  icon: "exclamationmark.triangle.fill", color: .orange)
+                    Analytics.ocrFailed(target: "receipt", reason: "no_fields",
+                                        fieldsParsed: 0, confidence: r.confidence)
                     Haptics.warning()
                 } else {
                     receiptOCRStatus = OCRStatus(text: "Lido \(got.joined(separator: " e ")) — confira",
@@ -659,6 +684,8 @@ struct FuelEntryFlowView: View {
             } catch {
                 receiptOCRStatus = OCRStatus(text: "Falha ao ler a foto — digite os valores",
                                              icon: "exclamationmark.triangle.fill", color: .orange)
+                Analytics.ocrFailed(target: "receipt", reason: "no_text",
+                                    fieldsParsed: 0, confidence: nil)
                 Haptics.warning()
             }
         }
@@ -666,10 +693,14 @@ struct FuelEntryFlowView: View {
 
     private func save() {
         let odo = odometer ?? 0, lit = liters ?? 0, c = cost ?? 0
-        guard FuelLogValidator.validate(
+        let errors = FuelLogValidator.validate(
             odometer: odo, liters: lit, totalCost: c, lastOdometer: odometerFloor
-        ).isEmpty else {
+        )
+        guard errors.isEmpty else {
             saveError = "Verifique os valores antes de salvar."
+            for e in errors {
+                Analytics.validationBlockedSave(error: e.analyticsKey, screen: "fuel_flow")
+            }
             return
         }
 
@@ -698,12 +729,36 @@ struct FuelEntryFlowView: View {
             return
         }
         Haptics.success()
+
+        // Analytics — fuel_created: o evento ★ do MVP. Valores sensíveis vão em
+        // bucket (litros/custo); GPS só como booleano has_location; sem odômetro,
+        // sem data. log_number = recorrência (coração da meta >3).
+        let fullTanks = motorcycle.fuelLogs.filter(\.isFullTank).count
+        let ocrOutcome: Analytics.OCROutcome = ocrProcessed ? (ocrFieldEdited ? .edited : .accepted) : .notUsed
+        Analytics.fuelCreated(
+            fuelType: fuelType,
+            isFullTank: isFullTank,
+            ocrOutcome: ocrOutcome,
+            hasLocation: location?.latitude != nil,
+            logNumber: motorcycle.fuelLogs.count,
+            liters: lit,
+            cost: c,
+            // Este registro destrava a 1ª leitura de consumo se fecha o 2º cheio.
+            unlocksConsumption: isFullTank && fullTanks == 2,
+            currency: "BRL"
+        )
+        // 1º OCR aceito = adoção da feature OCR (1 vez por usuário).
+        if ocrProcessed, ocrOutcome != .notUsed, AdoptionTracker.markAndCheck(.ocr) {
+            Analytics.featureAdopted(.ocr)
+        }
+
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         // Reagenda os lembretes de ausência a partir do abastecimento mais
         // recente (a data é Sendable; calculada aqui no main actor).
         let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
         let statuses = motorcycle.maintenanceStatuses()
+        Analytics.evaluateOilOverdue(statuses: statuses, bikeID: motorcycle.id)
         Task {
             await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
             await NotificationService.shared.rescheduleMaintenance(statuses: statuses)

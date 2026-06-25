@@ -65,6 +65,28 @@ struct ConsumptionChartView: View {
         .navigationBarTitleDisplayMode(.inline)
         // Gráfico e seletor usam o tema desta moto.
         .tint(motorcycle.themeColor)
+        .onAppear(perform: trackView)
+    }
+
+    /// Analytics da tela de Consumo: comportamento (consumption_chart_viewed) +
+    /// 1ª adoção da feature de gráfico e da comparação com a categoria.
+    private func trackView() {
+        let segs = allSegments
+        let reference = motorcycle.categoryReferenceKmPerLiter
+        let vsCategory: String
+        if let ref = reference, let avg = average {
+            vsCategory = avg >= ref ? "above" : "below"
+        } else {
+            vsCategory = "none"
+        }
+        Analytics.consumptionChartViewed(hasData: !segs.isEmpty, segmentCount: segs.count,
+                                         vsCategory: vsCategory)
+        if !segs.isEmpty, AdoptionTracker.markAndCheck(.consumptionChart) {
+            Analytics.featureAdopted(.consumptionChart)
+        }
+        if reference != nil, AdoptionTracker.markAndCheck(.categoryComparison) {
+            Analytics.featureAdopted(.categoryComparison)
+        }
     }
 
     private var content: some View {
