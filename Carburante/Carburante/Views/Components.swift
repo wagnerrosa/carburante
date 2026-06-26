@@ -254,6 +254,68 @@ struct BarSparkline: View {
     }
 }
 
+/// Linha "ícone? + rótulo … valor" no estilo Garmin/Ajustes (`LabeledContent`
+/// nativo). Recordes passam um SF Symbol + cor semântica (cor = qual recorde);
+/// totais omitem o ícone (lista densa, sem ruído). Valor com `.monospacedDigit()`
+/// para a coluna direita não dançar. Sem libs.
+struct StatRow: View {
+    let label: String
+    let value: String
+    /// SF Symbol opcional à esquerda (recordes). nil → linha densa (totais).
+    var systemImage: String?
+    /// Cor do ícone (semântica — não segue o tema). Ignorada quando sem ícone.
+    var iconColor: Color = .secondary
+
+    var body: some View {
+        LabeledContent {
+            Text(value)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+        } label: {
+            if let systemImage {
+                Label {
+                    Text(label)
+                } icon: {
+                    Image(systemName: systemImage)
+                        .foregroundStyle(iconColor)
+                }
+            } else {
+                Text(label)
+            }
+        }
+    }
+}
+
+/// Placeholder de medalha na Garagem — ícone + rótulo curto, sem hierarquia de
+/// raridade ainda. Design completo (marca/cilindrada/Iron Butt/níveis) vive em
+/// `PLAN/badges.md`. `unlocked` controla o realce; bloqueada fica esmaecida.
+struct BadgePlaceholder: View {
+    let systemImage: String
+    let label: String
+    var unlocked: Bool = false
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.system(size: 30))
+                .foregroundStyle(unlocked ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: 56, height: 56)
+                .background(Color(.tertiarySystemGroupedBackground),
+                            in: Circle())
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(unlocked ? .secondary : .tertiary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity)
+        .opacity(unlocked ? 1 : 0.55)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(unlocked ? "\(label), conquistada" : "\(label), bloqueada")
+    }
+}
+
 /// Contêiner com o visual de card agrupado nativo (sem sombra custom).
 struct GroupedCard<Content: View>: View {
     @ViewBuilder var content: Content

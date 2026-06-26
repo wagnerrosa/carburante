@@ -66,6 +66,18 @@ struct ConsumptionSummary: Equatable {
     }
 }
 
+/// Recordes pessoais (PRs) de uma moto — o único do app, reflexo privado,
+/// nunca ranking. Cada campo é nil quando não há dado suficiente → empty state.
+/// Mesma fonte (`segments`) do resto do app: recorde nunca diverge do gráfico.
+struct GarageRecords: Equatable {
+    /// Melhor km/l de sempre (maior entre os segmentos full-to-full).
+    let bestKmPerLiter: Double?
+    /// Maior trecho cheio-a-cheio (km do segmento mais longo).
+    let longestSegment: Double?
+    /// Litro mais barato pago (menor preço/litro entre abastecimentos com litros > 0).
+    let cheapestPricePerLiter: Double?
+}
+
 extension FuelLog {
     var asFuelEntry: FuelEntry {
         FuelEntry(odometer: odometer, liters: liters, totalCost: totalCost, isFullTank: isFullTank, date: date)
@@ -83,6 +95,22 @@ extension Motorcycle {
     var fullTanksUntilConsumption: Int {
         ConsumptionCalculator.fullTanksUntilFirstReading(from: fuelLogs.map(\.asFuelEntry))
     }
+
+    /// Recordes pessoais (PRs) da moto — para a seção Recordes da Garagem.
+    var records: GarageRecords {
+        ConsumptionCalculator.records(from: fuelLogs.map(\.asFuelEntry))
+    }
+
+    // MARK: - Totais vitalícios (Garagem)
+
+    /// Litros abastecidos na vida da moto (soma simples, independe de tanque cheio).
+    var totalLitersEver: Double { fuelLogs.reduce(0) { $0 + $1.liters } }
+
+    /// Gasto total na vida da moto (soma simples).
+    var totalCostEver: Double { fuelLogs.reduce(0) { $0 + $1.totalCost } }
+
+    /// Quantos abastecimentos a moto tem registrados.
+    var fuelLogCount: Int { fuelLogs.count }
 
     /// Abastecimento mais recente por data.
     var latestFuelLog: FuelLog? {
@@ -350,6 +378,24 @@ enum ConsumptionCalculator {
         let fullTanks = entries.filter(\.isFullTank).count
         // 0 cheios → faltam 2; 1+ cheios sem segmento ainda → falta 1.
         return fullTanks == 0 ? 2 : 1
+    }
+
+    /// Recordes pessoais (PRs) — melhor km/l, maior trecho, litro mais barato.
+    /// km/l e trecho saem dos segmentos full-to-full (mesma fonte do gráfico);
+    /// preço/litro olha cada abastecimento (não depende de tanque cheio). Cada
+    /// recorde é nil quando não há dado para ele → empty state na Garagem.
+    static func records(from entries: [FuelEntry]) -> GarageRecords {
+        let segs = segments(from: entries)
+        let bestKmPerLiter = segs.map(\.kmPerLiter).filter { $0 > 0 }.max()
+        let longestSegment = segs.map(\.distance).max()
+        let cheapest = entries
+            .compactMap { $0.liters > 0 ? $0.totalCost / $0.liters : nil }
+            .min()
+        return GarageRecords(
+            bestKmPerLiter: bestKmPerLiter,
+            longestSegment: longestSegment,
+            cheapestPricePerLiter: cheapest
+        )
     }
 
     /// Resumo agregado. `averageKmPerLiter` é nil quando não há segmento medível.
