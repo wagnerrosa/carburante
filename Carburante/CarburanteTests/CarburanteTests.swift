@@ -1005,4 +1005,58 @@ final class CarburanteTests: XCTestCase {
         XCTAssertFalse(MaintenanceType.outro.isSchedulable)
         XCTAssertTrue(MaintenanceType.oleo.isSchedulable)
     }
+
+    // MARK: - Garagem: recordes (PRs)
+
+    /// Melhor km/l pega o maior segmento; maior trecho idem.
+    /// seg1: (1100-1000)/10 = 10 km/l, 100 km. seg2: (1400-1100)/10 = 30 km/l, 300 km.
+    func testRecordsBestConsumptionAndLongestSegment() {
+        let entries = [entry(1000, 8), entry(1100, 10), entry(1400, 10)]
+        let r = ConsumptionCalculator.records(from: entries)
+        XCTAssertEqual(r.bestKmPerLiter, 30)
+        XCTAssertEqual(r.longestSegment, 300)
+    }
+
+    /// Litro mais barato = menor preço/litro; ignora litros 0 (sem divisão por zero).
+    func testRecordsCheapestPriceIgnoresZeroLiters() {
+        let entries = [
+            entry(1000, 10, 60),   // 6,00/L
+            entry(1100, 10, 49),   // 4,90/L  ← mais barato
+            entry(1200, 0, 0),     // litros 0 → ignorado
+        ]
+        let r = ConsumptionCalculator.records(from: entries)
+        XCTAssertEqual(r.cheapestPricePerLiter, 4.9)
+    }
+
+    /// Sem dois cheios medíveis: km/l e trecho nil. Preço/litro ainda sai do único log.
+    func testRecordsNilWithoutMeasurableSegment() {
+        let r = ConsumptionCalculator.records(from: [entry(1000, 10, 50)])
+        XCTAssertNil(r.bestKmPerLiter)
+        XCTAssertNil(r.longestSegment)
+        XCTAssertEqual(r.cheapestPricePerLiter, 5)
+    }
+
+    /// Tudo nil sem nenhum abastecimento.
+    func testRecordsAllNilWhenEmpty() {
+        let r = ConsumptionCalculator.records(from: [])
+        XCTAssertNil(r.bestKmPerLiter)
+        XCTAssertNil(r.longestSegment)
+        XCTAssertNil(r.cheapestPricePerLiter)
+    }
+
+    // MARK: - Garagem: totais vitalícios
+
+    /// Litros/gasto vitalícios somam todos os logs, mesmo parciais (independem de cheio).
+    func testLifetimeTotalsSumAllLogsIncludingPartials() {
+        let moto = Motorcycle(make: "Honda", model: "CB", year: 2024, country: "BR")
+        moto.fuelLogs = [
+            FuelLog(date: day(2026, 1, 1), odometer: 1000, liters: 10, totalCost: 50,
+                    fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(date: day(2026, 1, 5), odometer: 1100, liters: 5, totalCost: 25,
+                    fuelType: .gasolinaComum, isFullTank: false),
+        ]
+        XCTAssertEqual(moto.totalLitersEver, 15)
+        XCTAssertEqual(moto.totalCostEver, 75)
+        XCTAssertEqual(moto.fuelLogCount, 2)
+    }
 }

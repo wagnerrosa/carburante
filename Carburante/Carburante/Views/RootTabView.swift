@@ -2,8 +2,8 @@
 //  RootTabView.swift
 //  Carburante
 //
-//  Raiz do app: Dashboard + Motos. Padrão iOS (TabView). Manutenção
-//  entra como aba na Fase 10.
+//  Raiz do app: Resumo + Garagem (2 tabs). Ajustes vive na ⚙️ da Garagem
+//  (a tab Ajustes morreu). Padrão iOS (TabView).
 //
 
 import SwiftUI
@@ -33,11 +33,8 @@ struct RootTabView: View {
             Tab("Resumo", systemImage: "gauge.with.dots.needle.bottom.50percent") {
                 DashboardView()
             }
-            Tab("Motos", systemImage: "motorcycle") {
-                MotorcycleListView()
-            }
-            Tab("Ajustes", systemImage: "gearshape") {
-                SettingsView()
+            Tab("Garagem", systemImage: "motorcycle") {
+                GarageView()
             }
         }
         // Tema global: tinge tudo que herda accent (tab bar, controles, links).
