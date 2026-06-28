@@ -101,6 +101,18 @@ extension Motorcycle {
         ConsumptionCalculator.records(from: fuelLogs.map(\.asFuelEntry))
     }
 
+    /// Contexto de unlock das medalhas (ver `Badge.swift`). Deriva tudo dos
+    /// dados já persistidos — nenhum estado de conquista é salvo.
+    var badgeContext: BadgeUnlockContext {
+        BadgeUnlockContext(
+            hasMotorcycle: true,                 // existe a moto → 1ª moto conquistada
+            hasFuelLog: !fuelLogs.isEmpty,
+            hasMaintenanceLog: !maintenanceLogs.isEmpty,
+            hasBestConsumption: records.bestKmPerLiter != nil,
+            category: categoryEnum
+        )
+    }
+
     // MARK: - Totais vitalícios (Garagem)
 
     /// Litros abastecidos na vida da moto (soma simples, independe de tanque cheio).

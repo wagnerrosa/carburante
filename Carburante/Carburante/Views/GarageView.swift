@@ -212,22 +212,29 @@ struct GarageView: View {
         }
     }
 
-    // MARK: Medalhas (placeholder)
+    // MARK: Medalhas
 
+    /// Grade real de conquistas (1º corte — ver PLAN/badges.md). Estado
+    /// locked/unlocked é DERIVADO dos dados via `BadgeEvaluator` (nada salvo).
     @ViewBuilder
     private func badgesSection(_ moto: Motorcycle) -> some View {
-        // Regras triviais e locais só para o placeholder; design completo: badges.md.
-        let firstBike = true                       // tem moto → já cadastrou a 1ª
-        let firstFuel = moto.fuelLogCount >= 1
-        let isScooter = moto.categoryEnum == .scooter
+        let unlocked = BadgeEvaluator.unlockedIDs(moto.badgeContext)
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
-        Section("Medalhas") {
-            HStack(alignment: .top, spacing: 8) {
-                BadgeImageTile(assetName: "scooter", label: "Urban Rider", unlocked: isScooter)
-                BadgePlaceholder(systemImage: "key.fill", label: "Primeira moto", unlocked: firstBike)
-                BadgePlaceholder(systemImage: "fuelpump.fill", label: "1º abastecimento", unlocked: firstFuel)
+        ForEach(BadgeGroup.allCases) { group in
+            let badges = Badge.all.filter { $0.group == group }
+            Section(group.title) {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                    ForEach(badges) { badge in
+                        BadgeImageTile(
+                            assetName: badge.assetName,
+                            label: badge.title,
+                            unlocked: unlocked.contains(badge.id)
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
         }
     }
 
