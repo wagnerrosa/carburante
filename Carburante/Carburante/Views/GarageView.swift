@@ -30,6 +30,8 @@ struct GarageView: View {
     @State private var selectedBadge: BadgePresentation?
     /// Datas de conquista carimbadas (id→data), p/ o sheet mostrar "ganhou em …".
     @State private var earnedDates: [String: Date] = [:]
+    /// Filtro do grid de medalhas (estilo Garmin: Conquistadas / Disponíveis).
+    @State private var badgeFilter: BadgeFilter = .conquistadas
 
     /// Moto ativa = a da chave salva, ou a mais recente como fallback.
     private var activeMotorcycle: Motorcycle? {
@@ -238,37 +240,64 @@ struct GarageView: View {
         let level = ProfileLevel.from(points: BadgeEvaluator.totalPoints(ctx))
         let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
+        // Estilo Garmin: separa conquistadas das ainda perseguíveis. "Disponíveis"
+        // = visíveis-não-conquistadas (mantém a regra de visibilidade: só badges de
+        // categorias/marcas já tocadas), incluindo o Iron Butt "em breve".
+        let conquistadas = visible.filter { unlocked.contains($0.id) }
+        let disponiveis = visible.filter { !unlocked.contains($0.id) }
+        let shown = badgeFilter == .conquistadas ? conquistadas : disponiveis
+
         Section("Conquistas") {
             // Nível do perfil (estilo Garmin): soma dos pontos das medalhas acesas.
             ProfileLevelHeader(level: level)
 
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
-                ForEach(visible) { badge in
-                    let isUnlocked = unlocked.contains(badge.id)
-                    Button {
-                        selectedBadge = BadgePresentation(
-                            badge: badge,
-                            unlocked: isUnlocked,
-                            earnedAt: isUnlocked ? earnedDates[badge.id] : nil
-                        )
-                        Haptics.selection()
-                    } label: {
-                        BadgeImageTile(
-                            assetName: badge.assetName,
-                            label: badge.title,
-                            unlocked: isUnlocked,
-                            usesBrandLogo: badge.usesBrandLogo,
-                            level: badge.level,
-                            levelCount: badge.levelCount,
-                            isComingSoon: badge.isComingSoon
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
+            Picker("Filtrar medalhas", selection: $badgeFilter) {
+                Text("Conquistadas (\(conquistadas.count))").tag(BadgeFilter.conquistadas)
+                Text("Disponíveis (\(disponiveis.count))").tag(BadgeFilter.disponiveis)
             }
-            .padding(.vertical, 4)
+            .pickerStyle(.segmented)
+            .onChange(of: badgeFilter) { Haptics.selection() }
+
+            if shown.isEmpty {
+                Text(badgeFilter == .conquistadas
+                     ? "Você ainda não conquistou nenhuma medalha. Registre abastecimentos para começar."
+                     : "Você conquistou todas as medalhas disponíveis. 🏁")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+            } else {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                    ForEach(shown) { badge in
+                        let isUnlocked = unlocked.contains(badge.id)
+                        Button {
+                            selectedBadge = BadgePresentation(
+                                badge: badge,
+                                unlocked: isUnlocked,
+                                earnedAt: isUnlocked ? earnedDates[badge.id] : nil
+                            )
+                            Haptics.selection()
+                        } label: {
+                            BadgeImageTile(
+                                assetName: badge.assetName,
+                                label: badge.title,
+                                unlocked: isUnlocked,
+                                usesBrandLogo: badge.usesBrandLogo,
+                                level: badge.level,
+                                levelCount: badge.levelCount,
+                                isComingSoon: badge.isComingSoon
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
         }
     }
+
+    /// Filtro do grid de medalhas (estilo Garmin Connect).
+    private enum BadgeFilter: Hashable { case conquistadas, disponiveis }
 
     /// Carimba a data dos badges desbloqueados (1ª vez) e recarrega o mapa de
     /// datas p/ o sheet. Sincroniza ao Supabase se algo novo foi gravado.
