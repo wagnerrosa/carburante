@@ -18,6 +18,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                AccountView()
+
                 Section {
                     Toggle("Compartilhar dados de uso", isOn: $analyticsEnabled)
                         .onChange(of: analyticsEnabled) { _, on in

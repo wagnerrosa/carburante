@@ -31,6 +31,11 @@ final class SyncService {
     private(set) var userID: UUID?
     private(set) var lastError: String?
     private(set) var isSyncing = false
+    /// Sessão atual é anônima? true até promover via Sign in with Apple. A UI da
+    /// conta mostra o botão de login quando anônimo, o estado logado quando não.
+    private(set) var isAnonymous = true
+    /// E-mail da conta logada (Apple), se houver. Anônimo → nil.
+    private(set) var accountEmail: String?
 
     private init() {
         client = SupabaseClient(
@@ -43,18 +48,59 @@ final class SyncService {
     @discardableResult
     func ensureSession() async -> UUID? {
         if let session = try? await client.auth.session {
-            userID = session.user.id
+            applySession(session)
             return userID
         }
         do {
             let session = try await client.auth.signInAnonymously()
-            userID = session.user.id
+            applySession(session)
             return userID
         } catch {
             lastError = "Falha ao autenticar: \(error.localizedDescription)"
             Analytics.syncFailed(stage: "auth", errorCode: Self.errorCode(error))
             return nil
         }
+    }
+
+    /// Reflete o estado da sessão nas propriedades observáveis. `isAnonymous`
+    /// vem do flag do usuário (Supabase marca usuários anônimos); um usuário
+    /// com identidade Apple vinculada deixa de ser anônimo e ganha e-mail.
+    private func applySession(_ session: Session) {
+        userID = session.user.id
+        isAnonymous = session.user.isAnonymous
+        accountEmail = session.user.email
+    }
+
+    /// Promove a sessão anônima atual a uma conta Apple, VINCULANDO a identidade
+    /// (mantém o mesmo `user_id` → zero migração de dados). Depois puxa o que o
+    /// usuário já tinha em outros devices. Recebe o `idToken` da Apple e o nonce
+    /// CRU usado para gerá-lo (ver `AppleSignInNonce`).
+    @discardableResult
+    func linkApple(idToken: String, nonce: String, context: ModelContext?) async -> Bool {
+        do {
+            let session = try await client.auth.linkIdentityWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+            applySession(session)
+            lastError = nil
+            // Conta real → traz dados de outros devices do mesmo usuário.
+            if let context { await pullAll(into: context) }
+            return true
+        } catch {
+            lastError = "Falha ao entrar com Apple: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "apple_link", errorCode: Self.errorCode(error))
+            return false
+        }
+    }
+
+    /// Sai da conta. Volta a uma sessão anônima nova (user_id diferente) para o
+    /// app continuar gravando local→remoto. NÃO apaga dados locais.
+    func signOut() async {
+        try? await client.auth.signOut()
+        userID = nil
+        isAnonymous = true
+        accountEmail = nil
+        await ensureSession()
     }
 
     /// Classe do erro para analytics — NUNCA a mensagem crua (pode conter
