@@ -114,11 +114,27 @@ end $$;
 create index if not exists maintenance_logs_user_id_idx on public.maintenance_logs (user_id);
 create index if not exists maintenance_logs_motorcycle_id_idx on public.maintenance_logs (motorcycle_id);
 
+-- ---------- badge_awards ----------
+-- Data em que cada medalha foi conquistada (estilo Garmin). O estado
+-- locked/unlocked continua DERIVADO no app (motor puro `BadgeEvaluator`); aqui
+-- só persiste o carimbo da PRIMEIRA conquista. badge_id é o id do catálogo
+-- (Badge.id) — único por usuário.
+create table if not exists public.badge_awards (
+    id          uuid primary key,
+    user_id     uuid not null references auth.users (id) on delete cascade,
+    badge_id    text not null,
+    earned_at   timestamptz not null,
+    created_at  timestamptz not null default now(),
+    unique (user_id, badge_id)
+);
+create index if not exists badge_awards_user_id_idx on public.badge_awards (user_id);
+
 -- ---------- RLS ----------
 alter table public.users            enable row level security;
 alter table public.motorcycles      enable row level security;
 alter table public.fuel_logs        enable row level security;
 alter table public.maintenance_logs enable row level security;
+alter table public.badge_awards     enable row level security;
 
 -- users: dono lê/escreve só a própria linha (id = auth.uid()).
 create policy "users self access" on public.users
@@ -132,4 +148,7 @@ create policy "fuel_logs owner" on public.fuel_logs
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "maintenance_logs owner" on public.maintenance_logs
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "badge_awards owner" on public.badge_awards
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

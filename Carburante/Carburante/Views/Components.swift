@@ -319,18 +319,29 @@ struct BadgePlaceholder: View {
 /// Badge com arte 3D (asset em `Badges/`), estilo Apple Fitness: colorido quando
 /// conquistado, dessaturado + cadeado quando bloqueado. Ver PLAN/badges.md.
 struct BadgeImageTile: View {
-    /// Nome do asset dentro do namespace `Badges` (ex.: "scooter").
+    /// Nome do asset dentro do namespace `Badges` (ex.: "scooter"), OU o caminho
+    /// de um logo de marca (`BrandLogos/…`) quando `usesBrandLogo == true`.
     let assetName: String
     let label: String
     var unlocked: Bool = false
+    /// `assetName` é um logo de marca → desenhar `BrandLogoTile` (tile glass).
+    var usesBrandLogo: Bool = false
+
+    @ViewBuilder private var art: some View {
+        if usesBrandLogo {
+            BrandLogoTile(assetName: assetName, size: 56)
+        } else {
+            Image("Badges/\(assetName)")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 56, height: 56)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 6) {
             ZStack(alignment: .bottomTrailing) {
-                Image("Badges/\(assetName)")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 56, height: 56)
+                art
                     .saturation(unlocked ? 1 : 0)
                     .opacity(unlocked ? 1 : 0.5)
 
@@ -355,9 +366,12 @@ struct BadgeImageTile: View {
 }
 
 /// Medalha tocada + se está conquistada — empacota para `.sheet(item:)`.
+/// `earnedAt` = data carimbada (Garmin: "Você ganhou esta medalha em …");
+/// nil quando bloqueada ou ainda sem award persistido.
 struct BadgePresentation: Identifiable {
     let badge: Badge
     let unlocked: Bool
+    var earnedAt: Date? = nil
     var id: String { badge.id }
 }
 
@@ -377,12 +391,18 @@ struct BadgeDetailSheet: View {
                 Spacer(minLength: 8)
 
                 ZStack(alignment: .bottomTrailing) {
-                    Image("Badges/\(badge.assetName)")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 140, height: 140)
-                        .saturation(unlocked ? 1 : 0)
-                        .opacity(unlocked ? 1 : 0.5)
+                    Group {
+                        if badge.usesBrandLogo {
+                            BrandLogoTile(assetName: badge.assetName, size: 140)
+                        } else {
+                            Image("Badges/\(badge.assetName)")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 140, height: 140)
+                        }
+                    }
+                    .saturation(unlocked ? 1 : 0)
+                    .opacity(unlocked ? 1 : 0.5)
 
                     if !unlocked {
                         Image(systemName: "lock.fill")
@@ -410,6 +430,15 @@ struct BadgeDetailSheet: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 8)
+
+                if unlocked, let earnedAt = presentation.earnedAt {
+                    Text("Você ganhou esta medalha em \(AppFormat.dateLong(earnedAt)).")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 8)
+                }
 
                 Spacer()
             }

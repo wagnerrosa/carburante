@@ -70,8 +70,9 @@ enum BrandTheme {
     }
 
     /// Chave normalizada (minúscula, sem acento, sem espaço nas pontas) para
-    /// casar `make` mesmo com pequenas variações de grafia.
-    private static func normalizedKey(_ make: String) -> String {
+    /// casar `make` mesmo com pequenas variações de grafia. Internal: o catálogo
+    /// de badges de marca (`Badge.marca`) usa a mesma chave para casar a frota.
+    static func normalizedKey(_ make: String) -> String {
         make.folding(options: .diacriticInsensitive, locale: nil)
             .lowercased()
             .trimmingCharacters(in: .whitespaces)

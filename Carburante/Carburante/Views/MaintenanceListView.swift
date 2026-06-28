@@ -54,8 +54,13 @@ struct MaintenanceListView: View {
                 } description: {
                     Text("Registre uma manutenção para acompanhar o histórico.")
                 } actions: {
-                    Button("Registrar manutenção") { showingAdd = true }
-                        .buttonStyle(.borderedProminent)
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("Registrar manutenção", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                 }
             } else {
                 List {

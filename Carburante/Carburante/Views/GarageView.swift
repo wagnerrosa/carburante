@@ -28,6 +28,8 @@ struct GarageView: View {
     @State private var pendingDeletion: Motorcycle?
     /// Medalha tocada → abre o sheet explicativo (estilo Apple Fitness / HIG).
     @State private var selectedBadge: BadgePresentation?
+    /// Datas de conquista carimbadas (id→data), p/ o sheet mostrar "ganhou em …".
+    @State private var earnedDates: [String: Date] = [:]
 
     /// Moto ativa = a da chave salva, ou a mais recente como fallback.
     private var activeMotorcycle: Motorcycle? {
@@ -75,6 +77,8 @@ struct GarageView: View {
             .sheet(item: $selectedBadge) { presentation in
                 BadgeDetailSheet(presentation: presentation)
             }
+            .task { reconcileBadges() }
+            .onChange(of: motorcycles) { reconcileBadges() }
             .confirmationDialog(
                 deletionPrompt,
                 isPresented: deletionDialogBinding,
@@ -235,19 +239,36 @@ struct GarageView: View {
                 ForEach(visible) { badge in
                     let isUnlocked = unlocked.contains(badge.id)
                     Button {
-                        selectedBadge = BadgePresentation(badge: badge, unlocked: isUnlocked)
+                        selectedBadge = BadgePresentation(
+                            badge: badge,
+                            unlocked: isUnlocked,
+                            earnedAt: isUnlocked ? earnedDates[badge.id] : nil
+                        )
                         Haptics.selection()
                     } label: {
                         BadgeImageTile(
                             assetName: badge.assetName,
                             label: badge.title,
-                            unlocked: isUnlocked
+                            unlocked: isUnlocked,
+                            usesBrandLogo: badge.usesBrandLogo
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)
+        }
+    }
+
+    /// Carimba a data dos badges desbloqueados (1ª vez) e recarrega o mapa de
+    /// datas p/ o sheet. Sincroniza ao Supabase se algo novo foi gravado.
+    private func reconcileBadges() {
+        let ctx = motorcycles.badgeFleetContext
+        let unlocked = BadgeEvaluator.unlockedIDs(ctx)
+        let didInsert = BadgeAward.reconcile(unlockedIDs: unlocked, now: Date(), in: modelContext)
+        earnedDates = BadgeAward.earnedDates(in: modelContext)
+        if didInsert {
+            Task { await SyncService.shared.pushAll(from: modelContext) }
         }
     }
 
