@@ -37,23 +37,38 @@ struct IconTile: View {
     }
 }
 
+/// Forma do `BrandLogoTile`. `.roundedRect` = ícone de app (padrão, usado nos
+/// seletores/forms). `.circle` = medalha redonda (seção Conquistas), alinhada aos
+/// demais círculos do app — ganha um brilho premium extra (arco superior).
+enum BrandTileShape { case roundedRect, circle }
+
 /// Tile com o logo da marca no estilo "ícone de app", com brilho glass.
 ///
 /// Os assets em `Assets.xcassets/BrandLogos/` já são tiles full-bleed na cor
-/// da marca (desenhados como ícone) — aqui só recortamos os cantos contínuos e
-/// aplicamos a camada de vidro: brilho especular no topo + leve reflexo lateral
-/// na diagonal + hairline de borda + sombra suave. Sem libs externas.
+/// da marca (desenhados como ícone) — aqui só recortamos a forma e aplicamos a
+/// camada de vidro: brilho especular no topo + leve reflexo lateral na diagonal +
+/// hairline de borda + sombra suave. Sem libs externas.
 ///
 /// `assetName` é o nome do imageset (ex.: "BrandLogos/honda"). Para marcas sem
 /// logo, o chamador usa `IconTile` (ícone genérico + cor da marca).
 struct BrandLogoTile: View {
     let assetName: String
     var size: CGFloat = 38
+    /// Forma do recorte. Padrão = ícone de app; medalhas pedem `.circle`.
+    var tileShape: BrandTileShape = .roundedRect
 
     private var corner: CGFloat { size * 0.24 }  // mesmo raio do IconTile
 
+    /// Recorte usado em todas as camadas (clip + overlays). `AnyShape` conforma a
+    /// `Shape` → serve para `.clipShape`/`.stroke`/`.fill` (um `some View` não).
+    private var shape: AnyShape {
+        switch tileShape {
+        case .roundedRect: AnyShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+        case .circle:      AnyShape(Circle())
+        }
+    }
+
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
         Image(assetName)
             .resizable()
             .interpolation(.high)
@@ -86,6 +101,23 @@ struct BrandLogoTile: View {
                         lineWidth: max(0.5, size * 0.018)
                     )
                     .blendMode(.plusLighter)
+            }
+            .overlay {
+                // Toque premium SÓ no círculo: pequeno glint elíptico no quadrante
+                // superior-esquerdo (vidro polido).
+                if tileShape == .circle {
+                    Ellipse()
+                        .fill(
+                            RadialGradient(
+                                colors: [.white.opacity(0.55), .clear],
+                                center: .init(x: 0.32, y: 0.24),
+                                startRadius: 0,
+                                endRadius: size * 0.42
+                            )
+                        )
+                        .blendMode(.plusLighter)
+                        .clipShape(Circle())
+                }
             }
             .overlay {
                 // Hairline de contorno (separa o tile do fundo claro do sistema).
@@ -318,18 +350,33 @@ struct BadgePlaceholder: View {
 
 /// Badge com arte 3D (asset em `Badges/`), estilo Apple Fitness: colorido quando
 /// conquistado, dessaturado + cadeado quando bloqueado. Ver PLAN/badges.md.
+///
+/// Variações de canto (`.bottomTrailing`):
+/// - bloqueada → círculo com cadeado;
+/// - desbloqueada + família multi-nível → círculo com o NÚMERO do nível (1/2/3),
+///   para que níveis não pareçam todos iguais;
+/// - `isComingSoon` (Iron Butt) → colorida sempre + selo "em breve" (ampulheta),
+///   sem cadeado nem dessaturação — emblema especial de modalidade futura.
 struct BadgeImageTile: View {
     /// Nome do asset dentro do namespace `Badges` (ex.: "scooter"), OU o caminho
     /// de um logo de marca (`BrandLogos/…`) quando `usesBrandLogo == true`.
     let assetName: String
     let label: String
     var unlocked: Bool = false
-    /// `assetName` é um logo de marca → desenhar `BrandLogoTile` (tile glass).
+    /// `assetName` é um logo de marca → desenhar `BrandLogoTile` REDONDO (medalha).
     var usesBrandLogo: Bool = false
+    /// Nível desta medalha (1/2/3). Só desenhado quando `levelCount > 1`.
+    var level: Int = 1
+    /// Total de níveis da família. >1 → mostra o número do nível na conquistada.
+    var levelCount: Int = 1
+    /// Emblema especial "em breve" (Iron Butt): tratamento premium, nunca cadeado.
+    var isComingSoon: Bool = false
+
+    private var showLevelBadge: Bool { unlocked && levelCount > 1 && !isComingSoon }
 
     @ViewBuilder private var art: some View {
         if usesBrandLogo {
-            BrandLogoTile(assetName: assetName, size: 56)
+            BrandLogoTile(assetName: assetName, size: 56, tileShape: .circle)
         } else {
             Image("Badges/\(assetName)")
                 .resizable()
@@ -342,26 +389,54 @@ struct BadgeImageTile: View {
         VStack(spacing: 6) {
             ZStack(alignment: .bottomTrailing) {
                 art
-                    .saturation(unlocked ? 1 : 0)
-                    .opacity(unlocked ? 1 : 0.5)
+                    // Iron Butt fica SEMPRE colorida (especial); o resto dessatura
+                    // quando bloqueado.
+                    .saturation(isComingSoon || unlocked ? 1 : 0)
+                    .opacity(isComingSoon || unlocked ? 1 : 0.5)
+                    // Brilho premium ao redor do emblema especial.
+                    .shadow(color: isComingSoon ? .orange.opacity(0.35) : .clear,
+                            radius: 6)
 
-                if !unlocked {
+                if isComingSoon {
+                    // Selo "em breve" — ampulheta, sem cadeado.
+                    Image(systemName: "hourglass")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.orange)
+                        .padding(3)
+                        .background(.thinMaterial, in: Circle())
+                } else if !unlocked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.secondary)
                         .padding(3)
                         .background(.thinMaterial, in: Circle())
+                } else if showLevelBadge {
+                    // Número do nível na conquistada (cor do tema).
+                    Text("\(level)")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.tint)
+                        .frame(width: 18, height: 18)
+                        .background(.thinMaterial, in: Circle())
+                        .overlay(Circle().stroke(.tint.opacity(0.45), lineWidth: 1))
                 }
             }
             Text(label)
                 .font(.caption2)
-                .foregroundStyle(unlocked ? .secondary : .tertiary)
+                .foregroundStyle(unlocked || isComingSoon ? .secondary : .tertiary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(unlocked ? "\(label), conquistada" : "\(label), bloqueada")
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var accessibilityText: String {
+        if isComingSoon { return "\(label), em breve" }
+        if !unlocked { return "\(label), bloqueada" }
+        if showLevelBadge { return "\(label), conquistada, nível \(level)" }
+        return "\(label), conquistada"
     }
 }
 
@@ -385,6 +460,20 @@ struct BadgeDetailSheet: View {
     private var badge: Badge { presentation.badge }
     private var unlocked: Bool { presentation.unlocked }
 
+    // Estado: "em breve" (Iron Butt) > conquistada > bloqueada.
+    private var statusText: String {
+        if badge.isComingSoon { return "Em breve" }
+        return unlocked ? "Conquistada" : "Bloqueada"
+    }
+    private var statusIcon: String {
+        if badge.isComingSoon { return "hourglass" }
+        return unlocked ? "checkmark.seal.fill" : "lock.fill"
+    }
+    private var statusStyle: AnyShapeStyle {
+        if badge.isComingSoon { return AnyShapeStyle(.orange) }
+        return unlocked ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -393,7 +482,7 @@ struct BadgeDetailSheet: View {
                 ZStack(alignment: .bottomTrailing) {
                     Group {
                         if badge.usesBrandLogo {
-                            BrandLogoTile(assetName: badge.assetName, size: 140)
+                            BrandLogoTile(assetName: badge.assetName, size: 140, tileShape: .circle)
                         } else {
                             Image("Badges/\(badge.assetName)")
                                 .resizable()
@@ -401,10 +490,18 @@ struct BadgeDetailSheet: View {
                                 .frame(width: 140, height: 140)
                         }
                     }
-                    .saturation(unlocked ? 1 : 0)
-                    .opacity(unlocked ? 1 : 0.5)
+                    // Iron Butt sempre colorido (especial); demais dessaturam se bloqueado.
+                    .saturation(badge.isComingSoon || unlocked ? 1 : 0)
+                    .opacity(badge.isComingSoon || unlocked ? 1 : 0.5)
+                    .shadow(color: badge.isComingSoon ? .orange.opacity(0.4) : .clear, radius: 16)
 
-                    if !unlocked {
+                    if badge.isComingSoon {
+                        Image(systemName: "hourglass")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(.orange)
+                            .padding(8)
+                            .background(.thinMaterial, in: Circle())
+                    } else if !unlocked {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundStyle(.secondary)
@@ -418,10 +515,9 @@ struct BadgeDetailSheet: View {
                         .font(.title2.weight(.bold))
                         .multilineTextAlignment(.center)
 
-                    Label(unlocked ? "Conquistada" : "Bloqueada",
-                          systemImage: unlocked ? "checkmark.seal.fill" : "lock.fill")
+                    Label(statusText, systemImage: statusIcon)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(unlocked ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(statusStyle)
                 }
 
                 Text(badge.detail)

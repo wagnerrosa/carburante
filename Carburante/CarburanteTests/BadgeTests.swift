@@ -34,14 +34,14 @@ final class BadgeTests: XCTestCase {
     // MARK: Catálogo
 
     func testCatalogShape() {
-        // Universais: 4 abastecimento + 1 manutenção + 1 melhor consumo = 6.
+        // Universais: 4 abastecimento + 1 manutenção + 1 melhor consumo + 1 Iron Butt = 7.
         // Marca: 10 (catálogo com logo). Cilindrada: 5 clubes.
-        // Categorias: 5×3 + 3×1 = 18. Total 39.
-        XCTAssertEqual(Badge.universais.count, 6)
+        // Categorias: 5×3 + 3×1 = 18. Total 40.
+        XCTAssertEqual(Badge.universais.count, 7)
         XCTAssertEqual(Badge.marca.count, 10)
         XCTAssertEqual(Badge.cilindrada.count, 5)
         XCTAssertEqual(Badge.categoria.count, 18)
-        XCTAssertEqual(Badge.all.count, 39)
+        XCTAssertEqual(Badge.all.count, 40)
     }
 
     func testBadgeIDsAreUnique() {
@@ -69,6 +69,51 @@ final class BadgeTests: XCTestCase {
         for badge in Badge.marca {
             XCTAssertTrue(badge.usesBrandLogo, "\(badge.id) deveria usar o logo da marca")
             XCTAssertTrue(badge.assetName.hasPrefix("BrandLogos/"), "\(badge.id) com asset errado")
+        }
+    }
+
+    // MARK: Iron Butt (modalidade futura)
+
+    func testIronButtIsComingSoonAndAlwaysVisible() {
+        let iron = Badge.all.first { $0.id == "iron_butt" }
+        XCTAssertNotNil(iron)
+        XCTAssertTrue(iron?.isComingSoon ?? false, "Iron Butt deveria ser 'em breve'")
+        XCTAssertEqual(iron?.assetName, "ironButt")
+        // Sempre visível (universal) mesmo sem nenhuma moto.
+        XCTAssertTrue(BadgeEvaluator.visibleBadges(ctx()).contains { $0.id == "iron_butt" })
+    }
+
+    func testIronButtNeverUnlocks() {
+        // Mesmo com a frota toda "no máximo", Iron Butt nunca entra nos unlocked.
+        let c = ctx(maintenance: true, fullTanks: 99, beatsCategory: true,
+                    present: [.sport], km: [.sport: 999_999])
+        XCTAssertFalse(BadgeEvaluator.unlockedIDs(c).contains("iron_butt"),
+                       "Iron Butt é modalidade futura — nunca desbloqueia ainda")
+    }
+
+    func testOnlyIronButtIsComingSoon() {
+        XCTAssertEqual(Badge.all.filter(\.isComingSoon).map(\.id), ["iron_butt"])
+    }
+
+    // MARK: Níveis (número na medalha)
+
+    func testMultiLevelCategoriesCarryLevelInfo() {
+        // As 5 famílias de 3 níveis têm levelCount==3 e level 1/2/3 distintos.
+        let families = ["scooter", "trail", "custom", "street", "sport"]
+        for fam in families {
+            let levels = Badge.categoria
+                .filter { $0.id.hasPrefix("cat_\(fam)_") }
+                .sorted { $0.level < $1.level }
+            XCTAssertEqual(levels.map(\.level), [1, 2, 3], "\(fam) níveis errados")
+            XCTAssertTrue(levels.allSatisfy { $0.levelCount == 3 }, "\(fam) levelCount errado")
+        }
+    }
+
+    func testSingleLevelCategoriesHaveNoLevelNumber() {
+        // touring/offroad/other têm nível único → levelCount==1 (sem número na UI).
+        for id in ["cat_touring_1", "cat_offroad_1", "cat_other_1"] {
+            let badge = Badge.categoria.first { $0.id == id }
+            XCTAssertEqual(badge?.levelCount, 1, "\(id) não deveria mostrar número")
         }
     }
 

@@ -250,7 +250,10 @@ struct GarageView: View {
                             assetName: badge.assetName,
                             label: badge.title,
                             unlocked: isUnlocked,
-                            usesBrandLogo: badge.usesBrandLogo
+                            usesBrandLogo: badge.usesBrandLogo,
+                            level: badge.level,
+                            levelCount: badge.levelCount,
+                            isComingSoon: badge.isComingSoon
                         )
                     }
                     .buttonStyle(.plain)
