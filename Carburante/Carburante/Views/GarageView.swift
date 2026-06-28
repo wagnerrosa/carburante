@@ -186,17 +186,20 @@ struct GarageView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
+                // Ícones em cinza secundário (default do StatRow): cor = sinal,
+                // não decoração — o número é quem manda. Cores aleatórias por
+                // recorde davam ruído sem significado.
                 if let best = r.bestKmPerLiter {
                     StatRow(label: "Melhor consumo", value: AppFormat.kmPerLiter(best),
-                            systemImage: "trophy.fill", iconColor: .yellow)
+                            systemImage: "trophy.fill")
                 }
                 if let longest = r.longestSegment {
                     StatRow(label: "Maior trecho", value: AppFormat.km(longest),
-                            systemImage: "road.lanes", iconColor: .blue)
+                            systemImage: "road.lanes")
                 }
                 if let cheap = r.cheapestPricePerLiter {
                     StatRow(label: "Litro mais barato", value: AppFormat.currencyPrecise(cheap),
-                            systemImage: "drop.fill", iconColor: .green)
+                            systemImage: "drop.fill")
                 }
             }
         }
