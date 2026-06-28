@@ -65,6 +65,16 @@ struct Badge: Identifiable, Equatable {
     var requiredFullTanks: Int = 0
     /// `assetName` é um logo de marca (`BrandLogos/…`) → desenhar `BrandLogoTile`.
     var usesBrandLogo: Bool = false
+    /// Nível desta medalha dentro da sua família (1, 2, 3…). Para famílias de
+    /// progressão (categorias com vários níveis), a UI desenha o número num
+    /// círculo para que os níveis não pareçam todos iguais.
+    var level: Int = 1
+    /// Quantos níveis a família tem ao todo. >1 → mostrar o número do nível.
+    var levelCount: Int = 1
+    /// Medalha especial "em breve": sempre visível, NUNCA desbloqueável (modalidade
+    /// futura). A UI dá tratamento premium próprio (colorida + selo "Em breve",
+    /// sem cadeado/dessaturação). Hoje só o Iron Butt.
+    var isComingSoon: Bool = false
 }
 
 extension Badge {
@@ -93,6 +103,12 @@ extension Badge {
 
         Badge(id: "best_consumption", title: "Acima da média", assetName: "bestConsumption", group: .universal,
               detail: "Seu melhor consumo superou a média estimada para a categoria da sua moto. Pilotagem econômica!"),
+
+        // Medalha especial — modalidade futura. Sempre visível, nunca desbloqueia
+        // ainda (`isComingSoon`). É o emblema mais raro do app: o desafio Iron Butt.
+        Badge(id: "iron_butt", title: "Iron Butt", assetName: "ironButt", group: .universal,
+              detail: "A medalha mais cobiçada do motociclismo de longa distância: percorrer 1.600 km em menos de 24 horas. O desafio Iron Butt chega ao Carburante em breve — fique de olho.",
+              isComingSoon: true),
     ]
 
     /// Badges de MARCA — um por marca do catálogo (logo como arte). Só aparecem
@@ -130,25 +146,25 @@ extension Badge {
     /// Nomes seguem PLAN/badges.md §"Categorias".
     static let categoria: [Badge] = [
         // Scooter
-        Badge(id: "cat_scooter_1", title: "Urban Rider",   assetName: "scooter", group: .categoria(.scooter), detail: "Você cadastrou uma scooter. Bem-vindo à mobilidade urbana."),
-        Badge(id: "cat_scooter_2", title: "Rei da Cidade", assetName: "scooter", group: .categoria(.scooter), detail: "5.000 km rodados em scooters. A cidade é seu território.", requiredKm: levelTwoKm),
-        Badge(id: "cat_scooter_3", title: "City Commuter", assetName: "scooter", group: .categoria(.scooter), detail: "20.000 km em scooters. Deslocamento diário dominado.", requiredKm: levelThreeKm),
+        Badge(id: "cat_scooter_1", title: "Urban Rider",   assetName: "scooter", group: .categoria(.scooter), detail: "Você cadastrou uma scooter. Bem-vindo à mobilidade urbana.", level: 1, levelCount: 3),
+        Badge(id: "cat_scooter_2", title: "Rei da Cidade", assetName: "scooter", group: .categoria(.scooter), detail: "5.000 km rodados em scooters. A cidade é seu território.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
+        Badge(id: "cat_scooter_3", title: "City Commuter", assetName: "scooter", group: .categoria(.scooter), detail: "20.000 km em scooters. Deslocamento diário dominado.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
         // Trail / Big Trail
-        Badge(id: "cat_trail_1", title: "Adventure Rider", assetName: "trail", group: .categoria(.trail), detail: "Você cadastrou uma trail/big trail. A aventura começou."),
-        Badge(id: "cat_trail_2", title: "Explorador",      assetName: "trail", group: .categoria(.trail), detail: "5.000 km de aventura registrados.", requiredKm: levelTwoKm),
-        Badge(id: "cat_trail_3", title: "Sem Destino",     assetName: "trail", group: .categoria(.trail), detail: "20.000 km em trails. O caminho é o destino.", requiredKm: levelThreeKm),
+        Badge(id: "cat_trail_1", title: "Adventure Rider", assetName: "trail", group: .categoria(.trail), detail: "Você cadastrou uma trail/big trail. A aventura começou.", level: 1, levelCount: 3),
+        Badge(id: "cat_trail_2", title: "Explorador",      assetName: "trail", group: .categoria(.trail), detail: "5.000 km de aventura registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
+        Badge(id: "cat_trail_3", title: "Sem Destino",     assetName: "trail", group: .categoria(.trail), detail: "20.000 km em trails. O caminho é o destino.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
         // Custom / Cruiser ("Road Captain" é o posto mais alto → nível III)
-        Badge(id: "cat_custom_1", title: "Highway Rider", assetName: "custom", group: .categoria(.custom), detail: "Você cadastrou uma custom/cruiser. Estrada e estilo."),
-        Badge(id: "cat_custom_2", title: "Long Road",     assetName: "custom", group: .categoria(.custom), detail: "5.000 km em customs registrados.", requiredKm: levelTwoKm),
-        Badge(id: "cat_custom_3", title: "Road Captain",  assetName: "custom", group: .categoria(.custom), detail: "20.000 km de estrada na sua custom. Você é o capitão da estrada.", requiredKm: levelThreeKm),
+        Badge(id: "cat_custom_1", title: "Highway Rider", assetName: "custom", group: .categoria(.custom), detail: "Você cadastrou uma custom/cruiser. Estrada e estilo.", level: 1, levelCount: 3),
+        Badge(id: "cat_custom_2", title: "Long Road",     assetName: "custom", group: .categoria(.custom), detail: "5.000 km em customs registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
+        Badge(id: "cat_custom_3", title: "Road Captain",  assetName: "custom", group: .categoria(.custom), detail: "20.000 km de estrada na sua custom. Você é o capitão da estrada.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
         // Street / Naked
-        Badge(id: "cat_street_1", title: "Street Fighter", assetName: "street", group: .categoria(.street), detail: "Você cadastrou uma street/naked. A rua é sua."),
-        Badge(id: "cat_street_2", title: "Urban Warrior",  assetName: "street", group: .categoria(.street), detail: "5.000 km em streets registrados.", requiredKm: levelTwoKm),
-        Badge(id: "cat_street_3", title: "Asphalt Rider",  assetName: "street", group: .categoria(.street), detail: "20.000 km de asfalto na sua naked.", requiredKm: levelThreeKm),
+        Badge(id: "cat_street_1", title: "Street Fighter", assetName: "street", group: .categoria(.street), detail: "Você cadastrou uma street/naked. A rua é sua.", level: 1, levelCount: 3),
+        Badge(id: "cat_street_2", title: "Urban Warrior",  assetName: "street", group: .categoria(.street), detail: "5.000 km em streets registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
+        Badge(id: "cat_street_3", title: "Asphalt Rider",  assetName: "street", group: .categoria(.street), detail: "20.000 km de asfalto na sua naked.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
         // Esportiva
-        Badge(id: "cat_sport_1", title: "Speed Demon", assetName: "sport", group: .categoria(.sport), detail: "Você cadastrou uma esportiva. Adrenalina no cadastro."),
-        Badge(id: "cat_sport_2", title: "Track Soul",  assetName: "sport", group: .categoria(.sport), detail: "5.000 km na sua esportiva.", requiredKm: levelTwoKm),
-        Badge(id: "cat_sport_3", title: "Redline Club", assetName: "sport", group: .categoria(.sport), detail: "20.000 km de pura emoção.", requiredKm: levelThreeKm),
+        Badge(id: "cat_sport_1", title: "Speed Demon", assetName: "sport", group: .categoria(.sport), detail: "Você cadastrou uma esportiva. Adrenalina no cadastro.", level: 1, levelCount: 3),
+        Badge(id: "cat_sport_2", title: "Track Soul",  assetName: "sport", group: .categoria(.sport), detail: "5.000 km na sua esportiva.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
+        Badge(id: "cat_sport_3", title: "Redline Club", assetName: "sport", group: .categoria(.sport), detail: "20.000 km de pura emoção.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
         // Nível único.
         Badge(id: "cat_touring_1", title: "Estradeiro",   assetName: "touring", group: .categoria(.touring), detail: "Você cadastrou uma touring. Longas distâncias com conforto."),
         Badge(id: "cat_offroad_1", title: "Off-road",     assetName: "offroad", group: .categoria(.offroad), detail: "Você cadastrou uma moto off-road. Fora do asfalto."),
