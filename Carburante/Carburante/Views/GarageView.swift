@@ -200,7 +200,7 @@ struct GarageView: View {
                             systemImage: "road.lanes")
                 }
                 if let cheap = r.cheapestPricePerLiter {
-                    StatRow(label: "Litro mais barato", value: AppFormat.currencyPrecise(cheap),
+                    StatRow(label: "Litro mais barato", value: AppFormat.currency(cheap),
                             systemImage: "drop.fill")
                 }
             }
@@ -221,7 +221,7 @@ struct GarageView: View {
                 StatRow(label: "Consumo médio", value: AppFormat.kmPerLiter(avg))
             }
             if let costPerKm = summary.costPerKm {
-                StatRow(label: "Custo médio", value: "\(AppFormat.currencyPrecise(costPerKm))/km")
+                StatRow(label: "Custo médio", value: "\(AppFormat.currency(costPerKm))/km")
             }
         }
     }
@@ -250,12 +250,14 @@ struct GarageView: View {
         Section("Conquistas") {
             // Nível do perfil (estilo Garmin): soma dos pontos das medalhas acesas.
             ProfileLevelHeader(level: level)
+                .listRowSeparator(.hidden)
 
             Picker("Filtrar medalhas", selection: $badgeFilter) {
                 Text("Conquistadas (\(conquistadas.count))").tag(BadgeFilter.conquistadas)
                 Text("Disponíveis (\(disponiveis.count))").tag(BadgeFilter.disponiveis)
             }
             .pickerStyle(.segmented)
+            .listRowSeparator(.hidden)
             .onChange(of: badgeFilter) { Haptics.selection() }
 
             if shown.isEmpty {

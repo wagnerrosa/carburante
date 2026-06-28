@@ -99,7 +99,7 @@ extension Badge {
         // Abastecimentos — marcos por tanque cheio (mecânica full-to-full). Mesma
         // arte 3D (`firstFuel`) → marcados como família de 4 níveis (1→4) para a UI
         // desenhar o número, senão as 4 medalhas ficam idênticas (feedback do usuário).
-        Badge(id: "fuel_1",  title: "1º abastecimento", assetName: "firstFuel", group: .universal,
+        Badge(id: "fuel_1",  title: "1º Abastecimento", assetName: "firstFuel", group: .universal,
               detail: "Seu primeiro abastecimento com tanque cheio registrado. Ele é a âncora do cálculo de consumo.",
               requiredFullTanks: 1, level: 1, levelCount: 4, points: 1),
         Badge(id: "fuel_2",  title: "Primeira média", assetName: "firstFuel", group: .universal,
@@ -112,7 +112,7 @@ extension Badge {
               detail: "Dez tanques cheios registrados. O hábito virou rotina e os números ficam cada vez mais confiáveis.",
               requiredFullTanks: 10, level: 4, levelCount: 4, points: 10),
 
-        Badge(id: "first_maintenance", title: "1ª manutenção", assetName: "firstMaintenance", group: .universal,
+        Badge(id: "first_maintenance", title: "1ª Manutenção", assetName: "firstMaintenance", group: .universal,
               detail: "Você registrou sua primeira manutenção. Manter o histórico ajuda a prever trocas e a cuidar da moto.",
               points: 2),
 
