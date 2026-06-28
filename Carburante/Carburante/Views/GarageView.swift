@@ -96,7 +96,7 @@ struct GarageView: View {
 
             recordsSection(moto)
             totalsSection(moto)
-            badgesSection(moto)
+            badgesSection
         }
     }
 
@@ -212,29 +212,30 @@ struct GarageView: View {
         }
     }
 
-    // MARK: Medalhas
+    // MARK: Conquistas
 
-    /// Grade real de conquistas (1º corte — ver PLAN/badges.md). Estado
-    /// locked/unlocked é DERIVADO dos dados via `BadgeEvaluator` (nada salvo).
+    /// Seção única "Conquistas" (ver PLAN/badges.md). Estado locked/unlocked e
+    /// VISIBILIDADE são derivados da frota via `BadgeEvaluator` (nada salvo):
+    /// primeiros passos sempre aparecem; só as categorias já cadastradas entram,
+    /// mostrando todos os seus níveis (desbloqueados + a perseguir).
     @ViewBuilder
-    private func badgesSection(_ moto: Motorcycle) -> some View {
-        let unlocked = BadgeEvaluator.unlockedIDs(moto.badgeContext)
+    private var badgesSection: some View {
+        let ctx = motorcycles.badgeFleetContext
+        let visible = BadgeEvaluator.visibleBadges(ctx)
+        let unlocked = BadgeEvaluator.unlockedIDs(ctx)
         let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
-        ForEach(BadgeGroup.allCases) { group in
-            let badges = Badge.all.filter { $0.group == group }
-            Section(group.title) {
-                LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
-                    ForEach(badges) { badge in
-                        BadgeImageTile(
-                            assetName: badge.assetName,
-                            label: badge.title,
-                            unlocked: unlocked.contains(badge.id)
-                        )
-                    }
+        Section("Conquistas") {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                ForEach(visible) { badge in
+                    BadgeImageTile(
+                        assetName: badge.assetName,
+                        label: badge.title,
+                        unlocked: unlocked.contains(badge.id)
+                    )
                 }
-                .padding(.vertical, 4)
             }
+            .padding(.vertical, 4)
         }
     }
 
