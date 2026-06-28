@@ -316,6 +316,44 @@ struct BadgePlaceholder: View {
     }
 }
 
+/// Badge com arte 3D (asset em `Badges/`), estilo Apple Fitness: colorido quando
+/// conquistado, dessaturado + cadeado quando bloqueado. Ver PLAN/badges.md.
+struct BadgeImageTile: View {
+    /// Nome do asset dentro do namespace `Badges` (ex.: "scooter").
+    let assetName: String
+    let label: String
+    var unlocked: Bool = false
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack(alignment: .bottomTrailing) {
+                Image("Badges/\(assetName)")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 56, height: 56)
+                    .saturation(unlocked ? 1 : 0)
+                    .opacity(unlocked ? 1 : 0.5)
+
+                if !unlocked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(3)
+                        .background(.thinMaterial, in: Circle())
+                }
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(unlocked ? .secondary : .tertiary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(unlocked ? "\(label), conquistada" : "\(label), bloqueada")
+    }
+}
+
 /// Contêiner com o visual de card agrupado nativo (sem sombra custom).
 struct GroupedCard<Content: View>: View {
     @ViewBuilder var content: Content
