@@ -117,6 +117,16 @@ final class BadgeTests: XCTestCase {
         }
     }
 
+    func testFuelMilestonesCarryLevelNumbers() {
+        // Os 4 marcos de abastecimento compartilham a mesma arte → família de 4
+        // níveis (1→4, levelCount==4) p/ a UI numerá-los e não ficarem idênticos.
+        let fuel = Badge.universais
+            .filter { $0.id.hasPrefix("fuel_") }
+            .sorted { $0.level < $1.level }
+        XCTAssertEqual(fuel.map(\.level), [1, 2, 3, 4], "níveis dos abastecimentos errados")
+        XCTAssertTrue(fuel.allSatisfy { $0.levelCount == 4 }, "levelCount dos abastecimentos errado")
+    }
+
     func testSingleLevelCategoriesHaveNoLevelNumber() {
         // touring/offroad/other têm nível único → levelCount==1 (sem número na UI).
         for id in ["cat_touring_1", "cat_offroad_1", "cat_other_1"] {
