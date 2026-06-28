@@ -226,20 +226,24 @@ struct BadgeFleetContext {
 
 enum BadgeEvaluator {
     /// Badges que devem APARECER (universais sempre + só marcas/clubes/categorias
-    /// presentes). Ordem do catálogo preservada.
+    /// presentes). Ordem do catálogo preservada, EXCETO os "em breve" (Iron Butt),
+    /// que vão para o FIM da grade (emblema especial fecha as Conquistas).
     static func visibleBadges(_ ctx: BadgeFleetContext) -> [Badge] {
-        Badge.all.filter { badge in
-            switch badge.group {
-            case .universal:
-                return true
-            case .categoria(let cat):
-                return ctx.presentCategories.contains(cat)
-            case .marca(let key):
-                return ctx.presentMakes.contains(key)
-            case .cilindrada(let cc):
-                return ctx.presentDisplacementClubs.contains(cc)
+        Badge.all
+            .filter { badge in
+                switch badge.group {
+                case .universal:
+                    return true
+                case .categoria(let cat):
+                    return ctx.presentCategories.contains(cat)
+                case .marca(let key):
+                    return ctx.presentMakes.contains(key)
+                case .cilindrada(let cc):
+                    return ctx.presentDisplacementClubs.contains(cc)
+                }
             }
-        }
+            // Estável: mantém a ordem do catálogo; só empurra os "em breve" p/ o fim.
+            .sorted { !$0.isComingSoon && $1.isComingSoon }
     }
 
     /// IDs das badges conquistadas (regra pura de unlock).
