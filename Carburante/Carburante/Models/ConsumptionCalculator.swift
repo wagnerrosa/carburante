@@ -101,16 +101,11 @@ extension Motorcycle {
         ConsumptionCalculator.records(from: fuelLogs.map(\.asFuelEntry))
     }
 
-    /// Contexto de unlock das medalhas (ver `Badge.swift`). Deriva tudo dos
-    /// dados já persistidos — nenhum estado de conquista é salvo.
-    var badgeContext: BadgeUnlockContext {
-        BadgeUnlockContext(
-            hasMotorcycle: true,                 // existe a moto → 1ª moto conquistada
-            hasFuelLog: !fuelLogs.isEmpty,
-            hasMaintenanceLog: !maintenanceLogs.isEmpty,
-            hasBestConsumption: records.bestKmPerLiter != nil,
-            category: categoryEnum
-        )
+    /// Km rodados desde o cadastro (leitura manual de referência). Base do
+    /// progresso por categoria nas medalhas — reflete uso real, não só os
+    /// trechos full-to-full. Nunca negativo.
+    var distanceSinceBaseline: Double {
+        max(0, currentOdometer - odometerBaseline)
     }
 
     // MARK: - Totais vitalícios (Garagem)
@@ -172,6 +167,39 @@ extension Motorcycle {
     /// km rodados no mês-civil atual (número grande do tile).
     func distanceThisMonth(now: Date = Date()) -> Double {
         monthlyDistanceSeries(now: now).last?.distance ?? 0
+    }
+}
+
+extension Array where Element == Motorcycle {
+    /// Contexto de medalhas da FROTA inteira (ver `Badge.swift`). Deriva tudo dos
+    /// dados já persistidos — nenhum estado de conquista é salvo. Categorias
+    /// presentes = o que aparece; km por categoria = soma de `distanceSinceBaseline`.
+    var badgeFleetContext: BadgeFleetContext {
+        var present = Set<MotorcycleCategory>()
+        var kmByCategory: [MotorcycleCategory: Double] = [:]
+        var hasFuel = false
+        var hasMaintenance = false
+        var hasBest = false
+
+        for moto in self {
+            if !moto.fuelLogs.isEmpty { hasFuel = true }
+            if !moto.maintenanceLogs.isEmpty { hasMaintenance = true }
+            if moto.records.bestKmPerLiter != nil { hasBest = true }
+            // categoryEnum nil → trata como `.other` (toda moto pertence a alguma
+            // categoria visível; sem isso uma moto sem categoria não renderia badge).
+            let cat = moto.categoryEnum ?? .other
+            present.insert(cat)
+            kmByCategory[cat, default: 0] += moto.distanceSinceBaseline
+        }
+
+        return BadgeFleetContext(
+            hasMotorcycle: !isEmpty,
+            hasFuelLog: hasFuel,
+            hasMaintenanceLog: hasMaintenance,
+            hasBestConsumption: hasBest,
+            presentCategories: present,
+            kmByCategory: kmByCategory
+        )
     }
 }
 

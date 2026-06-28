@@ -2,8 +2,8 @@
 //  BadgeTests.swift
 //  CarburanteTests
 //
-//  Regras de unlock das medalhas (motor puro `BadgeEvaluator` — ver Badge.swift).
-//  Testa o contexto puro, sem SwiftData, mesmo padrão de ConsumptionTests.
+//  Regras de unlock + visibilidade das medalhas (motor puro `BadgeEvaluator` —
+//  ver Badge.swift). Testa o contexto da frota, sem SwiftData.
 //
 
 import XCTest
@@ -11,38 +11,31 @@ import XCTest
 
 final class BadgeTests: XCTestCase {
 
-    /// Contexto base "vazio": só tem a moto cadastrada.
     private func ctx(
+        hasBike: Bool = true,
         fuel: Bool = false,
         maintenance: Bool = false,
         bestConsumption: Bool = false,
-        category: MotorcycleCategory? = nil
-    ) -> BadgeUnlockContext {
-        BadgeUnlockContext(
-            hasMotorcycle: true,
+        present: Set<MotorcycleCategory> = [],
+        km: [MotorcycleCategory: Double] = [:]
+    ) -> BadgeFleetContext {
+        BadgeFleetContext(
+            hasMotorcycle: hasBike,
             hasFuelLog: fuel,
             hasMaintenanceLog: maintenance,
             hasBestConsumption: bestConsumption,
-            category: category
+            presentCategories: present,
+            kmByCategory: km
         )
     }
 
     // MARK: Catálogo
 
-    func testCatalogHasTwelveBadges() {
-        // 1º corte = 4 primeiros passos + 8 categorias.
-        XCTAssertEqual(Badge.all.count, 12)
+    func testCatalogShape() {
+        // 4 primeiros passos + 18 categorias (5×3 níveis + 3×1 nível).
         XCTAssertEqual(Badge.primeirosPassos.count, 4)
-        XCTAssertEqual(Badge.categoria.count, 8)
-    }
-
-    func testEveryCategoryMapsToExactlyOneBadge() {
-        // Garante que o mapa categoria→id cobre todos os casos e bate com o catálogo.
-        let catalogIDs = Set(Badge.categoria.map(\.id))
-        for category in MotorcycleCategory.allCases {
-            XCTAssertTrue(catalogIDs.contains(Badge.id(for: category)),
-                          "Categoria \(category) sem badge no catálogo")
-        }
+        XCTAssertEqual(Badge.categoria.count, 18)
+        XCTAssertEqual(Badge.all.count, 22)
     }
 
     func testBadgeIDsAreUnique() {
@@ -50,63 +43,118 @@ final class BadgeTests: XCTestCase {
         XCTAssertEqual(ids.count, Set(ids).count, "IDs de badge duplicados")
     }
 
-    // MARK: Primeiros passos
+    func testEveryCategoryHasAtLeastOneBadge() {
+        for cat in MotorcycleCategory.allCases {
+            let has = Badge.categoria.contains { badge in
+                if case .categoria(let c) = badge.group { return c == cat }
+                return false
+            }
+            XCTAssertTrue(has, "Categoria \(cat) sem badge")
+        }
+    }
 
-    func testFirstBikeAlwaysUnlockedWhenMotorcycleExists() {
-        // Existe a moto (hasMotorcycle = true) → "Primeira moto" sempre conquistada.
+    func testLeveledCategoriesHaveThreeBadges() {
+        for cat in [MotorcycleCategory.scooter, .trail, .custom, .street, .sport] {
+            let count = Badge.categoria.filter {
+                if case .categoria(let c) = $0.group { return c == cat }
+                return false
+            }.count
+            XCTAssertEqual(count, 3, "\(cat) deveria ter 3 níveis")
+        }
+    }
+
+    func testSingleLevelCategoriesHaveOneBadge() {
+        for cat in [MotorcycleCategory.touring, .offroad, .other] {
+            let count = Badge.categoria.filter {
+                if case .categoria(let c) = $0.group { return c == cat }
+                return false
+            }.count
+            XCTAssertEqual(count, 1, "\(cat) deveria ter 1 nível")
+        }
+    }
+
+    // MARK: Visibilidade
+
+    func testPrimeirosPassosAlwaysVisible() {
+        let visible = BadgeEvaluator.visibleBadges(ctx())
+        for badge in Badge.primeirosPassos {
+            XCTAssertTrue(visible.contains(badge), "\(badge.id) deveria estar visível sempre")
+        }
+    }
+
+    func testUntouchedCategoryIsHidden() {
+        // Só scooter presente → nenhuma badge de trail aparece.
+        let visible = BadgeEvaluator.visibleBadges(ctx(present: [.scooter]))
+        let trailVisible = visible.contains { badge in
+            if case .categoria(.trail) = badge.group { return true }
+            return false
+        }
+        XCTAssertFalse(trailVisible, "Trail nunca cadastrada não deveria aparecer")
+    }
+
+    func testTouchedCategoryShowsAllItsLevels() {
+        // Scooter presente → vê os 3 níveis dela (mesmo bloqueados).
+        let visible = BadgeEvaluator.visibleBadges(ctx(present: [.scooter]))
+        let scooterIDs = visible.compactMap { badge -> String? in
+            if case .categoria(.scooter) = badge.group { return badge.id }
+            return nil
+        }
+        XCTAssertEqual(Set(scooterIDs), ["cat_scooter_1", "cat_scooter_2", "cat_scooter_3"])
+    }
+
+    // MARK: Unlock — primeiros passos
+
+    func testFirstBikeUnlockedWhenFleetNonEmpty() {
         XCTAssertTrue(BadgeEvaluator.unlockedIDs(ctx()).contains("first_bike"))
+        XCTAssertFalse(BadgeEvaluator.unlockedIDs(ctx(hasBike: false)).contains("first_bike"))
     }
 
-    func testFirstFuelLocksUntilFuelLog() {
-        XCTAssertFalse(BadgeEvaluator.unlockedIDs(ctx(fuel: false)).contains("first_fuel"))
+    func testFirstFuelMaintenanceBest() {
         XCTAssertTrue(BadgeEvaluator.unlockedIDs(ctx(fuel: true)).contains("first_fuel"))
-    }
-
-    func testFirstMaintenanceLocksUntilMaintenanceLog() {
-        XCTAssertFalse(BadgeEvaluator.unlockedIDs(ctx(maintenance: false)).contains("first_maintenance"))
         XCTAssertTrue(BadgeEvaluator.unlockedIDs(ctx(maintenance: true)).contains("first_maintenance"))
-    }
-
-    func testBestConsumptionLocksUntilReadingExists() {
-        XCTAssertFalse(BadgeEvaluator.unlockedIDs(ctx(bestConsumption: false)).contains("best_consumption"))
         XCTAssertTrue(BadgeEvaluator.unlockedIDs(ctx(bestConsumption: true)).contains("best_consumption"))
+        let empty = BadgeEvaluator.unlockedIDs(ctx())
+        XCTAssertFalse(empty.contains("first_fuel"))
+        XCTAssertFalse(empty.contains("first_maintenance"))
+        XCTAssertFalse(empty.contains("best_consumption"))
     }
 
-    // MARK: Categoria
+    // MARK: Unlock — níveis por km
 
-    func testCategoryUnlocksOnlyMatchingBadge() {
-        let ids = BadgeEvaluator.unlockedIDs(ctx(category: .scooter))
-        XCTAssertTrue(ids.contains("cat_scooter"))
-        // Nenhuma OUTRA badge de categoria desbloqueada.
-        let otherCategoryIDs = Badge.categoria.map(\.id).filter { $0 != "cat_scooter" }
-        for id in otherCategoryIDs {
-            XCTAssertFalse(ids.contains(id), "\(id) não deveria estar conquistada")
-        }
+    func testLevelOneUnlocksOnRegistration() {
+        // Categoria presente, 0 km → só nível I.
+        let ids = BadgeEvaluator.unlockedIDs(ctx(present: [.scooter], km: [.scooter: 0]))
+        XCTAssertTrue(ids.contains("cat_scooter_1"))
+        XCTAssertFalse(ids.contains("cat_scooter_2"))
+        XCTAssertFalse(ids.contains("cat_scooter_3"))
     }
 
-    func testNoCategoryUnlocksNoCategoryBadge() {
-        let ids = BadgeEvaluator.unlockedIDs(ctx(category: nil))
-        for badge in Badge.categoria {
-            XCTAssertFalse(ids.contains(badge.id))
-        }
+    func testLevelTwoUnlocksAt5000km() {
+        let ids = BadgeEvaluator.unlockedIDs(ctx(present: [.scooter], km: [.scooter: 5_000]))
+        XCTAssertTrue(ids.contains("cat_scooter_1"))
+        XCTAssertTrue(ids.contains("cat_scooter_2"))
+        XCTAssertFalse(ids.contains("cat_scooter_3"))
     }
 
-    func testEachCategoryUnlocksItsBadge() {
-        for category in MotorcycleCategory.allCases {
-            let ids = BadgeEvaluator.unlockedIDs(ctx(category: category))
-            XCTAssertTrue(ids.contains(Badge.id(for: category)),
-                          "Categoria \(category) não desbloqueou seu badge")
-        }
+    func testLevelThreeUnlocksAt20000km() {
+        let ids = BadgeEvaluator.unlockedIDs(ctx(present: [.sport], km: [.sport: 25_000]))
+        XCTAssertTrue(ids.isSuperset(of: ["cat_sport_1", "cat_sport_2", "cat_sport_3"]))
     }
 
-    // MARK: Combinação completa
+    func testKmInOneCategoryDoesNotUnlockAnother() {
+        // 25.000 km de scooter não desbloqueia nada de sport (nem visível).
+        let ids = BadgeEvaluator.unlockedIDs(ctx(present: [.scooter], km: [.scooter: 25_000]))
+        XCTAssertFalse(ids.contains("cat_sport_1"))
+    }
 
-    func testFullyLoadedContextUnlocksFirstStepsAndOneCategory() {
-        let ids = BadgeEvaluator.unlockedIDs(
-            ctx(fuel: true, maintenance: true, bestConsumption: true, category: .sport)
-        )
-        // 4 primeiros passos + 1 categoria = 5.
-        XCTAssertEqual(ids.count, 5)
-        XCTAssertTrue(ids.isSuperset(of: ["first_bike", "first_fuel", "first_maintenance", "best_consumption", "cat_sport"]))
+    func testCategoryNotPresentNeverUnlocks() {
+        // km registrado mas categoria não marcada como presente → nada.
+        let ids = BadgeEvaluator.unlockedIDs(ctx(present: [], km: [.scooter: 99_999]))
+        XCTAssertFalse(ids.contains("cat_scooter_1"))
+    }
+
+    func testSingleLevelCategoryUnlocksOnRegistration() {
+        let ids = BadgeEvaluator.unlockedIDs(ctx(present: [.touring], km: [.touring: 0]))
+        XCTAssertTrue(ids.contains("cat_touring_1"))
     }
 }
