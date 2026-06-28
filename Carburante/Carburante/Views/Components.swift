@@ -465,6 +465,14 @@ struct BadgeDetailSheet: View {
         if badge.isComingSoon { return "Em breve" }
         return unlocked ? "Conquistada" : "Bloqueada"
     }
+    // Pontos que a medalha vale, mostrados ao lado do status. Conquistada → crédito
+    // já somado ao nível ("+N pts"); bloqueada → incentivo ("Vale N pts"). Medalhas
+    // que não pontuam (Iron Butt "em breve") omitem.
+    private var pointsText: String? {
+        guard badge.points > 0 else { return nil }
+        let unit = badge.points == 1 ? "pt" : "pts"
+        return unlocked ? "+\(badge.points) \(unit)" : "Vale \(badge.points) \(unit)"
+    }
     private var statusIcon: String {
         if badge.isComingSoon { return "hourglass" }
         return unlocked ? "checkmark.seal.fill" : "lock.fill"
@@ -515,9 +523,16 @@ struct BadgeDetailSheet: View {
                         .font(.title2.weight(.bold))
                         .multilineTextAlignment(.center)
 
-                    Label(statusText, systemImage: statusIcon)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(statusStyle)
+                    HStack(spacing: 8) {
+                        Label(statusText, systemImage: statusIcon)
+                            .foregroundStyle(statusStyle)
+                        if let pointsText {
+                            Text("·").foregroundStyle(.tertiary)
+                            Text(pointsText)
+                                .foregroundStyle(unlocked ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        }
+                    }
+                    .font(.subheadline.weight(.medium))
                 }
 
                 Text(badge.detail)
@@ -558,30 +573,71 @@ struct BadgeDetailSheet: View {
 /// (tema da marca ativa). SF Symbols + tipografia do sistema; nada custom pesado.
 struct ProfileLevelHeader: View {
     let level: ProfileLevel
+    private let hexSize: CGFloat = 64
 
+    /// Hexágono "medalha": gradiente da cor da marca (escurece p/ baixo, dá volume)
+    /// + brilho especular no topo (camada glass, igual ao BrandLogoTile/badges 3D)
+    /// + hairline de borda + sombra projetada. O número grande em destaque.
     private var hex: some View {
         ZStack {
+            // Volume: gradiente vertical da tint (claro no topo → escuro embaixo).
             Image(systemName: "hexagon.fill")
-                .font(.system(size: 46))
-                .foregroundStyle(.tint)
+                .font(.system(size: hexSize))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.accentColor.opacity(0.92), Color.accentColor],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+                // Brilho especular: arco claro na metade superior (glass).
+                .overlay {
+                    Image(systemName: "hexagon.fill")
+                        .font(.system(size: hexSize))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.white.opacity(0.55), .white.opacity(0.0)],
+                                startPoint: .top, endPoint: .center
+                            )
+                        )
+                        .blendMode(.softLight)
+                }
+                // Hairline de borda p/ recortar do fundo.
+                .overlay {
+                    Image(systemName: "hexagon")
+                        .font(.system(size: hexSize, weight: .regular))
+                        .foregroundStyle(.white.opacity(0.25))
+                }
+                .shadow(color: Color.accentColor.opacity(0.35), radius: 7, y: 3)
+
             Text("\(level.level)")
-                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .font(.system(size: 26, weight: .heavy, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
         }
-        .accessibilityLabel("Nível \(level.level)")
+        .frame(width: hexSize, height: hexSize)
+        .accessibilityHidden(true)
     }
 
     private var caption: String {
         level.isMax
-            ? "Nível máximo"
+            ? "Nível máximo alcançado"
             : "\(level.pointsForNext) \(level.pointsForNext == 1 ? "ponto" : "pontos") para o próximo nível"
     }
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             hex
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Nível \(level.level)")
+                        .font(.headline)
+                    Spacer(minLength: 8)
+                    Text("\(level.totalPoints) pts")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.tint)
+                }
                 ProgressView(value: level.progress)
                     .tint(Color.accentColor)
                 Text(caption)
@@ -589,9 +645,9 @@ struct ProfileLevelHeader: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Nível \(level.level). \(caption).")
+        .accessibilityLabel("Nível \(level.level), \(level.totalPoints) pontos. \(caption).")
     }
 }
 
