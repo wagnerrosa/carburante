@@ -61,7 +61,10 @@ struct RootTabView: View {
             MotorcycleFormView()
         }
         .task {
-            // Garante sessão anônima e envia os dados locais ao Supabase.
+            // Sincronização no launch: puxa o que falta (dados de outro device do
+            // mesmo usuário) ANTES de enviar o local. Pull é aditivo — nunca
+            // sobrescreve linhas locais, então uma edição offline não é perdida.
+            await SyncService.shared.pullAll(into: modelContext)
             await SyncService.shared.pushAll(from: modelContext)
         }
         // Super properties (active_bike_count, app_locale, account_age_days)

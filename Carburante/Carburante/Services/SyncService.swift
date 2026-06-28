@@ -6,9 +6,16 @@
 //  local; este serviço garante uma sessão anônima do Supabase (dá o user_id)
 //  e faz push (upsert) dos dados locais para o Postgres, respeitando RLS.
 //
-//  MVP: push-only (local → remoto). Pull/merge bidirecional é backlog — exigiria
-//  resolução de conflito. O teste de aceitação da Fase 9 é justamente "os dados
-//  gravam no Supabase com user_id correto e o RLS isola por usuário".
+//  Sincronização bidirecional: PUSH (local → remoto, upsert) + PULL (remoto →
+//  local, ADITIVO). O pull traz linhas que ainda não existem localmente (dados
+//  de outro device do mesmo usuário) e NUNCA sobrescreve uma linha local — assim
+//  uma edição offline ainda não enviada nunca é perdida. Convergência: pull
+//  insere o que falta, push manda o local; os dois lados acabam iguais. Edição
+//  da MESMA linha em dois devices não é resolvida (sem `updated_at` no MVP) —
+//  caso raro para um usuário solo; backlog se virar problema real.
+//
+//  Ordem no launch: ensureSession → pullAll (preenche o que falta) → pushAll
+//  (envia o local). FK exige motos antes de fuel/maintenance no pull.
 //
 
 import Foundation
@@ -55,6 +62,96 @@ final class SyncService {
     static func errorCode(_ error: Error) -> String {
         let ns = error as NSError
         return "\(ns.domain)#\(ns.code)"
+    }
+
+    /// Puxa do Supabase as linhas do usuário que ainda NÃO existem localmente e
+    /// as insere no SwiftData. Aditivo: linhas locais existentes ficam intactas
+    /// (uma edição offline não enviada nunca é sobrescrita). Roda no launch antes
+    /// do push. RLS já restringe ao `user_id` da sessão — não filtramos por mão.
+    func pullAll(into context: ModelContext) async {
+        guard await ensureSession() != nil else { return }
+
+        do {
+            // --- Motos primeiro (FK: fuel/maintenance dependem delas) ---
+            let remoteMotos: [MotorcycleDTO] = try await client
+                .from("motorcycles").select().execute().value
+            let localMotos = try context.fetch(FetchDescriptor<Motorcycle>())
+            var motoByID = Dictionary(uniqueKeysWithValues: localMotos.map { ($0.id, $0) })
+
+            for dto in remoteMotos where motoByID[dto.id] == nil {
+                let moto = Motorcycle(
+                    make: dto.make, model: dto.model, year: dto.year,
+                    country: dto.country ?? "", currentOdometer: dto.current_odometer,
+                    category: dto.category, displacementCC: dto.displacement_cc,
+                    manufacturerConsumption: dto.manufacturer_consumption
+                )
+                moto.id = dto.id
+                moto.odometerBaseline = dto.odometer_baseline
+                context.insert(moto)
+                motoByID[dto.id] = moto
+            }
+
+            // --- Abastecimentos ---
+            let remoteFuel: [FuelLogDTO] = try await client
+                .from("fuel_logs").select().execute().value
+            let localFuelIDs = Set(try context.fetch(FetchDescriptor<FuelLog>()).map(\.id))
+            for dto in remoteFuel where !localFuelIDs.contains(dto.id) {
+                guard let moto = motoByID[dto.motorcycle_id] else { continue }
+                let log = FuelLog(
+                    date: dto.date, odometer: dto.odometer, liters: dto.liters,
+                    totalCost: dto.total_cost,
+                    fuelType: FuelType(rawValue: dto.fuel_type) ?? .gasolinaComum,
+                    isFullTank: dto.is_full_tank, motorcycle: moto,
+                    ocrProcessed: dto.ocr_processed
+                )
+                log.id = dto.id
+                log.latitude = dto.latitude; log.longitude = dto.longitude
+                log.city = dto.city; log.state = dto.state; log.country = dto.country
+                log.temperatureC = dto.temperature_c
+                log.receiptImageURL = dto.receipt_image_url
+                log.odometerPhotoURL = dto.odometer_photo_url
+                log.ocrConfidence = dto.ocr_confidence
+                log.dateWasEdited = dto.date_was_edited
+                log.locationWasEdited = dto.location_was_edited
+                context.insert(log)
+            }
+
+            // --- Manutenções ---
+            let remoteMaint: [MaintenanceLogDTO] = try await client
+                .from("maintenance_logs").select().execute().value
+            let localMaintIDs = Set(try context.fetch(FetchDescriptor<MaintenanceLog>()).map(\.id))
+            for dto in remoteMaint where !localMaintIDs.contains(dto.id) {
+                guard let moto = motoByID[dto.motorcycle_id] else { continue }
+                let log = MaintenanceLog(
+                    date: dto.date, mileage: dto.mileage, cost: dto.cost,
+                    notes: dto.notes,
+                    type: MaintenanceType(rawValue: dto.type) ?? .outro,
+                    intervalKm: dto.interval_km, intervalMonths: dto.interval_months,
+                    partOfMaintenanceID: dto.part_of_maintenance_id,
+                    motorcycle: moto
+                )
+                log.id = dto.id
+                context.insert(log)
+            }
+
+            // --- Badges conquistadas (sem moto; só user_id) ---
+            let remoteAwards: [BadgeAwardDTO] = try await client
+                .from("badge_awards").select().execute().value
+            let localBadgeIDs = Set(try context.fetch(FetchDescriptor<BadgeAward>()).map(\.badgeID))
+            for dto in remoteAwards where !localBadgeIDs.contains(dto.badge_id) {
+                let award = BadgeAward(badgeID: dto.badge_id, earnedAt: dto.earned_at, id: dto.id)
+                context.insert(award)
+            }
+
+            // Hodômetro pode ter avançado por dados puxados de outro device.
+            for moto in motoByID.values { moto.reconcileOdometer() }
+
+            try context.save()
+            lastError = nil
+        } catch {
+            lastError = "Falha ao baixar dados: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "pull", errorCode: Self.errorCode(error))
+        }
     }
 
     /// Faz push de todas as motos do usuário (e seus filhos) para o Supabase.
