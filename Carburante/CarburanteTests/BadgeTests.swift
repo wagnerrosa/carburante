@@ -83,6 +83,14 @@ final class BadgeTests: XCTestCase {
         XCTAssertTrue(BadgeEvaluator.visibleBadges(ctx()).contains { $0.id == "iron_butt" })
     }
 
+    func testIronButtIsLastVisible() {
+        // Com frota variada, Iron Butt fecha a grade (canto inferior direito).
+        let c = ctx(present: [.scooter], makes: ["honda"], ccClubs: [125])
+        XCTAssertEqual(BadgeEvaluator.visibleBadges(c).last?.id, "iron_butt")
+        // E também quando só os universais aparecem (zero motos).
+        XCTAssertEqual(BadgeEvaluator.visibleBadges(ctx()).last?.id, "iron_butt")
+    }
+
     func testIronButtNeverUnlocks() {
         // Mesmo com a frota toda "no máximo", Iron Butt nunca entra nos unlocked.
         let c = ctx(maintenance: true, fullTanks: 99, beatsCategory: true,
