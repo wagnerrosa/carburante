@@ -57,4 +57,9 @@ enum AppFormat {
     static func dateTime(_ date: Date) -> String {
         date.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened).locale(locale))
     }
+
+    /// Data por extenso (estilo conquista, à la Garmin): "8 de novembro de 2025".
+    static func dateLong(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .long, time: .omitted).locale(locale))
+    }
 }

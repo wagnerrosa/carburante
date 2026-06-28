@@ -23,8 +23,20 @@ struct DashboardView: View {
     @State private var showingConsumption = false
     /// Navega para a manutenção a partir do checklist de ativação.
     @State private var showingMaintenance = false
-    /// Checklist de ativação dispensado pelo usuário (persiste localmente).
-    @AppStorage("activationChecklistDismissed") private var activationChecklistDismissed = false
+    /// IDs das motos cujo checklist de ativação foi dispensado pelo usuário,
+    /// como CSV de UUIDs (AppStorage não guarda Set). Dismiss é POR MOTO: fechar
+    /// numa moto não esconde nas outras, e cada moto nova reaparece com o guia.
+    @AppStorage("activationChecklistDismissedIDs") private var dismissedChecklistIDsCSV: String = ""
+
+    private var dismissedChecklistIDs: Set<String> {
+        Set(dismissedChecklistIDsCSV.split(separator: ",").map(String.init))
+    }
+
+    private func dismissChecklist(for moto: Motorcycle) {
+        var ids = dismissedChecklistIDs
+        ids.insert(moto.id.uuidString)
+        dismissedChecklistIDsCSV = ids.sorted().joined(separator: ",")
+    }
 
     /// Moto exibida: a ativa (persistida), ou a primeira disponível.
     private var motorcycle: Motorcycle? {
@@ -166,7 +178,7 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 20) {
                 if let steps = activationSteps(for: moto) {
                     ActivationChecklist(steps: steps) {
-                        withAnimation { activationChecklistDismissed = true }
+                        withAnimation { dismissChecklist(for: moto) }
                     }
                 }
 
@@ -243,15 +255,23 @@ struct DashboardView: View {
     /// deve aparecer (dispensado, ou todos concluídos → some sozinho). Cada passo
     /// pendente leva à ação que o conclui. Fonte de verdade: PLAN/onboarding.md.
     private func activationSteps(for moto: Motorcycle) -> [ActivationStep]? {
-        guard !activationChecklistDismissed else { return nil }
+        guard !dismissedChecklistIDs.contains(moto.id.uuidString) else { return nil }
 
         let hasFuel = !moto.fuelLogs.isEmpty
         let hasMaintenance = !moto.maintenanceLogs.isEmpty
         let hasConsumption = moto.consumptionSummary.segmentCount > 0
 
-        let steps = [
-            // Já existe moto para chegar aqui → 1º passo sempre concluído.
-            ActivationStep(title: "Cadastre sua primeira moto", isDone: true, action: nil),
+        // 1ª moto cadastrada = a mais antiga (query ordena createdAt desc → last).
+        // Só ela mostra o passo "Cadastre sua primeira moto"; motos seguintes já
+        // existem, então o checklist começa no abastecimento.
+        let isFirstBike = motorcycles.last?.id == moto.id
+
+        var steps: [ActivationStep] = []
+        if isFirstBike {
+            // Já existe moto para chegar aqui → passo sempre concluído.
+            steps.append(ActivationStep(title: "Cadastre sua primeira moto", isDone: true, action: nil))
+        }
+        steps.append(contentsOf: [
             ActivationStep(title: "Registre seu primeiro abastecimento",
                            isDone: hasFuel,
                            action: { showingFuelLog = true }),
@@ -263,7 +283,7 @@ struct DashboardView: View {
             ActivationStep(title: "Veja seu primeiro consumo",
                            isDone: hasConsumption,
                            action: hasConsumption ? { showingConsumption = true } : nil),
-        ]
+        ])
         // Todos concluídos → some.
         return steps.allSatisfy(\.isDone) ? nil : steps
     }
@@ -487,16 +507,26 @@ struct DashboardView: View {
     /// os meses. Sem eixo Y (o número dá a escala). Barras cinza, linha colorida.
     private func consumptionMiniChart(_ segments: [ConsumptionSegment], average: Double?) -> some View {
         // Rótulo de mês por posição: só mostra quando o mês muda (evita repetir).
+        // Com muitos segmentos os meses ficam grudados (ex.: "out.nov.dez.jan."),
+        // então desbasta para no máximo `maxLabels` rótulos uniformemente espaçados.
         let monthLabels: [Int: String] = {
-            var out: [Int: String] = [:]
+            // 1) candidatos = 1º segmento de cada mês.
+            var candidates: [(index: Int, label: String)] = []
             var lastMonth = -1
             let cal = Calendar.current
             for (i, seg) in segments.enumerated() {
                 let m = cal.component(.month, from: seg.endDate)
                 if m != lastMonth {
-                    out[i] = seg.endDate.formatted(.dateTime.month(.abbreviated).locale(AppFormat.locale))
+                    candidates.append((i, seg.endDate.formatted(.dateTime.month(.abbreviated).locale(AppFormat.locale))))
                     lastMonth = m
                 }
+            }
+            // 2) desbaste: mantém ~maxLabels, pulando candidatos uniformemente.
+            let maxLabels = 6
+            let stride = max(1, Int(ceil(Double(candidates.count) / Double(maxLabels))))
+            var out: [Int: String] = [:]
+            for (n, c) in candidates.enumerated() where n % stride == 0 {
+                out[c.index] = c.label
             }
             return out
         }()

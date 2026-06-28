@@ -59,3 +59,10 @@ struct MaintenanceLogDTO: Codable {
     let interval_months: Int?
     let part_of_maintenance_id: UUID?
 }
+
+struct BadgeAwardDTO: Codable {
+    let id: UUID
+    let user_id: UUID
+    let badge_id: String
+    let earned_at: Date
+}

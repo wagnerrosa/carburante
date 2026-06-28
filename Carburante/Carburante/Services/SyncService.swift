@@ -113,6 +113,16 @@ final class SyncService {
                 try await client.from("maintenance_logs").upsert(maintDTOs).execute()
             }
 
+            // Badges conquistadas (data carimbada, estilo Garmin) — não têm moto;
+            // pendem só do user_id. Upsert por PK (id estável por award).
+            let awards = try context.fetch(FetchDescriptor<BadgeAward>())
+            let awardDTOs = awards.map { a in
+                BadgeAwardDTO(id: a.id, user_id: uid, badge_id: a.badgeID, earned_at: a.earnedAt)
+            }
+            if !awardDTOs.isEmpty {
+                try await client.from("badge_awards").upsert(awardDTOs).execute()
+            }
+
             lastError = nil
         } catch {
             lastError = "Falha ao sincronizar: \(error.localizedDescription)"

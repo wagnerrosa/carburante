@@ -180,6 +180,8 @@ extension Array where Element == Motorcycle {
         var hasMaintenance = false
         var fullTanks = 0
         var beatsCategory = false
+        var makes = Set<String>()
+        var ccClubs = Set<Int>()
 
         for moto in self {
             if !moto.maintenanceLogs.isEmpty { hasMaintenance = true }
@@ -195,15 +197,24 @@ extension Array where Element == Motorcycle {
             let cat = moto.categoryEnum ?? .other
             present.insert(cat)
             kmByCategory[cat, default: 0] += moto.distanceSinceBaseline
+            // Marca do catálogo (tem logo) → badge de marca. Fora do catálogo, nil.
+            if BrandTheme.logoAsset(make: moto.make) != nil {
+                makes.insert(BrandTheme.normalizedKey(moto.make))
+            }
+            // Clube de cilindrada (faixa exclusiva). Sem cc cadastrada → não conta.
+            if let cc = moto.displacementCC, let club = DisplacementClub.club(forCC: cc) {
+                ccClubs.insert(club)
+            }
         }
 
         return BadgeFleetContext(
-            hasMotorcycle: !isEmpty,
             hasMaintenanceLog: hasMaintenance,
             fullTankCount: fullTanks,
             beatsCategoryAverage: beatsCategory,
             presentCategories: present,
-            kmByCategory: kmByCategory
+            kmByCategory: kmByCategory,
+            presentMakes: makes,
+            presentDisplacementClubs: ccClubs
         )
     }
 }

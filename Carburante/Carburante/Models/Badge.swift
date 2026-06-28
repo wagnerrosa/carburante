@@ -7,11 +7,16 @@
 //  `GarageRecords`) — mesmo padrão de `ConsumptionCalculator`: zero UI, testável.
 //
 //  Modelo de visibilidade (decisão 2026-06-28): seção única "Conquistas".
-//  - Universais (primeira moto, abastecimentos, manutenção, melhor consumo):
-//    sempre visíveis.
+//  - Universais (abastecimentos, manutenção, melhor consumo): sempre visíveis.
 //  - Categorias: o usuário só vê as que JÁ TOCOU (cadastrou ≥1 moto). Categoria
 //    nunca cadastrada fica OCULTA. Dentro de uma categoria tocada vê TODOS os
 //    níveis (I/II/III).
+//  - Marca: badge por marca do CATÁLOGO já cadastrada (Honda Rider, Yamaha
+//    Rider…). Usa o LOGO da marca como arte. Marca fora do catálogo ("Outra…")
+//    não gera badge (não tem logo). Substitui o antigo "Primeira moto" — a 1ª
+//    moto já desbloqueia o badge da sua marca, que é o ponto de partida.
+//  - Cilindrada: "clubes" por faixa EXCLUSIVA (uma moto entra em UM clube só).
+//    Só os clubes com ≥1 moto na faixa aparecem. Arte = pistão 3D (`piston`).
 //
 //  Marcos de abastecimento contam TANQUES CHEIOS (casa com a mecânica
 //  full-to-full): 1 = primeiro; 2 = 1ª média desbloqueada; 3 = gráfico de
@@ -28,17 +33,22 @@
 import Foundation
 
 /// Agrupamento da medalha. `categoria` carrega a `MotorcycleCategory` de origem
-/// para a regra de visibilidade (só categorias tocadas aparecem).
+/// para a regra de visibilidade (só categorias tocadas aparecem). `marca` carrega
+/// a chave normalizada da marca; `cilindrada` carrega o limite do clube (cc).
 enum BadgeGroup: Equatable {
     case universal
     case categoria(MotorcycleCategory)
+    case marca(String)
+    case cilindrada(Int)
 }
 
 /// Km (rodados na categoria) para o nível desbloquear. 0 = nível I (cadastrar).
 private let levelTwoKm: Double = 5_000
 private let levelThreeKm: Double = 20_000
 
-/// Uma medalha do catálogo. `assetName` é o nome no namespace `Badges` (arte 3D).
+/// Uma medalha do catálogo. `assetName` é o nome da arte — por padrão um imageset
+/// no namespace `Badges` (arte 3D). Quando `usesBrandLogo == true`, `assetName` é
+/// o caminho do logo da marca (`BrandLogos/…`) e a UI desenha um `BrandLogoTile`.
 /// Badges da mesma família reusam o mesmo asset, diferenciam por título + regra.
 /// `detail` é o texto explicativo do sheet de toque. O estado de conquista NÃO
 /// mora aqui — é derivado em `BadgeEvaluator`.
@@ -53,17 +63,17 @@ struct Badge: Identifiable, Equatable {
     var requiredKm: Double = 0
     /// Tanques cheios exigidos (0 = ignora). Só para os badges de abastecimento.
     var requiredFullTanks: Int = 0
+    /// `assetName` é um logo de marca (`BrandLogos/…`) → desenhar `BrandLogoTile`.
+    var usesBrandLogo: Bool = false
 }
 
 extension Badge {
     /// Catálogo completo.
-    static let all: [Badge] = universais + categoria
+    static let all: [Badge] = universais + marca + cilindrada + categoria
 
     /// Universais — sempre visíveis. Desbloqueiam de dados que já existem.
+    /// (O antigo "Primeira moto" saiu: o badge da MARCA da 1ª moto cumpre o papel.)
     static let universais: [Badge] = [
-        Badge(id: "first_bike", title: "Primeira moto", assetName: "firstBike", group: .universal,
-              detail: "Você cadastrou sua primeira moto. É o ponto de partida para acompanhar consumo, gastos e manutenção."),
-
         // Abastecimentos — marcos por tanque cheio (mecânica full-to-full).
         Badge(id: "fuel_1",  title: "1º abastecimento", assetName: "firstFuel", group: .universal,
               detail: "Seu primeiro abastecimento com tanque cheio registrado. Ele é a âncora do cálculo de consumo.",
@@ -85,6 +95,37 @@ extension Badge {
               detail: "Seu melhor consumo superou a média estimada para a categoria da sua moto. Pilotagem econômica!"),
     ]
 
+    /// Badges de MARCA — um por marca do catálogo (logo como arte). Só aparecem
+    /// quando o usuário cadastra uma moto daquela marca. Gerados de
+    /// `MotorcycleMake.catalog` (menos "Outra…") para ficarem em sincronia com o
+    /// form e os logos de `BrandTheme`. Marca sem logo é simplesmente pulada.
+    static let marca: [Badge] = MotorcycleMake.catalog
+        .filter { $0 != MotorcycleMake.other }
+        .compactMap { make -> Badge? in
+            guard let logo = BrandTheme.logoAsset(make: make) else { return nil }
+            let key = BrandTheme.normalizedKey(make)
+            return Badge(
+                id: "make_\(key)",
+                title: "\(make) Rider",
+                assetName: logo,
+                group: .marca(key),
+                detail: "Você cadastrou uma \(make) na garagem. A marca virou parte da sua história.",
+                usesBrandLogo: true
+            )
+        }
+
+    /// Clubes de CILINDRADA — faixa EXCLUSIVA (cada moto entra em um clube só).
+    /// Limites: ver `DisplacementClub.club(forCC:)`. Arte = pistão 3D.
+    static let cilindrada: [Badge] = DisplacementClub.all.map { club in
+        Badge(
+            id: "cc_\(club.cc)",
+            title: "\(club.cc)cc Club",
+            assetName: "piston",
+            group: .cilindrada(club.cc),
+            detail: club.detail
+        )
+    }
+
     /// Badges de categoria. 5 categorias têm 3 níveis (km); 3 têm 1 nível só.
     /// Nomes seguem PLAN/badges.md §"Categorias".
     static let categoria: [Badge] = [
@@ -96,10 +137,10 @@ extension Badge {
         Badge(id: "cat_trail_1", title: "Adventure Rider", assetName: "trail", group: .categoria(.trail), detail: "Você cadastrou uma trail/big trail. A aventura começou."),
         Badge(id: "cat_trail_2", title: "Explorador",      assetName: "trail", group: .categoria(.trail), detail: "5.000 km de aventura registrados.", requiredKm: levelTwoKm),
         Badge(id: "cat_trail_3", title: "Sem Destino",     assetName: "trail", group: .categoria(.trail), detail: "20.000 km em trails. O caminho é o destino.", requiredKm: levelThreeKm),
-        // Custom / Cruiser
-        Badge(id: "cat_custom_1", title: "Road Captain",  assetName: "custom", group: .categoria(.custom), detail: "Você cadastrou uma custom/cruiser. Estrada e estilo."),
+        // Custom / Cruiser ("Road Captain" é o posto mais alto → nível III)
+        Badge(id: "cat_custom_1", title: "Highway Rider", assetName: "custom", group: .categoria(.custom), detail: "Você cadastrou uma custom/cruiser. Estrada e estilo."),
         Badge(id: "cat_custom_2", title: "Long Road",     assetName: "custom", group: .categoria(.custom), detail: "5.000 km em customs registrados.", requiredKm: levelTwoKm),
-        Badge(id: "cat_custom_3", title: "Highway Rider", assetName: "custom", group: .categoria(.custom), detail: "20.000 km de estrada na sua custom.", requiredKm: levelThreeKm),
+        Badge(id: "cat_custom_3", title: "Road Captain",  assetName: "custom", group: .categoria(.custom), detail: "20.000 km de estrada na sua custom. Você é o capitão da estrada.", requiredKm: levelThreeKm),
         // Street / Naked
         Badge(id: "cat_street_1", title: "Street Fighter", assetName: "street", group: .categoria(.street), detail: "Você cadastrou uma street/naked. A rua é sua."),
         Badge(id: "cat_street_2", title: "Urban Warrior",  assetName: "street", group: .categoria(.street), detail: "5.000 km em streets registrados.", requiredKm: levelTwoKm),
@@ -115,10 +156,42 @@ extension Badge {
     ]
 }
 
+/// Clubes de cilindrada — faixa EXCLUSIVA. Cada moto cai em UM clube pela sua
+/// cilindrada (cc). O número do clube é o limite INFERIOR da faixa, no jargão de
+/// moto ("entrei no clube dos 1000"). Uma Harley 1800cc entra no clube 1000 (é o
+/// clube dos litrões, sem precisar de um badge "1800 exato"). Tipo puro, testável.
+struct DisplacementClub: Equatable {
+    /// Limite que nomeia o clube (125 / 250 / 500 / 800 / 1000).
+    let cc: Int
+    /// Faixa fechada [lower, upper] de cilindradas que caem neste clube.
+    let lower: Int
+    let upper: Int
+    let detail: String
+
+    /// Todos os clubes, do menor ao maior. O último é aberto no topo.
+    static let all: [DisplacementClub] = [
+        DisplacementClub(cc: 125,  lower: 0,    upper: 180,
+                         detail: "Sua moto está no clube das pequenas (até 180cc). Ágil, econômica e perfeita para a cidade."),
+        DisplacementClub(cc: 250,  lower: 181,  upper: 350,
+                         detail: "Sua moto entrou no clube das 250 (181–350cc). O equilíbrio entre economia e desempenho."),
+        DisplacementClub(cc: 500,  lower: 351,  upper: 650,
+                         detail: "Sua moto está no clube das 500 (351–650cc). Versátil para cidade e estrada."),
+        DisplacementClub(cc: 800,  lower: 651,  upper: 900,
+                         detail: "Sua moto entrou no clube das 800 (651–900cc). Torque de sobra para qualquer viagem."),
+        DisplacementClub(cc: 1000, lower: 901,  upper: .max,
+                         detail: "Sua moto está no clube dos litrões (acima de 900cc). Potência de verdade entre as pernas."),
+    ]
+
+    /// Clube (limite) em que uma cilindrada cai. nil se `cc <= 0` ou ausente.
+    static func club(forCC cc: Int) -> Int? {
+        guard cc > 0 else { return nil }
+        return all.first { cc >= $0.lower && cc <= $0.upper }?.cc
+    }
+}
+
 /// Snapshot da FROTA que decide unlock + visibilidade — desacoplado de SwiftData
 /// para o motor ser testável com valores puros.
 struct BadgeFleetContext {
-    let hasMotorcycle: Bool
     let hasMaintenanceLog: Bool
     /// Total de tanques CHEIOS registrados na frota (marcos de abastecimento).
     let fullTankCount: Int
@@ -129,11 +202,15 @@ struct BadgeFleetContext {
     /// Km rodados por categoria (soma de `currentOdometer − odometerBaseline`)
     /// → decide os níveis II/III.
     let kmByCategory: [MotorcycleCategory: Double]
+    /// Marcas (chave normalizada, do catálogo) já cadastradas → badge de marca.
+    let presentMakes: Set<String>
+    /// Clubes de cilindrada (limite) com ≥1 moto na faixa → badge de clube.
+    let presentDisplacementClubs: Set<Int>
 }
 
 enum BadgeEvaluator {
-    /// Badges que devem APARECER (universais sempre + só categorias presentes).
-    /// Ordem do catálogo preservada.
+    /// Badges que devem APARECER (universais sempre + só marcas/clubes/categorias
+    /// presentes). Ordem do catálogo preservada.
     static func visibleBadges(_ ctx: BadgeFleetContext) -> [Badge] {
         Badge.all.filter { badge in
             switch badge.group {
@@ -141,6 +218,10 @@ enum BadgeEvaluator {
                 return true
             case .categoria(let cat):
                 return ctx.presentCategories.contains(cat)
+            case .marca(let key):
+                return ctx.presentMakes.contains(key)
+            case .cilindrada(let cc):
+                return ctx.presentDisplacementClubs.contains(cc)
             }
         }
     }
@@ -149,7 +230,6 @@ enum BadgeEvaluator {
     static func unlockedIDs(_ ctx: BadgeFleetContext) -> Set<String> {
         var ids = Set<String>()
 
-        if ctx.hasMotorcycle      { ids.insert("first_bike") }
         if ctx.hasMaintenanceLog  { ids.insert("first_maintenance") }
         if ctx.beatsCategoryAverage { ids.insert("best_consumption") }
 
@@ -158,6 +238,20 @@ enum BadgeEvaluator {
             if ctx.fullTankCount >= badge.requiredFullTanks {
                 ids.insert(badge.id)
             }
+        }
+
+        // Marca presente → badge conquistado (cadastrar já basta).
+        for badge in Badge.marca {
+            guard case .marca(let key) = badge.group,
+                  ctx.presentMakes.contains(key) else { continue }
+            ids.insert(badge.id)
+        }
+
+        // Clube de cilindrada presente → conquistado (faixa exclusiva).
+        for badge in Badge.cilindrada {
+            guard case .cilindrada(let cc) = badge.group,
+                  ctx.presentDisplacementClubs.contains(cc) else { continue }
+            ids.insert(badge.id)
         }
 
         // Categorias presentes: nível I sempre; II/III por km.
