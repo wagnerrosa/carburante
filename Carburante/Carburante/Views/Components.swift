@@ -397,29 +397,34 @@ struct BadgeImageTile: View {
                     .shadow(color: isComingSoon ? .orange.opacity(0.35) : .clear,
                             radius: 6)
 
-                if isComingSoon {
-                    // Selo "em breve" — ampulheta, sem cadeado.
-                    Image(systemName: "hourglass")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.orange)
-                        .padding(3)
-                        .background(.thinMaterial, in: Circle())
-                } else if !unlocked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(3)
-                        .background(.thinMaterial, in: Circle())
-                } else if showLevelBadge {
-                    // Número do nível na conquistada (cor do tema).
-                    Text("\(level)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.tint)
-                        .frame(width: 18, height: 18)
-                        .background(.thinMaterial, in: Circle())
-                        .overlay(Circle().stroke(.tint.opacity(0.45), lineWidth: 1))
+                // Selos menores e deslocados p/ o canto, fora da arte.
+                Group {
+                    if isComingSoon {
+                        // Selo "em breve" — ampulheta sobre vidro (Liquid Glass).
+                        Image(systemName: "hourglass")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.orange)
+                            .frame(width: 18, height: 18)
+                            .glassEffect(.regular.tint(.orange.opacity(0.25)), in: .circle)
+                            .overlay(Circle().stroke(.orange.opacity(0.4), lineWidth: 1))
+                    } else if !unlocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 18, height: 18)
+                            .glassEffect(.regular, in: .circle)
+                    } else if showLevelBadge {
+                        // Número do nível sobre vidro (Liquid Glass).
+                        Text("\(level)")
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.tint)
+                            .frame(width: 18, height: 18)
+                            .glassEffect(.regular, in: .circle)
+                            .overlay(Circle().stroke(.tint.opacity(0.5), lineWidth: 1))
+                    }
                 }
+                .offset(x: 6, y: 6)
             }
             Text(label)
                 .font(.caption2)
