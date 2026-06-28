@@ -354,6 +354,78 @@ struct BadgeImageTile: View {
     }
 }
 
+/// Medalha tocada + se está conquistada — empacota para `.sheet(item:)`.
+struct BadgePresentation: Identifiable {
+    let badge: Badge
+    let unlocked: Bool
+    var id: String { badge.id }
+}
+
+/// Sheet explicativo da medalha (toque na grade), estilo Apple Fitness / HIG:
+/// arte grande, título, estado (conquistada / bloqueada) e a explicação de como
+/// se conquista. Detentes médio/grande, sem chrome customizado.
+struct BadgeDetailSheet: View {
+    let presentation: BadgePresentation
+    @Environment(\.dismiss) private var dismiss
+
+    private var badge: Badge { presentation.badge }
+    private var unlocked: Bool { presentation.unlocked }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Spacer(minLength: 8)
+
+                ZStack(alignment: .bottomTrailing) {
+                    Image("Badges/\(badge.assetName)")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 140, height: 140)
+                        .saturation(unlocked ? 1 : 0)
+                        .opacity(unlocked ? 1 : 0.5)
+
+                    if !unlocked {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(8)
+                            .background(.thinMaterial, in: Circle())
+                    }
+                }
+
+                VStack(spacing: 8) {
+                    Text(badge.title)
+                        .font(.title2.weight(.bold))
+                        .multilineTextAlignment(.center)
+
+                    Label(unlocked ? "Conquistada" : "Bloqueada",
+                          systemImage: unlocked ? "checkmark.seal.fill" : "lock.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(unlocked ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                }
+
+                Text(badge.detail)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
+
+                Spacer()
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("OK") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+    }
+}
+
 /// Contêiner com o visual de card agrupado nativo (sem sombra custom).
 struct GroupedCard<Content: View>: View {
     @ViewBuilder var content: Content
