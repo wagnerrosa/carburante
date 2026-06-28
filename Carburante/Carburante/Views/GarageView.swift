@@ -219,13 +219,13 @@ struct GarageView: View {
         // Regras triviais e locais só para o placeholder; design completo: badges.md.
         let firstBike = true                       // tem moto → já cadastrou a 1ª
         let firstFuel = moto.fuelLogCount >= 1
-        let tenFuel = moto.fuelLogCount >= 10
+        let isScooter = moto.categoryEnum == .scooter
 
         Section("Medalhas") {
             HStack(alignment: .top, spacing: 8) {
+                BadgeImageTile(assetName: "scooter", label: "Urban Rider", unlocked: isScooter)
                 BadgePlaceholder(systemImage: "key.fill", label: "Primeira moto", unlocked: firstBike)
                 BadgePlaceholder(systemImage: "fuelpump.fill", label: "1º abastecimento", unlocked: firstFuel)
-                BadgePlaceholder(systemImage: "10.circle.fill", label: "10 abastecimentos", unlocked: tenFuel)
             }
             .padding(.vertical, 4)
         }
