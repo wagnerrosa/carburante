@@ -46,6 +46,10 @@ enum BadgeGroup: Equatable {
 private let levelTwoKm: Double = 5_000
 private let levelThreeKm: Double = 20_000
 
+/// Pontos por nível de categoria (I/II/III). Cresce por esforço — chegar ao
+/// nível III de uma categoria vale tanto quanto vários marcos de abastecimento.
+private let categoryLevelPoints: [Int] = [1, 3, 6]
+
 /// Uma medalha do catálogo. `assetName` é o nome da arte — por padrão um imageset
 /// no namespace `Badges` (arte 3D). Quando `usesBrandLogo == true`, `assetName` é
 /// o caminho do logo da marca (`BrandLogos/…`) e a UI desenha um `BrandLogoTile`.
@@ -75,6 +79,14 @@ struct Badge: Identifiable, Equatable {
     /// futura). A UI dá tratamento premium próprio (colorida + selo "Em breve",
     /// sem cadeado/dessaturação). Hoje só o Iron Butt.
     var isComingSoon: Bool = false
+    /// Pontos que esta medalha credita ao nível do perfil (estilo Garmin). Peso por
+    /// dificuldade. 0 = não pontua (ex.: `iron_butt`, ainda "em breve"). O total é
+    /// DERIVADO de `unlockedIDs` em `BadgeEvaluator.totalPoints` — nada persistido.
+    var points: Int = 0
+    /// Medalha que pode ser reconquistada (Iron Butt, eventos futuros). Hoje
+    /// ninguém marca true: o flag só prepara o terreno para créditos repetidos
+    /// (pontos × vezes) sem migrar schema depois. Não persiste nada ainda.
+    var isRepeatable: Bool = false
 }
 
 extension Badge {
@@ -87,28 +99,31 @@ extension Badge {
         // Abastecimentos — marcos por tanque cheio (mecânica full-to-full).
         Badge(id: "fuel_1",  title: "1º abastecimento", assetName: "firstFuel", group: .universal,
               detail: "Seu primeiro abastecimento com tanque cheio registrado. Ele é a âncora do cálculo de consumo.",
-              requiredFullTanks: 1),
+              requiredFullTanks: 1, points: 1),
         Badge(id: "fuel_2",  title: "Primeira média", assetName: "firstFuel", group: .universal,
               detail: "Com dois tanques cheios o app já calcula seu consumo (km/l) pelo método full-to-full.",
-              requiredFullTanks: 2),
+              requiredFullTanks: 2, points: 2),
         Badge(id: "fuel_3",  title: "Na média", assetName: "firstFuel", group: .universal,
               detail: "Três tanques cheios desbloqueiam o gráfico de tendência no Resumo — dá para ver se o consumo melhora ou piora.",
-              requiredFullTanks: 3),
+              requiredFullTanks: 3, points: 4),
         Badge(id: "fuel_10", title: "Abastecedor", assetName: "firstFuel", group: .universal,
               detail: "Dez tanques cheios registrados. O hábito virou rotina e os números ficam cada vez mais confiáveis.",
-              requiredFullTanks: 10),
+              requiredFullTanks: 10, points: 10),
 
         Badge(id: "first_maintenance", title: "1ª manutenção", assetName: "firstMaintenance", group: .universal,
-              detail: "Você registrou sua primeira manutenção. Manter o histórico ajuda a prever trocas e a cuidar da moto."),
+              detail: "Você registrou sua primeira manutenção. Manter o histórico ajuda a prever trocas e a cuidar da moto.",
+              points: 2),
 
         Badge(id: "best_consumption", title: "Acima da média", assetName: "bestConsumption", group: .universal,
-              detail: "Seu melhor consumo superou a média estimada para a categoria da sua moto. Pilotagem econômica!"),
+              detail: "Seu melhor consumo superou a média estimada para a categoria da sua moto. Pilotagem econômica!",
+              points: 5),
 
         // Medalha especial — modalidade futura. Sempre visível, nunca desbloqueia
         // ainda (`isComingSoon`). É o emblema mais raro do app: o desafio Iron Butt.
+        // Não pontua até virar conquistável; será repetível (cada feito re-credita).
         Badge(id: "iron_butt", title: "Iron Butt", assetName: "ironButt", group: .universal,
               detail: "A medalha mais cobiçada do motociclismo de longa distância: percorrer 1.600 km em menos de 24 horas. O desafio Iron Butt chega ao Carburante em breve — fique de olho.",
-              isComingSoon: true),
+              isComingSoon: true, points: 0, isRepeatable: true),
     ]
 
     /// Badges de MARCA — um por marca do catálogo (logo como arte). Só aparecem
@@ -126,7 +141,8 @@ extension Badge {
                 assetName: logo,
                 group: .marca(key),
                 detail: "Você cadastrou uma \(make) na garagem. A marca virou parte da sua história.",
-                usesBrandLogo: true
+                usesBrandLogo: true,
+                points: 1
             )
         }
 
@@ -138,7 +154,8 @@ extension Badge {
             title: "\(club.cc)cc Club",
             assetName: "piston",
             group: .cilindrada(club.cc),
-            detail: club.detail
+            detail: club.detail,
+            points: 2
         )
     }
 
@@ -146,29 +163,29 @@ extension Badge {
     /// Nomes seguem PLAN/badges.md §"Categorias".
     static let categoria: [Badge] = [
         // Scooter
-        Badge(id: "cat_scooter_1", title: "Urban Rider",   assetName: "scooter", group: .categoria(.scooter), detail: "Você cadastrou uma scooter. Bem-vindo à mobilidade urbana.", level: 1, levelCount: 3),
-        Badge(id: "cat_scooter_2", title: "Rei da Cidade", assetName: "scooter", group: .categoria(.scooter), detail: "5.000 km rodados em scooters. A cidade é seu território.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
-        Badge(id: "cat_scooter_3", title: "City Commuter", assetName: "scooter", group: .categoria(.scooter), detail: "20.000 km em scooters. Deslocamento diário dominado.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
+        Badge(id: "cat_scooter_1", title: "Urban Rider",   assetName: "scooter", group: .categoria(.scooter), detail: "Você cadastrou uma scooter. Bem-vindo à mobilidade urbana.", level: 1, levelCount: 3, points: categoryLevelPoints[0]),
+        Badge(id: "cat_scooter_2", title: "Rei da Cidade", assetName: "scooter", group: .categoria(.scooter), detail: "5.000 km rodados em scooters. A cidade é seu território.", requiredKm: levelTwoKm, level: 2, levelCount: 3, points: categoryLevelPoints[1]),
+        Badge(id: "cat_scooter_3", title: "City Commuter", assetName: "scooter", group: .categoria(.scooter), detail: "20.000 km em scooters. Deslocamento diário dominado.", requiredKm: levelThreeKm, level: 3, levelCount: 3, points: categoryLevelPoints[2]),
         // Trail / Big Trail
-        Badge(id: "cat_trail_1", title: "Adventure Rider", assetName: "trail", group: .categoria(.trail), detail: "Você cadastrou uma trail/big trail. A aventura começou.", level: 1, levelCount: 3),
-        Badge(id: "cat_trail_2", title: "Explorador",      assetName: "trail", group: .categoria(.trail), detail: "5.000 km de aventura registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
-        Badge(id: "cat_trail_3", title: "Sem Destino",     assetName: "trail", group: .categoria(.trail), detail: "20.000 km em trails. O caminho é o destino.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
+        Badge(id: "cat_trail_1", title: "Adventure Rider", assetName: "trail", group: .categoria(.trail), detail: "Você cadastrou uma trail/big trail. A aventura começou.", level: 1, levelCount: 3, points: categoryLevelPoints[0]),
+        Badge(id: "cat_trail_2", title: "Explorador",      assetName: "trail", group: .categoria(.trail), detail: "5.000 km de aventura registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3, points: categoryLevelPoints[1]),
+        Badge(id: "cat_trail_3", title: "Sem Destino",     assetName: "trail", group: .categoria(.trail), detail: "20.000 km em trails. O caminho é o destino.", requiredKm: levelThreeKm, level: 3, levelCount: 3, points: categoryLevelPoints[2]),
         // Custom / Cruiser ("Road Captain" é o posto mais alto → nível III)
-        Badge(id: "cat_custom_1", title: "Highway Rider", assetName: "custom", group: .categoria(.custom), detail: "Você cadastrou uma custom/cruiser. Estrada e estilo.", level: 1, levelCount: 3),
-        Badge(id: "cat_custom_2", title: "Long Road",     assetName: "custom", group: .categoria(.custom), detail: "5.000 km em customs registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
-        Badge(id: "cat_custom_3", title: "Road Captain",  assetName: "custom", group: .categoria(.custom), detail: "20.000 km de estrada na sua custom. Você é o capitão da estrada.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
+        Badge(id: "cat_custom_1", title: "Highway Rider", assetName: "custom", group: .categoria(.custom), detail: "Você cadastrou uma custom/cruiser. Estrada e estilo.", level: 1, levelCount: 3, points: categoryLevelPoints[0]),
+        Badge(id: "cat_custom_2", title: "Long Road",     assetName: "custom", group: .categoria(.custom), detail: "5.000 km em customs registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3, points: categoryLevelPoints[1]),
+        Badge(id: "cat_custom_3", title: "Road Captain",  assetName: "custom", group: .categoria(.custom), detail: "20.000 km de estrada na sua custom. Você é o capitão da estrada.", requiredKm: levelThreeKm, level: 3, levelCount: 3, points: categoryLevelPoints[2]),
         // Street / Naked
-        Badge(id: "cat_street_1", title: "Street Fighter", assetName: "street", group: .categoria(.street), detail: "Você cadastrou uma street/naked. A rua é sua.", level: 1, levelCount: 3),
-        Badge(id: "cat_street_2", title: "Urban Warrior",  assetName: "street", group: .categoria(.street), detail: "5.000 km em streets registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
-        Badge(id: "cat_street_3", title: "Asphalt Rider",  assetName: "street", group: .categoria(.street), detail: "20.000 km de asfalto na sua naked.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
+        Badge(id: "cat_street_1", title: "Street Fighter", assetName: "street", group: .categoria(.street), detail: "Você cadastrou uma street/naked. A rua é sua.", level: 1, levelCount: 3, points: categoryLevelPoints[0]),
+        Badge(id: "cat_street_2", title: "Urban Warrior",  assetName: "street", group: .categoria(.street), detail: "5.000 km em streets registrados.", requiredKm: levelTwoKm, level: 2, levelCount: 3, points: categoryLevelPoints[1]),
+        Badge(id: "cat_street_3", title: "Asphalt Rider",  assetName: "street", group: .categoria(.street), detail: "20.000 km de asfalto na sua naked.", requiredKm: levelThreeKm, level: 3, levelCount: 3, points: categoryLevelPoints[2]),
         // Esportiva
-        Badge(id: "cat_sport_1", title: "Speed Demon", assetName: "sport", group: .categoria(.sport), detail: "Você cadastrou uma esportiva. Adrenalina no cadastro.", level: 1, levelCount: 3),
-        Badge(id: "cat_sport_2", title: "Track Soul",  assetName: "sport", group: .categoria(.sport), detail: "5.000 km na sua esportiva.", requiredKm: levelTwoKm, level: 2, levelCount: 3),
-        Badge(id: "cat_sport_3", title: "Redline Club", assetName: "sport", group: .categoria(.sport), detail: "20.000 km de pura emoção.", requiredKm: levelThreeKm, level: 3, levelCount: 3),
+        Badge(id: "cat_sport_1", title: "Speed Demon", assetName: "sport", group: .categoria(.sport), detail: "Você cadastrou uma esportiva. Adrenalina no cadastro.", level: 1, levelCount: 3, points: categoryLevelPoints[0]),
+        Badge(id: "cat_sport_2", title: "Track Soul",  assetName: "sport", group: .categoria(.sport), detail: "5.000 km na sua esportiva.", requiredKm: levelTwoKm, level: 2, levelCount: 3, points: categoryLevelPoints[1]),
+        Badge(id: "cat_sport_3", title: "Redline Club", assetName: "sport", group: .categoria(.sport), detail: "20.000 km de pura emoção.", requiredKm: levelThreeKm, level: 3, levelCount: 3, points: categoryLevelPoints[2]),
         // Nível único.
-        Badge(id: "cat_touring_1", title: "Estradeiro",   assetName: "touring", group: .categoria(.touring), detail: "Você cadastrou uma touring. Longas distâncias com conforto."),
-        Badge(id: "cat_offroad_1", title: "Off-road",     assetName: "offroad", group: .categoria(.offroad), detail: "Você cadastrou uma moto off-road. Fora do asfalto."),
-        Badge(id: "cat_other_1",   title: "Motociclista", assetName: "other",   group: .categoria(.other),   detail: "Toda moto conta. Bem-vindo à garagem."),
+        Badge(id: "cat_touring_1", title: "Estradeiro",   assetName: "touring", group: .categoria(.touring), detail: "Você cadastrou uma touring. Longas distâncias com conforto.", points: categoryLevelPoints[0]),
+        Badge(id: "cat_offroad_1", title: "Off-road",     assetName: "offroad", group: .categoria(.offroad), detail: "Você cadastrou uma moto off-road. Fora do asfalto.", points: categoryLevelPoints[0]),
+        Badge(id: "cat_other_1",   title: "Motociclista", assetName: "other",   group: .categoria(.other),   detail: "Toda moto conta. Bem-vindo à garagem.", points: categoryLevelPoints[0]),
     ]
 }
 
@@ -284,5 +301,16 @@ enum BadgeEvaluator {
             }
         }
         return ids
+    }
+
+    /// Soma de pontos das medalhas conquistadas → alimenta o nível do perfil
+    /// (`ProfileLevel`). DERIVADO de `unlockedIDs` (mesma verdade do grid): nada
+    /// persistido, recalcula a cada render. `iron_butt` nunca está em `unlockedIDs`
+    /// e vale 0 → não soma. Badges repetíveis ainda não existem (contam 1×).
+    static func totalPoints(_ ctx: BadgeFleetContext) -> Int {
+        let unlocked = unlockedIDs(ctx)
+        return Badge.all
+            .filter { unlocked.contains($0.id) }
+            .reduce(0) { $0 + $1.points }
     }
 }

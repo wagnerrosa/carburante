@@ -235,9 +235,13 @@ struct GarageView: View {
         let ctx = motorcycles.badgeFleetContext
         let visible = BadgeEvaluator.visibleBadges(ctx)
         let unlocked = BadgeEvaluator.unlockedIDs(ctx)
+        let level = ProfileLevel.from(points: BadgeEvaluator.totalPoints(ctx))
         let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
         Section("Conquistas") {
+            // Nível do perfil (estilo Garmin): soma dos pontos das medalhas acesas.
+            ProfileLevelHeader(level: level)
+
             LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
                 ForEach(visible) { badge in
                     let isUnlocked = unlocked.contains(badge.id)

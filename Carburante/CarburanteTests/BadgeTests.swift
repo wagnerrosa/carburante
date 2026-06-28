@@ -254,4 +254,45 @@ final class BadgeTests: XCTestCase {
     func testSingleLevelCategory() {
         XCTAssertTrue(BadgeEvaluator.unlockedIDs(ctx(present: [.touring])).contains("cat_touring_1"))
     }
+
+    // MARK: Pontos (nível do perfil)
+
+    func testEmptyFleetScoresZero() {
+        XCTAssertEqual(BadgeEvaluator.totalPoints(ctx()), 0)
+    }
+
+    func testFuelMilestonesAccumulatePoints() {
+        // fuel_1=1, fuel_2=2, fuel_3=4 → 7 pontos com 3 cheios.
+        XCTAssertEqual(BadgeEvaluator.totalPoints(ctx(fullTanks: 1)), 1)
+        XCTAssertEqual(BadgeEvaluator.totalPoints(ctx(fullTanks: 3)), 7)
+        // +fuel_10 (10) → 17 com 10 cheios.
+        XCTAssertEqual(BadgeEvaluator.totalPoints(ctx(fullTanks: 10)), 17)
+    }
+
+    func testIronButtNeverScores() {
+        // Frota "no máximo": Iron Butt visível mas vale 0 e nunca está em unlocked.
+        let c = ctx(maintenance: true, fullTanks: 99, beatsCategory: true,
+                    present: [.sport], km: [.sport: 999_999])
+        let pts = BadgeEvaluator.totalPoints(c)
+        // Sport III (1+3+6) + manutenção(2) + melhor consumo(5) + 4 cheios(17) = 34. Sem Iron Butt.
+        XCTAssertEqual(pts, 34)
+        let ironPoints = Badge.all.first { $0.id == "iron_butt" }?.points
+        XCTAssertEqual(ironPoints, 0, "Iron Butt não pontua enquanto 'em breve'")
+    }
+
+    func testTotalPointsMatchesManualSumOfUnlocked() {
+        let c = ctx(maintenance: true, fullTanks: 2, present: [.scooter],
+                    km: [.scooter: 5_000], makes: ["honda"], ccClubs: [125])
+        let unlocked = BadgeEvaluator.unlockedIDs(c)
+        let manual = Badge.all.filter { unlocked.contains($0.id) }.reduce(0) { $0 + $1.points }
+        XCTAssertEqual(BadgeEvaluator.totalPoints(c), manual)
+    }
+
+    func testCategoryLevelPointsGrow() {
+        // Nível III de uma categoria vale mais que o I (curva por esforço).
+        let l1 = Badge.categoria.first { $0.id == "cat_scooter_1" }?.points ?? 0
+        let l2 = Badge.categoria.first { $0.id == "cat_scooter_2" }?.points ?? 0
+        let l3 = Badge.categoria.first { $0.id == "cat_scooter_3" }?.points ?? 0
+        XCTAssertTrue(l1 < l2 && l2 < l3, "pontos de categoria devem crescer com o nível")
+    }
 }
