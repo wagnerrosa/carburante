@@ -177,14 +177,19 @@ extension Array where Element == Motorcycle {
     var badgeFleetContext: BadgeFleetContext {
         var present = Set<MotorcycleCategory>()
         var kmByCategory: [MotorcycleCategory: Double] = [:]
-        var hasFuel = false
         var hasMaintenance = false
-        var hasBest = false
+        var fullTanks = 0
+        var beatsCategory = false
 
         for moto in self {
-            if !moto.fuelLogs.isEmpty { hasFuel = true }
             if !moto.maintenanceLogs.isEmpty { hasMaintenance = true }
-            if moto.records.bestKmPerLiter != nil { hasBest = true }
+            fullTanks += moto.fuelLogs.filter(\.isFullTank).count
+            // "Acima da média": melhor km/l medido supera a régua da categoria.
+            // Régua nil (sem cilindrada/categoria) → não conta (degrada limpo).
+            if let best = moto.records.bestKmPerLiter,
+               let ref = moto.categoryReferenceKmPerLiter, best >= ref {
+                beatsCategory = true
+            }
             // categoryEnum nil → trata como `.other` (toda moto pertence a alguma
             // categoria visível; sem isso uma moto sem categoria não renderia badge).
             let cat = moto.categoryEnum ?? .other
@@ -194,9 +199,9 @@ extension Array where Element == Motorcycle {
 
         return BadgeFleetContext(
             hasMotorcycle: !isEmpty,
-            hasFuelLog: hasFuel,
             hasMaintenanceLog: hasMaintenance,
-            hasBestConsumption: hasBest,
+            fullTankCount: fullTanks,
+            beatsCategoryAverage: beatsCategory,
             presentCategories: present,
             kmByCategory: kmByCategory
         )

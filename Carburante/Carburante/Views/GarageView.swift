@@ -26,6 +26,8 @@ struct GarageView: View {
     @State private var showingAdd = false
     @State private var showingSettings = false
     @State private var pendingDeletion: Motorcycle?
+    /// Medalha tocada → abre o sheet explicativo (estilo Apple Fitness / HIG).
+    @State private var selectedBadge: BadgePresentation?
 
     /// Moto ativa = a da chave salva, ou a mais recente como fallback.
     private var activeMotorcycle: Motorcycle? {
@@ -69,6 +71,9 @@ struct GarageView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .sheet(item: $selectedBadge) { presentation in
+                BadgeDetailSheet(presentation: presentation)
             }
             .confirmationDialog(
                 deletionPrompt,
@@ -228,11 +233,18 @@ struct GarageView: View {
         Section("Conquistas") {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
                 ForEach(visible) { badge in
-                    BadgeImageTile(
-                        assetName: badge.assetName,
-                        label: badge.title,
-                        unlocked: unlocked.contains(badge.id)
-                    )
+                    let isUnlocked = unlocked.contains(badge.id)
+                    Button {
+                        selectedBadge = BadgePresentation(badge: badge, unlocked: isUnlocked)
+                        Haptics.selection()
+                    } label: {
+                        BadgeImageTile(
+                            assetName: badge.assetName,
+                            label: badge.title,
+                            unlocked: isUnlocked
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)
