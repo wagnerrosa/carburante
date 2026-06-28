@@ -96,19 +96,21 @@ extension Badge {
     /// Universais — sempre visíveis. Desbloqueiam de dados que já existem.
     /// (O antigo "Primeira moto" saiu: o badge da MARCA da 1ª moto cumpre o papel.)
     static let universais: [Badge] = [
-        // Abastecimentos — marcos por tanque cheio (mecânica full-to-full).
+        // Abastecimentos — marcos por tanque cheio (mecânica full-to-full). Mesma
+        // arte 3D (`firstFuel`) → marcados como família de 4 níveis (1→4) para a UI
+        // desenhar o número, senão as 4 medalhas ficam idênticas (feedback do usuário).
         Badge(id: "fuel_1",  title: "1º abastecimento", assetName: "firstFuel", group: .universal,
               detail: "Seu primeiro abastecimento com tanque cheio registrado. Ele é a âncora do cálculo de consumo.",
-              requiredFullTanks: 1, points: 1),
+              requiredFullTanks: 1, level: 1, levelCount: 4, points: 1),
         Badge(id: "fuel_2",  title: "Primeira média", assetName: "firstFuel", group: .universal,
               detail: "Com dois tanques cheios o app já calcula seu consumo (km/l) pelo método full-to-full.",
-              requiredFullTanks: 2, points: 2),
+              requiredFullTanks: 2, level: 2, levelCount: 4, points: 2),
         Badge(id: "fuel_3",  title: "Na média", assetName: "firstFuel", group: .universal,
               detail: "Três tanques cheios desbloqueiam o gráfico de tendência no Resumo — dá para ver se o consumo melhora ou piora.",
-              requiredFullTanks: 3, points: 4),
+              requiredFullTanks: 3, level: 3, levelCount: 4, points: 4),
         Badge(id: "fuel_10", title: "Abastecedor", assetName: "firstFuel", group: .universal,
               detail: "Dez tanques cheios registrados. O hábito virou rotina e os números ficam cada vez mais confiáveis.",
-              requiredFullTanks: 10, points: 10),
+              requiredFullTanks: 10, level: 4, levelCount: 4, points: 10),
 
         Badge(id: "first_maintenance", title: "1ª manutenção", assetName: "firstMaintenance", group: .universal,
               detail: "Você registrou sua primeira manutenção. Manter o histórico ajuda a prever trocas e a cuidar da moto.",

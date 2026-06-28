@@ -407,9 +407,10 @@ struct DashboardView: View {
     /// nunca 2-3 barras tortas). Abaixo disso o card mostra só a manchete + número
     /// — o visual calmo que o usuário aprovou (sem gráfico ralo).
     private static let minBarsForChart = 6
-    /// Teto de barras no mini-gráfico do card: além disso fica apertado. A tela
-    /// Consumo cheia (com período e scrub) mostra o histórico completo.
-    private static let maxBarsInCard = 12
+    /// Teto de barras no mini-gráfico do card: só os segmentos mais recentes
+    /// (tendência atual). Acima disso fica apertado e os rótulos de mês cortam.
+    /// A tela Consumo cheia (período + scrub) mostra o histórico completo.
+    private static let maxBarsInCard = 6
     /// Vão vazio à esquerda do gráfico onde cabe o rótulo de média + número, com
     /// folga até as barras (gap do padrão Saúde).
     private static let avgLabelGutter: CGFloat = 110
@@ -565,12 +566,16 @@ struct DashboardView: View {
         .chartYScale(domain: 0...top)
         .chartYAxis(.hidden)
         .chartXAxis {
-            AxisMarks(values: monthLabels.keys.sorted().map(String.init)) { value in
-                AxisValueLabel {
+            // `collisionResolution: .disabled` + `.fixedSize()` impedem o Charts de
+            // espremer o rótulo na banda estreita da barra (era o corte "a..."/"o...").
+            // `centered` alinha o texto sob a barra do mês.
+            AxisMarks(preset: .aligned, values: monthLabels.keys.sorted().map(String.init)) { value in
+                AxisValueLabel(centered: true, collisionResolution: .disabled) {
                     if let s = value.as(String.self), let i = Int(s), let label = monthLabels[i] {
                         Text(label)
                             .font(.caption2)
                             .foregroundStyle(Color(.secondaryLabel))
+                            .fixedSize()
                     }
                 }
             }
@@ -631,6 +636,9 @@ struct DashboardView: View {
         // Cria o vão à esquerda empurrando o gráfico todo (plot + eixo juntos →
         // eixo X continua alinhado às barras, ao contrário de chartPlotStyle).
         .padding(.leading, Self.avgLabelGutter)
+        // Folga à direita p/ o último rótulo de mês não cortar na borda do card
+        // (com collisionResolution desligada o texto transborda a banda da barra).
+        .padding(.trailing, 12)
         .frame(height: 184)
     }
 
