@@ -551,6 +551,50 @@ struct BadgeDetailSheet: View {
     }
 }
 
+/// Cabeçalho de NÍVEL do perfil (estilo Garmin), no topo da seção Conquistas.
+/// Hexágono com o número do nível + barra de progresso + "N pontos para o próximo
+/// nível" (ou "Nível máximo"). Estado é DERIVADO (`ProfileLevel`); nada salvo.
+/// Sem avatar — o app não tem foto de perfil. Cor segue o `.tint` do ambiente
+/// (tema da marca ativa). SF Symbols + tipografia do sistema; nada custom pesado.
+struct ProfileLevelHeader: View {
+    let level: ProfileLevel
+
+    private var hex: some View {
+        ZStack {
+            Image(systemName: "hexagon.fill")
+                .font(.system(size: 46))
+                .foregroundStyle(.tint)
+            Text("\(level.level)")
+                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+        }
+        .accessibilityLabel("Nível \(level.level)")
+    }
+
+    private var caption: String {
+        level.isMax
+            ? "Nível máximo"
+            : "\(level.pointsForNext) \(level.pointsForNext == 1 ? "ponto" : "pontos") para o próximo nível"
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            hex
+            VStack(alignment: .leading, spacing: 6) {
+                ProgressView(value: level.progress)
+                    .tint(Color.accentColor)
+                Text(caption)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Nível \(level.level). \(caption).")
+    }
+}
+
 /// Contêiner com o visual de card agrupado nativo (sem sombra custom).
 struct GroupedCard<Content: View>: View {
     @ViewBuilder var content: Content
