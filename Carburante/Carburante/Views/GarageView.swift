@@ -183,10 +183,15 @@ struct GarageView: View {
     // não da moto ativa — quem quer os números da moto selecionada vai ao Resumo.
     // Com uma moto só, o agregado coincide com aquela moto, naturalmente.
 
+    /// Com mais de uma moto o escopo "todas as motos" não é óbvio (o topo mostra
+    /// a moto ativa) — o próprio título da seção diz, sem legenda solta. Com uma
+    /// moto só não há ambiguidade: título curto.
+    private var aggregatesAcrossBikes: Bool { motorcycles.count > 1 }
+
     @ViewBuilder
     private var recordsSection: some View {
         let r = motorcycles.fleetRecords
-        Section("Recordes") {
+        Section(aggregatesAcrossBikes ? "Recordes de todas as motos" : "Recordes") {
             if r.bestKmPerLiter == nil && r.longestSegment == nil && r.cheapestPricePerLiter == nil {
                 Text("Registre mais abastecimentos para desbloquear recordes.")
                     .font(.subheadline)
@@ -216,7 +221,7 @@ struct GarageView: View {
     @ViewBuilder
     private var totalsSection: some View {
         let summary = motorcycles.fleetSummary
-        Section("Totais") {
+        Section(aggregatesAcrossBikes ? "Totais de todas as motos" : "Totais") {
             StatRow(label: "Abastecimentos", value: String(motorcycles.fleetFuelLogCount))
             StatRow(label: "Distância", value: AppFormat.km(summary.totalDistance))
             StatRow(label: "Litros", value: AppFormat.liters(motorcycles.fleetTotalLitersEver))
