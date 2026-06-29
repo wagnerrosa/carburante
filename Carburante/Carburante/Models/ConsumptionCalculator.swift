@@ -217,6 +217,52 @@ extension Array where Element == Motorcycle {
             presentDisplacementClubs: ccClubs
         )
     }
+
+    // MARK: - Agregados da FROTA (Garagem)
+    //
+    // Recordes e Totais da Garagem são da garagem INTEIRA, não da moto ativa
+    // (essa fica no Resumo). Combina-se PER-MOTO e depois agrega — nunca
+    // concatena os abastecimentos de motos diferentes num só array: os
+    // odômetros de motos distintas saltam, o que inventaria segmentos falsos.
+
+    /// Recordes da garagem inteira: o melhor número entre todas as motos.
+    /// Cada moto calcula o seu PR (`records`); a frota fica com o extremo —
+    /// max km/l, max trecho, min preço/litro. Nada funde dados entre motos.
+    var fleetRecords: GarageRecords {
+        let perBike = map(\.records)
+        return GarageRecords(
+            bestKmPerLiter: perBike.compactMap(\.bestKmPerLiter).max(),
+            longestSegment: perBike.compactMap(\.longestSegment).max(),
+            cheapestPricePerLiter: perBike.compactMap(\.cheapestPricePerLiter).min()
+        )
+    }
+
+    /// Totais da garagem inteira: soma os resumos por-moto. As médias saem do
+    /// pool (Σdist ÷ Σlitros, Σcusto ÷ Σdist via `costPerKm`) — NUNCA média das
+    /// médias, que distorceria a favor das motos pouco rodadas.
+    var fleetSummary: ConsumptionSummary {
+        let perBike = map(\.consumptionSummary)
+        let totalDistance = perBike.reduce(0) { $0 + $1.totalDistance }
+        let totalLiters = perBike.reduce(0) { $0 + $1.totalLitersInSegments }
+        let totalCost = perBike.reduce(0) { $0 + $1.totalCostInSegments }
+        let average: Double? = totalLiters > 0 ? totalDistance / totalLiters : nil
+        return ConsumptionSummary(
+            averageKmPerLiter: average,
+            totalDistance: totalDistance,
+            totalLitersInSegments: totalLiters,
+            totalCostInSegments: totalCost,
+            segmentCount: perBike.reduce(0) { $0 + $1.segmentCount }
+        )
+    }
+
+    /// Abastecimentos somados na garagem inteira (soma simples).
+    var fleetFuelLogCount: Int { reduce(0) { $0 + $1.fuelLogCount } }
+
+    /// Litros abastecidos na garagem inteira (soma simples, independe de cheio).
+    var fleetTotalLitersEver: Double { reduce(0) { $0 + $1.totalLitersEver } }
+
+    /// Gasto total na garagem inteira (soma simples).
+    var fleetTotalCostEver: Double { reduce(0) { $0 + $1.totalCostEver } }
 }
 
 enum ConsumptionCalculator {

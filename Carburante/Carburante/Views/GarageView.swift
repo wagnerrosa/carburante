@@ -105,8 +105,8 @@ struct GarageView: View {
                 otherBikesSection
             }
 
-            recordsSection(moto)
-            totalsSection(moto)
+            recordsSection
+            totalsSection
             badgesSection
         }
     }
@@ -179,9 +179,13 @@ struct GarageView: View {
 
     // MARK: Recordes (PRs)
 
+    // Recordes e Totais são da GARAGEM inteira (somatório de todas as motos),
+    // não da moto ativa — quem quer os números da moto selecionada vai ao Resumo.
+    // Com uma moto só, o agregado coincide com aquela moto, naturalmente.
+
     @ViewBuilder
-    private func recordsSection(_ moto: Motorcycle) -> some View {
-        let r = moto.records
+    private var recordsSection: some View {
+        let r = motorcycles.fleetRecords
         Section("Recordes") {
             if r.bestKmPerLiter == nil && r.longestSegment == nil && r.cheapestPricePerLiter == nil {
                 Text("Registre mais abastecimentos para desbloquear recordes.")
@@ -210,13 +214,13 @@ struct GarageView: View {
     // MARK: Totais vitalícios
 
     @ViewBuilder
-    private func totalsSection(_ moto: Motorcycle) -> some View {
-        let summary = moto.consumptionSummary
+    private var totalsSection: some View {
+        let summary = motorcycles.fleetSummary
         Section("Totais") {
-            StatRow(label: "Abastecimentos", value: String(moto.fuelLogCount))
+            StatRow(label: "Abastecimentos", value: String(motorcycles.fleetFuelLogCount))
             StatRow(label: "Distância", value: AppFormat.km(summary.totalDistance))
-            StatRow(label: "Litros", value: AppFormat.liters(moto.totalLitersEver))
-            StatRow(label: "Gasto", value: AppFormat.currency(moto.totalCostEver))
+            StatRow(label: "Litros", value: AppFormat.liters(motorcycles.fleetTotalLitersEver))
+            StatRow(label: "Gasto", value: AppFormat.currency(motorcycles.fleetTotalCostEver))
             if let avg = summary.averageKmPerLiter {
                 StatRow(label: "Consumo médio", value: AppFormat.kmPerLiter(avg))
             }

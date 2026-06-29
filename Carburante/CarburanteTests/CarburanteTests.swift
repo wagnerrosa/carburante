@@ -1059,4 +1059,78 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(moto.totalCostEver, 75)
         XCTAssertEqual(moto.fuelLogCount, 2)
     }
+
+    // MARK: - Garagem: agregados da FROTA
+
+    /// Recordes da frota = o extremo entre as motos, não a soma. Moto A tem o
+    /// melhor km/l e maior trecho; moto B tem o litro mais barato.
+    func testFleetRecordsTakeExtremesAcrossBikes() {
+        // Moto A: seg (1400-1100)/10 = 30 km/l, 300 km; litro a 6,00.
+        let a = Motorcycle(make: "Honda", model: "CB", year: 2024, country: "BR")
+        a.fuelLogs = [
+            FuelLog(odometer: 1000, liters: 8, totalCost: 48, fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(odometer: 1100, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(odometer: 1400, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true),
+        ]
+        // Moto B: seg (2100-2000)/10 = 10 km/l, 100 km; litro a 4,90 (mais barato).
+        let b = Motorcycle(make: "Yamaha", model: "MT", year: 2024, country: "BR")
+        b.fuelLogs = [
+            FuelLog(odometer: 2000, liters: 10, totalCost: 49, fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(odometer: 2100, liters: 10, totalCost: 49, fuelType: .gasolinaComum, isFullTank: true),
+        ]
+        let r = [a, b].fleetRecords
+        XCTAssertEqual(r.bestKmPerLiter, 30)            // melhor da frota (moto A)
+        XCTAssertEqual(r.longestSegment, 300)           // maior trecho (moto A)
+        XCTAssertEqual(r.cheapestPricePerLiter, 4.9)    // mais barato (moto B)
+    }
+
+    /// Totais somam as duas motos; abastecimentos/litros/gasto incluem parciais.
+    func testFleetTotalsSumAllBikes() {
+        let a = Motorcycle(make: "Honda", model: "CB", year: 2024, country: "BR")
+        a.fuelLogs = [
+            FuelLog(odometer: 1000, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(odometer: 1100, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true),
+        ]
+        let b = Motorcycle(make: "Yamaha", model: "MT", year: 2024, country: "BR")
+        b.fuelLogs = [
+            FuelLog(odometer: 2000, liters: 5, totalCost: 25, fuelType: .gasolinaComum, isFullTank: false),
+        ]
+        let fleet = [a, b]
+        XCTAssertEqual(fleet.fleetFuelLogCount, 3)
+        XCTAssertEqual(fleet.fleetTotalLitersEver, 25)
+        XCTAssertEqual(fleet.fleetTotalCostEver, 145)
+        // Só A tem segmento medível: 100 km / 10 L.
+        XCTAssertEqual(fleet.fleetSummary.totalDistance, 100)
+    }
+
+    /// Média da frota sai do POOL (Σdist ÷ Σlitros), nunca média das médias.
+    /// Moto A: 200 km / 5 L = 40 km/l. Moto B: 100 km / 20 L = 5 km/l.
+    /// Média-das-médias daria (40+5)/2 = 22,5 (errado).
+    /// Pool: 300 km / 25 L = 12 km/l (certo).
+    func testFleetAverageIsPooledNotMeanOfMeans() {
+        let a = Motorcycle(make: "Honda", model: "CB", year: 2024, country: "BR")
+        a.fuelLogs = [
+            FuelLog(odometer: 1000, liters: 5, totalCost: 30, fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(odometer: 1200, liters: 5, totalCost: 30, fuelType: .gasolinaComum, isFullTank: true),
+        ]
+        let b = Motorcycle(make: "Yamaha", model: "MT", year: 2024, country: "BR")
+        b.fuelLogs = [
+            FuelLog(odometer: 2000, liters: 20, totalCost: 120, fuelType: .gasolinaComum, isFullTank: true),
+            FuelLog(odometer: 2100, liters: 20, totalCost: 120, fuelType: .gasolinaComum, isFullTank: true),
+        ]
+        let summary = [a, b].fleetSummary
+        XCTAssertEqual(summary.totalDistance, 300)
+        XCTAssertEqual(summary.totalLitersInSegments, 25)
+        XCTAssertEqual(summary.averageKmPerLiter, 12)               // pool, não 22,5
+        XCTAssertEqual(summary.costPerKm.map { ($0 * 100).rounded() }, 50)  // 150/300 = 0,50/km
+    }
+
+    /// Garagem vazia → tudo nil/zero, sem crash.
+    func testFleetAggregatesEmpty() {
+        let fleet: [Motorcycle] = []
+        XCTAssertNil(fleet.fleetRecords.bestKmPerLiter)
+        XCTAssertNil(fleet.fleetSummary.averageKmPerLiter)
+        XCTAssertEqual(fleet.fleetFuelLogCount, 0)
+        XCTAssertEqual(fleet.fleetTotalCostEver, 0)
+    }
 }
