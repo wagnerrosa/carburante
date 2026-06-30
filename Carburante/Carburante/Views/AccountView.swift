@@ -19,9 +19,9 @@ import SwiftData
 
 struct AccountView: View {
     @Environment(\.modelContext) private var modelContext
-    /// Liga o botão Apple. OFF até a capability + provider Supabase existirem
-    /// (Apple Developer Program pago). Ver memória apple-signin-blocked-on-99.
-    @AppStorage("appleSignInEnabled") private var appleSignInEnabled = false
+    /// Liga o botão Apple. Ligado na Fase 10 (2026-06-30): capability "Sign In
+    /// with Apple" no target + provider Apple configurado no Supabase Auth.
+    @AppStorage("appleSignInEnabled") private var appleSignInEnabled = true
 
     private var sync: SyncService { .shared }
     /// Nonce CRU da tentativa em curso — gerado antes do request, enviado ao
