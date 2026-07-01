@@ -1006,6 +1006,104 @@ final class CarburanteTests: XCTestCase {
         XCTAssertTrue(MaintenanceType.oleo.isSchedulable)
     }
 
+    // MARK: - Pneus: posição dianteiro/traseiro com contadores próprios
+
+    /// Dianteiro e traseiro são acompanhados de forma independente: trocar só o
+    /// traseiro não reinicia o contador do dianteiro.
+    func testTirePositionsAreIndependent() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 40000)
+        ctx.insert(moto)
+        // Dianteiro trocado há muito (vencido por km: @ 20000, intervalo 12000).
+        ctx.insert(MaintenanceLog(date: day(2025, 6, 1), mileage: 20000,
+                                  type: .pneus, tirePosition: .dianteiro, motorcycle: moto))
+        // Traseiro recém-trocado.
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 39000,
+                                  type: .pneus, tirePosition: .traseiro, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.lastService(of: .pneus, position: .dianteiro)?.mileage, 20000)
+        XCTAssertEqual(moto.lastService(of: .pneus, position: .traseiro)?.mileage, 39000)
+
+        let front = moto.maintenanceStatus(for: .pneus, position: .dianteiro, now: day(2026, 6, 18))
+        let rear = moto.maintenanceStatus(for: .pneus, position: .traseiro, now: day(2026, 6, 18))
+        XCTAssertEqual(front?.isOverdue, true, "dianteiro vencido")
+        XCTAssertEqual(rear?.isOverdue, false, "traseiro em dia")
+        XCTAssertEqual(rear?.kmRemaining, 11000)
+    }
+
+    /// `maintenanceStatuses` gera uma linha "Programadas" por posição registrada,
+    /// com rótulo e id distintos (dianteiro/traseiro).
+    func testTireStatusesOneRowPerPosition() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 40000)
+        ctx.insert(moto)
+        ctx.insert(MaintenanceLog(date: day(2026, 1, 1), mileage: 30000,
+                                  type: .pneus, tirePosition: .dianteiro, motorcycle: moto))
+        ctx.insert(MaintenanceLog(date: day(2026, 1, 1), mileage: 30000,
+                                  type: .pneus, tirePosition: .traseiro, motorcycle: moto))
+        try ctx.save()
+
+        let tire = moto.maintenanceStatuses(now: day(2026, 6, 18)).filter { $0.type == .pneus }
+        XCTAssertEqual(tire.count, 2, "uma linha por posição")
+        XCTAssertEqual(Set(tire.map(\.position)), [.dianteiro, .traseiro])
+        XCTAssertEqual(Set(tire.map(\.displayName)), ["Pneu dianteiro", "Pneu traseiro"])
+        XCTAssertEqual(Set(tire.map(\.id)).count, 2, "ids distintos p/ sheet/ForEach")
+        XCTAssertEqual(Set(tire.map(\.identifierKey)).count, 2, "notificações separadas")
+    }
+
+    /// Registro de pneu antigo (sem posição) não some: vira sua própria linha.
+    func testLegacyTireWithoutPositionStillTracked() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 40000)
+        ctx.insert(moto)
+        ctx.insert(MaintenanceLog(date: day(2026, 1, 1), mileage: 30000,
+                                  type: .pneus, motorcycle: moto))  // sem posição
+        try ctx.save()
+
+        let tire = moto.maintenanceStatuses(now: day(2026, 6, 18)).filter { $0.type == .pneus }
+        XCTAssertEqual(tire.count, 1)
+        XCTAssertNil(tire.first?.position)
+        XCTAssertEqual(tire.first?.displayName, "Pneus", "sem posição usa o nome do tipo")
+    }
+
+    /// Rótulo é a fonte única (tipo + posição). Não-pneu ignora posição.
+    func testDisplayNameComposition() {
+        XCTAssertEqual(MaintenanceType.displayName(.pneus, position: .dianteiro), "Pneu dianteiro")
+        XCTAssertEqual(MaintenanceType.displayName(.pneus, position: .traseiro), "Pneu traseiro")
+        XCTAssertEqual(MaintenanceType.displayName(.pneus, position: nil), "Pneus")
+        XCTAssertEqual(MaintenanceType.displayName(.oleo, position: .dianteiro), "Troca de óleo")
+    }
+
+    /// Revisão que troca só um eixo do pneu reinicia apenas aquele contador.
+    func testRevisaoTireSinglePositionResetsOnlyThatAxis() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 40000)
+        ctx.insert(moto)
+        // Ambos os pneus vencidos por km (@ 20000, intervalo 12000).
+        ctx.insert(MaintenanceLog(date: day(2025, 6, 1), mileage: 20000,
+                                  type: .pneus, tirePosition: .dianteiro, motorcycle: moto))
+        ctx.insert(MaintenanceLog(date: day(2025, 6, 1), mileage: 20000,
+                                  type: .pneus, tirePosition: .traseiro, motorcycle: moto))
+        // Revisão recente que troca só o traseiro (filho @ 39000).
+        let parent = MaintenanceLog(date: day(2026, 6, 1), mileage: 39000,
+                                    type: .revisao, motorcycle: moto)
+        ctx.insert(parent)
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 39000, cost: 0,
+                                  type: .pneus, tirePosition: .traseiro,
+                                  partOfMaintenanceID: parent.id, motorcycle: moto))
+        try ctx.save()
+
+        let front = moto.maintenanceStatus(for: .pneus, position: .dianteiro, now: day(2026, 6, 18))
+        let rear = moto.maintenanceStatus(for: .pneus, position: .traseiro, now: day(2026, 6, 18))
+        XCTAssertEqual(front?.isOverdue, true, "dianteiro segue vencido")
+        XCTAssertEqual(rear?.isOverdue, false, "traseiro reiniciado pela revisão")
+    }
+
     // MARK: - Garagem: recordes (PRs)
 
     /// Melhor km/l pega o maior segmento; maior trecho idem.

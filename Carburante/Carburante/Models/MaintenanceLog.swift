@@ -10,6 +10,30 @@
 import Foundation
 import SwiftData
 
+/// Posição do pneu. Dianteiro e traseiro desgastam e trocam em momentos
+/// diferentes (o traseiro em geral bem antes), então cada um tem contador
+/// próprio (idade + km). "Ambos" NÃO é um caso persistido: no form é um atalho
+/// que grava dois logs (um dianteiro, um traseiro) — armazenar "ambos" quebraria
+/// os contadores independentes. `.rawValue` (String) é persistido.
+enum TirePosition: String, CaseIterable, Codable, Identifiable {
+    case dianteiro = "Dianteiro"
+    case traseiro = "Traseiro"
+
+    var id: String { rawValue }
+
+    /// Sufixo curto p/ o rótulo do tipo ("Pneu dianteiro"). Minúsculo pois vem
+    /// depois de "Pneu".
+    var suffix: String {
+        switch self {
+        case .dianteiro: return "dianteiro"
+        case .traseiro: return "traseiro"
+        }
+    }
+
+    /// Chave ASCII estável p/ identificadores de notificação (`maint-pneus-<pos>-…`).
+    var identifierKey: String { rawValue.lowercased() }
+}
+
 /// Tipos comuns de manutenção. `.rawValue` (String) é persistido — adicionar
 /// casos no futuro não corrompe dados. "Outro" + `notes` cobre o resto.
 enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
@@ -47,6 +71,14 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
         case .revisao: return "revisao"
         case .outro: return "outro"
         }
+    }
+
+    /// Nome exibido de um tipo, refinado pela posição do pneu quando houver.
+    /// Ex.: `.pneus` + `.dianteiro` → "Pneu dianteiro". Fonte única do rótulo
+    /// (log, status agendado, lembrete) → sempre coerente.
+    static func displayName(_ type: MaintenanceType, position: TirePosition?) -> String {
+        guard type == .pneus, let position else { return type.rawValue }
+        return "Pneu \(position.suffix)"
     }
 
     /// Intervalo padrão sugerido por km (nil = sem sugestão de eixo km).
@@ -116,6 +148,11 @@ final class MaintenanceLog {
     var partOfMaintenanceID: UUID?
     /// Persistido como String (rawValue de `MaintenanceType`) via `type`.
     var typeRaw: String
+    /// Posição do pneu (rawValue de `TirePosition`) — só preenchido quando
+    /// `type == .pneus`; nil em todo o resto. Dianteiro/traseiro têm contadores
+    /// próprios. Migração leve: registros de pneu antigos ficam nil (tratados
+    /// como "pneu sem posição" — ver `tireGroupKey`). Coluna Supabase opcional.
+    var tirePositionRaw: String?
 
     var createdAt: Date
 
@@ -128,6 +165,7 @@ final class MaintenanceLog {
         cost: Double = 0,
         notes: String = "",
         type: MaintenanceType,
+        tirePosition: TirePosition? = nil,
         intervalKm: Double? = nil,
         intervalMonths: Int? = nil,
         partOfMaintenanceID: UUID? = nil,
@@ -142,6 +180,7 @@ final class MaintenanceLog {
         self.intervalMonths = intervalMonths
         self.partOfMaintenanceID = partOfMaintenanceID
         self.typeRaw = type.rawValue
+        self.tirePositionRaw = type == .pneus ? tirePosition?.rawValue : nil
         self.motorcycle = motorcycle
         self.createdAt = createdAt
     }
@@ -152,6 +191,17 @@ extension MaintenanceLog {
         get { MaintenanceType(rawValue: typeRaw) ?? .outro }
         set { typeRaw = newValue.rawValue }
     }
+
+    /// Posição do pneu deste log (nil se não for pneu ou for registro antigo
+    /// sem posição). Escrever só faz sentido quando `type == .pneus`.
+    var tirePosition: TirePosition? {
+        get { tirePositionRaw.flatMap(TirePosition.init(rawValue:)) }
+        set { tirePositionRaw = newValue?.rawValue }
+    }
+
+    /// Rótulo exibido do tipo, já com a posição do pneu quando houver.
+    /// Ex.: "Pneu dianteiro", "Pneu traseiro"; senão o nome do tipo.
+    var displayName: String { MaintenanceType.displayName(type, position: tirePosition) }
 
     /// Intervalo por km efetivo: o personalizado nesta manutenção, senão o padrão
     /// do tipo. Nil quando o tipo não tem padrão de km (ex.: "Outro") e nenhum
@@ -181,11 +231,13 @@ extension MaintenanceLog {
         return motorcycle.maintenanceLogs.filter { $0.partOfMaintenanceID == id }
     }
 
-    /// Rótulo curto dos itens incluídos numa revisão. Ex.: "óleo, filtros".
+    /// Rótulo curto dos itens incluídos numa revisão. Ex.: "óleo, pneu traseiro".
+    /// Usa `displayName` p/ distinguir os eixos do pneu.
     var includedItemsLabel: String {
         children
-            .sorted { $0.type.rawValue < $1.type.rawValue }
-            .map { $0.type.rawValue.lowercased() }
+            .map(\.displayName)
+            .sorted()
+            .map { $0.lowercased() }
             .joined(separator: ", ")
     }
 }

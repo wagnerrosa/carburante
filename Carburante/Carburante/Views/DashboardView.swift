@@ -692,7 +692,7 @@ struct DashboardView: View {
                         Image(systemName: status.type.icon)
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(color)
-                        Text(status.type.rawValue)
+                        Text(status.displayName)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(color)
                         Spacer()
@@ -747,7 +747,7 @@ struct DashboardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(status.type.rawValue)
+        .accessibilityLabel(status.displayName)
         .accessibilityValue(maintenanceAccessibilityValue(status))
         .accessibilityHint("Abre o histórico de manutenções")
     }

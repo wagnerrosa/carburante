@@ -8,6 +8,32 @@
 import SwiftUI
 import SwiftData
 
+/// Escolha de posição no form (inclui "Ambos", que NÃO é persistido: ao salvar
+/// vira dois logs — um dianteiro, um traseiro). Só aparece quando o tipo é Pneus.
+enum TireSelection: String, CaseIterable, Identifiable {
+    case dianteiro = "Dianteiro"
+    case traseiro = "Traseiro"
+    case ambos = "Ambos"
+
+    var id: String { rawValue }
+
+    /// Posições concretas a gravar. "Ambos" → dois logs.
+    var positions: [TirePosition] {
+        switch self {
+        case .dianteiro: return [.dianteiro]
+        case .traseiro: return [.traseiro]
+        case .ambos: return [.dianteiro, .traseiro]
+        }
+    }
+
+    init(position: TirePosition?) {
+        switch position {
+        case .traseiro: self = .traseiro
+        default: self = .dianteiro
+        }
+    }
+}
+
 struct MaintenanceFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -18,6 +44,9 @@ struct MaintenanceFormView: View {
     /// Tipo inicial p/ nova manutenção (ex.: tocar numa linha "Programadas").
     /// Ignorado em edição.
     var initialType: MaintenanceType?
+    /// Posição de pneu inicial p/ nova manutenção (linha "Programadas" de pneu).
+    /// Ignorada em edição e em tipos que não são pneu.
+    var initialTirePosition: TirePosition?
 
     @State private var date: Date = Date()
     @State private var type: MaintenanceType = .oleo
@@ -29,6 +58,11 @@ struct MaintenanceFormView: View {
     /// Itens marcados numa Revisão Geral (combo). Cada um vira um log-filho que
     /// reinicia o contador do seu tipo. Fase B — ver PLAN/manutencao-programada.md.
     @State private var revisaoItems: Set<MaintenanceType> = []
+    /// Posição do pneu numa manutenção avulsa de pneu. "Ambos" (só em criação)
+    /// grava dois logs.
+    @State private var tireSelection: TireSelection = .dianteiro
+    /// Posição do pneu quando "Pneus" está marcado numa Revisão Geral.
+    @State private var revisaoTireSelection: TireSelection = .ambos
     @State private var saveError: String?
     /// Evita que o `onChange(of: type)` (disparado ao carregar) sobrescreva os
     /// valores carregados/iniciais com os defaults do tipo.
@@ -36,6 +70,12 @@ struct MaintenanceFormView: View {
     @FocusState private var fieldFocused: Bool
 
     private var isEditing: Bool { maintenanceLog != nil }
+
+    /// Opções do seletor de posição: "Ambos" só faz sentido criando (dois logs);
+    /// editando, uma linha é sempre uma posição.
+    private var tirePositionOptions: [TireSelection] {
+        isEditing ? [.dianteiro, .traseiro] : TireSelection.allCases
+    }
 
     private var mileagePrompt: String {
         motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "Hodômetro"
@@ -62,6 +102,24 @@ struct MaintenanceFormView: View {
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
                         Text("R$").foregroundStyle(.secondary)
+                    }
+                }
+
+                // Pneus: dianteiro e traseiro têm contadores próprios (trocam em
+                // momentos diferentes). "Ambos" só na criação — editar um registro
+                // é sempre uma posição só (não dá para dividir uma linha em duas).
+                if type == .pneus {
+                    Section {
+                        Picker("Posição", selection: $tireSelection) {
+                            ForEach(tirePositionOptions) { option in
+                                Text(option.rawValue).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    } footer: {
+                        Text(isEditing
+                             ? "Dianteiro e traseiro são acompanhados separadamente."
+                             : "Dianteiro e traseiro têm contadores próprios. \"Ambos\" registra os dois de uma vez.")
                     }
                 }
 
@@ -107,6 +165,16 @@ struct MaintenanceFormView: View {
                         ForEach(MaintenanceType.revisaoComboTypes) { item in
                             Toggle(isOn: revisaoBinding(for: item)) {
                                 Label(item.rawValue, systemImage: item.icon)
+                            }
+                            // Pneu numa revisão pode ter sido só um eixo (ex.: só
+                            // o traseiro) → escolhe a posição a reiniciar.
+                            if item == .pneus, revisaoItems.contains(.pneus) {
+                                Picker("Posição", selection: $revisaoTireSelection) {
+                                    ForEach(TireSelection.allCases) { option in
+                                        Text(option.rawValue).tag(option)
+                                    }
+                                }
+                                .pickerStyle(.segmented)
                             }
                         }
                     } header: {
@@ -170,12 +238,26 @@ struct MaintenanceFormView: View {
             intervalKm = log.effectiveIntervalKm
             intervalMonths = log.effectiveIntervalMonths
             notes = log.notes
+            if log.type == .pneus {
+                tireSelection = TireSelection(position: log.tirePosition)
+            }
             // Pré-marca os itens já incluídos nesta revisão (logs-filhos).
             revisaoItems = Set(log.children.map(\.type))
+            // Posição do pneu já incluído na revisão (se houver): se os dois
+            // filhos existem = Ambos; senão a posição do único.
+            let tireChildren = log.children.filter { $0.type == .pneus }
+            if tireChildren.count >= 2 {
+                revisaoTireSelection = .ambos
+            } else if let only = tireChildren.first {
+                revisaoTireSelection = TireSelection(position: only.tirePosition)
+            }
         } else if let initialType {
             type = initialType
             intervalKm = initialType.defaultIntervalKm
             intervalMonths = initialType.defaultIntervalMonths
+            if initialType == .pneus, let initialTirePosition {
+                tireSelection = TireSelection(position: initialTirePosition)
+            }
         }
     }
 
@@ -218,7 +300,24 @@ struct MaintenanceFormView: View {
             log.notes = trimmedNotes
             log.intervalKm = ik
             log.intervalMonths = im
+            // Editar sempre é uma posição só (o seletor não oferece "Ambos").
+            log.tirePosition = type == .pneus ? tireSelection.positions.first : nil
             parent = log
+        } else if type == .pneus {
+            // Criar pneu: "Ambos" grava dois logs independentes (contadores
+            // próprios). Custo total fica no 1º p/ não contar em dobro.
+            let positions = tireSelection.positions
+            var first: MaintenanceLog?
+            for (index, position) in positions.enumerated() {
+                let log = MaintenanceLog(
+                    date: date, mileage: km, cost: index == 0 ? c : 0,
+                    notes: trimmedNotes, type: .pneus, tirePosition: position,
+                    intervalKm: ik, intervalMonths: im, motorcycle: motorcycle
+                )
+                modelContext.insert(log)
+                if first == nil { first = log }
+            }
+            parent = first!
         } else {
             let log = MaintenanceLog(
                 date: date,
@@ -276,13 +375,14 @@ struct MaintenanceFormView: View {
     /// Cria/atualiza/remove os logs-filhos de uma Revisão Geral conforme os itens
     /// marcados. Cada filho herda a data e o km do pai (reinicia o contador do
     /// tipo), custo 0 (o custo da visita fica no pai → sem dupla contagem) e
-    /// intervalos nil (cai no padrão do tipo).
+    /// intervalos nil (cai no padrão do tipo). Pneus é tratado à parte: cada
+    /// posição (dianteiro/traseiro) é um filho independente.
     private func syncRevisaoChildren(parent: MaintenanceLog) {
         let existing = parent.children
-        let plan = RevisaoCombo.plan(
-            selected: revisaoItems,
-            existing: Set(existing.map(\.type))
-        )
+        // Itens não-pneu: plano genérico por tipo.
+        let nonTireSelected = revisaoItems.subtracting([.pneus])
+        let nonTireExisting = Set(existing.filter { $0.type != .pneus }.map(\.type))
+        let plan = RevisaoCombo.plan(selected: nonTireSelected, existing: nonTireExisting)
         for item in plan.toCreate {
             let child = MaintenanceLog(
                 date: parent.date, mileage: parent.mileage, cost: 0, notes: "",
@@ -301,6 +401,49 @@ struct MaintenanceFormView: View {
             if let child = existing.first(where: { $0.type == item }) {
                 modelContext.delete(child)
             }
+        }
+        syncRevisaoTireChildren(parent: parent, existing: existing)
+    }
+
+    /// Sincroniza os filhos-pneu de uma revisão por posição: cria os que faltam,
+    /// atualiza data/km dos que ficam, remove os desmarcados. Filho-pneu antigo
+    /// sem posição (nil) é migrado para a 1ª posição desejada em vez de duplicar.
+    private func syncRevisaoTireChildren(parent: MaintenanceLog, existing: [MaintenanceLog]) {
+        let tireChildren = existing.filter { $0.type == .pneus }
+        let wanted: Set<TirePosition> = revisaoItems.contains(.pneus)
+            ? Set(revisaoTireSelection.positions) : []
+
+        // Reaproveita um filho legado sem posição p/ evitar duplicata na migração.
+        if let legacy = tireChildren.first(where: { $0.tirePosition == nil }),
+           let target = wanted.first(where: { pos in !tireChildren.contains { $0.tirePosition == pos } }) {
+            legacy.tirePosition = target
+        }
+        let byPosition = Dictionary(
+            grouping: parent.children.filter { $0.type == .pneus },
+            by: { $0.tirePosition }
+        )
+        for position in TirePosition.allCases {
+            let current = byPosition[position]?.first
+            if wanted.contains(position) {
+                if let child = current {
+                    child.date = parent.date
+                    child.mileage = parent.mileage
+                } else {
+                    let child = MaintenanceLog(
+                        date: parent.date, mileage: parent.mileage, cost: 0, notes: "",
+                        type: .pneus, tirePosition: position, intervalKm: nil,
+                        intervalMonths: nil, partOfMaintenanceID: parent.id,
+                        motorcycle: motorcycle
+                    )
+                    modelContext.insert(child)
+                }
+            } else if let child = current {
+                modelContext.delete(child)
+            }
+        }
+        // Remove filho-pneu sem posição que não foi reaproveitado (desmarcado).
+        for child in parent.children where child.type == .pneus && child.tirePosition == nil {
+            modelContext.delete(child)
         }
     }
 }

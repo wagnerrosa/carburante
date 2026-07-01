@@ -58,6 +58,9 @@ struct MaintenanceLogDTO: Codable {
     let interval_km: Double?
     let interval_months: Int?
     let part_of_maintenance_id: UUID?
+    /// Posição do pneu (rawValue de `TirePosition`) — só p/ logs de pneu; nil no
+    /// resto e em registros antigos.
+    let tire_position: String?
 }
 
 struct BadgeAwardDTO: Codable {
