@@ -10,13 +10,13 @@ import XCTest
 
 final class ProfileLevelTests: XCTestCase {
 
-    private let t = ProfileLevel.thresholds  // [0, 3, 10, 22, 40, 65, 100, 150, 220, 320]
+    private let t = ProfileLevel.thresholds  // [0, 5, 12, 22, 40, 65, 100, 150, 220, 320]
 
     func testZeroPointsIsLevelOneNoProgress() {
         let lv = ProfileLevel.from(points: 0)
         XCTAssertEqual(lv.level, 1)
         XCTAssertEqual(lv.pointsIntoLevel, 0)
-        XCTAssertEqual(lv.pointsForNext, t[1])   // 3 p/ o nível 2
+        XCTAssertEqual(lv.pointsForNext, t[1])   // pontos p/ o nível 2 (piso do setup completo)
         XCTAssertEqual(lv.progress, 0)
         XCTAssertFalse(lv.isMax)
     }
@@ -34,13 +34,17 @@ final class ProfileLevelTests: XCTestCase {
     }
 
     func testMidLevelOffsetAndRemaining() {
-        // 15 pontos: faixa do nível 3 é [10, 22) → offset 5, faltam 7, span 12.
-        let lv = ProfileLevel.from(points: 15)
+        // Ponto médio da faixa do nível 3 [t[2], t[3]) — relativo à curva.
+        let floor = t[2]
+        let ceil = t[3]
+        let span = ceil - floor
+        let offset = span / 2
+        let lv = ProfileLevel.from(points: floor + offset)
         XCTAssertEqual(lv.level, 3)
-        XCTAssertEqual(lv.pointsIntoLevel, 5)
-        XCTAssertEqual(lv.pointsForNext, 7)
-        XCTAssertEqual(lv.spanOfLevel, 12)
-        XCTAssertEqual(lv.progress, 5.0 / 12.0, accuracy: 0.0001)
+        XCTAssertEqual(lv.pointsIntoLevel, offset)
+        XCTAssertEqual(lv.pointsForNext, span - offset)
+        XCTAssertEqual(lv.spanOfLevel, span)
+        XCTAssertEqual(lv.progress, Double(offset) / Double(span), accuracy: 0.0001)
     }
 
     func testMaxLevelHasNoNext() {
@@ -58,6 +62,13 @@ final class ProfileLevelTests: XCTestCase {
         XCTAssertEqual(lv.level, t.count)
         XCTAssertTrue(lv.isMax)
         XCTAssertEqual(lv.progress, 1)
+    }
+
+    func testRegisteringFirstBikeStaysLevelOne() {
+        // Cadastrar a 1ª moto destrava no MÁXIMO marca (1) + categoria nível I (1)
+        // + clube de cilindrada (2) = 4 pts. Setup não é progresso: deve ficar no
+        // nível 1. Nível 2 exige USO (abastecer/rodar). Regra que o usuário pediu.
+        XCTAssertEqual(ProfileLevel.from(points: 4).level, 1)
     }
 
     func testCurveIsStrictlyIncreasing() {

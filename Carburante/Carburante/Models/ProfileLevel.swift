@@ -7,9 +7,10 @@
 //  Tipo PURO — sem UI, sem SwiftData — testável com valores. A UI lê isto p/
 //  desenhar o hexágono de nível + a barra ("N pontos para o próximo nível").
 //
-//  Curva ÍNGREME (decisão 2026-06-28): níveis 1-2 fáceis (cadastrar moto +
-//  primeiros abastecimentos engajam), níveis altos exigem coleção quase completa
-//  de medalhas / frota diversa. Subir de nível é conquista real, não inflação.
+//  Curva ÍNGREME: cadastrar a 1ª moto (marca + categoria + cilindrada = até 4 pts)
+//  NÃO deve subir de nível — cadastro é setup, não progresso. Nível 1 cobre todo o
+//  setup (0-4 pts); nível 2 exige USO (abastecer/rodar). Níveis altos exigem coleção
+//  quase completa de medalhas / frota diversa. Subir é conquista real, não inflação.
 //
 
 import Foundation
@@ -40,7 +41,7 @@ struct ProfileLevel: Equatable {
     /// Limiares cumulativos de pontos. Índice = (nível − 1); `thresholds[0] == 0`
     /// é o piso do nível 1. Curva crescente e íngreme. Último valor = piso do
     /// nível máximo (a partir dele não há próximo). Constante editável.
-    static let thresholds: [Int] = [0, 3, 10, 22, 40, 65, 100, 150, 220, 320]
+    static let thresholds: [Int] = [0, 5, 12, 22, 40, 65, 100, 150, 220, 320]
 
     /// Mapeia um total de pontos para o nível + progresso. Clampa em 0.
     static func from(points: Int) -> ProfileLevel {
