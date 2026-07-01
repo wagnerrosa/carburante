@@ -44,6 +44,11 @@ struct FuelLogDTO: Codable {
     let ocr_confidence: Double?
     let date_was_edited: Bool
     let location_was_edited: Bool
+    // Soft Revision (Fase 1). `deleted_at` propaga a exclusão lógica; `updated_at`
+    // é a base do last-write-wins no pull.
+    let updated_at: Date
+    let revision: Int
+    let deleted_at: Date?
 }
 
 struct MaintenanceLogDTO: Codable {
@@ -61,6 +66,10 @@ struct MaintenanceLogDTO: Codable {
     /// Posição do pneu (rawValue de `TirePosition`) — só p/ logs de pneu; nil no
     /// resto e em registros antigos.
     let tire_position: String?
+    // Soft Revision (Fase 1) — mesma tripla do FuelLogDTO.
+    let updated_at: Date
+    let revision: Int
+    let deleted_at: Date?
 }
 
 struct BadgeAwardDTO: Codable {

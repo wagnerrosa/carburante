@@ -63,6 +63,20 @@ final class FuelLog {
     var dateWasEdited: Bool = false
     var locationWasEdited: Bool = false
 
+    // Soft Revision (Fase 1 — ver PLAN/metadados-auditoria.md). Infra mínima de
+    // auditoria/sync, invisível ao usuário. Defaults → migração leve.
+    /// Última alteração da linha. Fonte de verdade da reconciliação de sync
+    /// (last-write-wins): no pull, a linha remota só sobrescreve a local se o
+    /// `updatedAt` remoto for mais novo. Setado no criar e a cada editar.
+    var updatedAt: Date = Date()
+    /// Contador de edições (0 = nunca alterado após criar). Incrementa a cada
+    /// edição. Trilha barata — não guarda o QUE mudou (isso é Fase 2).
+    var revision: Int = 0
+    /// Exclusão lógica: nil = vivo; não-nil = apagado pelo usuário. Some da UI
+    /// (leituras usam `Motorcycle.activeFuelLogs`), mas fica no banco e propaga
+    /// o delete a outros devices via sync. `nil` no store antigo → tudo vivo.
+    var deletedAt: Date?
+
     var createdAt: Date
 
     /// Relação inversa: cada abastecimento pertence a uma moto.
@@ -88,6 +102,25 @@ final class FuelLog {
         self.motorcycle = motorcycle
         self.ocrProcessed = ocrProcessed
         self.createdAt = createdAt
+        self.updatedAt = createdAt
+    }
+}
+
+extension FuelLog {
+    /// Marca a linha como editada: incrementa `revision` e carimba `updatedAt`.
+    /// Chamar ao salvar uma edição (não na criação — nasce revision 0).
+    func markUpdated(now: Date = Date()) {
+        revision += 1
+        updatedAt = now
+    }
+
+    /// Exclusão lógica: carimba `deletedAt`/`updatedAt` em vez de remover a linha.
+    /// A leitura some (via `Motorcycle.activeFuelLogs`) mas o sync propaga o
+    /// delete. Idempotente — não re-carimba se já deletado.
+    func softDelete(now: Date = Date()) {
+        guard deletedAt == nil else { return }
+        deletedAt = now
+        updatedAt = now
     }
 }
 

@@ -22,7 +22,7 @@ struct ConsumptionChartView: View {
 
     /// Segmentos full-to-full, mais antigo → mais novo.
     private var allSegments: [ConsumptionSegment] {
-        ConsumptionCalculator.segments(from: motorcycle.fuelLogs.map(\.asFuelEntry))
+        ConsumptionCalculator.segments(from: motorcycle.activeFuelLogs.map(\.asFuelEntry))
             .sorted { $0.endDate < $1.endDate }
     }
 

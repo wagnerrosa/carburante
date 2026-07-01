@@ -91,7 +91,7 @@ struct FuelEntryFlowView: View {
     // MARK: - Derivados
 
     private var lastOdometer: Double {
-        max(motorcycle.fuelLogs.map(\.odometer).max() ?? 0, motorcycle.currentOdometer)
+        max(motorcycle.activeFuelLogs.map(\.odometer).max() ?? 0, motorcycle.currentOdometer)
     }
 
     private var odometerFloor: Double? {
@@ -449,7 +449,7 @@ struct FuelEntryFlowView: View {
     @ViewBuilder
     private var fullToFullExplainer: some View {
         // Quantos cheios salvos já existem, mais este se for cheio.
-        let savedFullTanks = motorcycle.fuelLogs.filter(\.isFullTank).count
+        let savedFullTanks = motorcycle.activeFuelLogs.filter(\.isFullTank).count
         let afterThisSave = savedFullTanks + (isFullTank ? 1 : 0)
         // Faltam quantos para 2? (máximo 2, mínimo 0).
         let remaining = max(2 - afterThisSave, 0)
@@ -733,14 +733,14 @@ struct FuelEntryFlowView: View {
         // Analytics — fuel_created: o evento ★ do MVP. Valores sensíveis vão em
         // bucket (litros/custo); GPS só como booleano has_location; sem odômetro,
         // sem data. log_number = recorrência (coração da meta >3).
-        let fullTanks = motorcycle.fuelLogs.filter(\.isFullTank).count
+        let fullTanks = motorcycle.activeFuelLogs.filter(\.isFullTank).count
         let ocrOutcome: Analytics.OCROutcome = ocrProcessed ? (ocrFieldEdited ? .edited : .accepted) : .notUsed
         Analytics.fuelCreated(
             fuelType: fuelType,
             isFullTank: isFullTank,
             ocrOutcome: ocrOutcome,
             hasLocation: location?.latitude != nil,
-            logNumber: motorcycle.fuelLogs.count,
+            logNumber: motorcycle.activeFuelLogs.count,
             liters: lit,
             cost: c,
             // Este registro destrava a 1ª leitura de consumo se fecha o 2º cheio.
@@ -756,7 +756,7 @@ struct FuelEntryFlowView: View {
         Task { await SyncService.shared.pushAll(from: ctx) }
         // Reagenda os lembretes de ausência a partir do abastecimento mais
         // recente (a data é Sendable; calculada aqui no main actor).
-        let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
+        let lastFuelDate = motorcycle.activeFuelLogs.map(\.date).max()
         let statuses = motorcycle.maintenanceStatuses()
         Analytics.evaluateOilOverdue(statuses: statuses, bikeID: motorcycle.id)
         Task {

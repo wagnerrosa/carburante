@@ -16,14 +16,14 @@ struct FuelLogListView: View {
     @State private var showingAdd = false
 
     private var logs: [FuelLog] {
-        motorcycle.fuelLogs.sorted { $0.date > $1.date }
+        motorcycle.activeFuelLogs.sorted { $0.date > $1.date }
     }
 
     /// km/l por abastecimento que FECHA um segmento full-to-full, casado por
     /// odômetro. Logs sem medição (1º cheio, parcial) não entram → sem pílula.
     private var kmPerLiterByOdometer: [Double: Double] {
         Dictionary(
-            ConsumptionCalculator.segments(from: motorcycle.fuelLogs.map(\.asFuelEntry))
+            ConsumptionCalculator.segments(from: motorcycle.activeFuelLogs.map(\.asFuelEntry))
                 .map { ($0.endOdometer, $0.kmPerLiter) },
             uniquingKeysWith: { _, new in new }
         )
@@ -87,20 +87,21 @@ struct FuelLogListView: View {
     private func delete(_ offsets: IndexSet) {
         // `logs` está ordenado por data desc → índice 0 é o mais recente.
         let deletedMostRecent = offsets.contains(0)
+        // Exclusão LÓGICA (Soft Revision): carimba `deletedAt` em vez de remover.
+        // A leitura some (logs usa `activeFuelLogs`) e o sync propaga o delete a
+        // outros devices — antes um delete físico só sumia local, nunca cruzava.
         for index in offsets {
-            modelContext.delete(logs[index])
+            logs[index].softDelete()
         }
         Analytics.fuelDeleted(wasMostRecent: deletedMostRecent)
-        // Persiste a exclusão primeiro para o array `fuelLogs` já excluir os
-        // registros apagados, então reconcilia o hodômetro (excluir o mais
-        // recente cai para o próximo maior, ou para o baseline — nunca zera).
-        try? modelContext.save()
+        // Reconcilia o hodômetro: `activeFuelLogs` já exclui os soft-deletados,
+        // então excluir o mais recente cai para o próximo maior (ou baseline).
         motorcycle.reconcileOdometer()
         try? modelContext.save()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
         // Excluir muda o "último abastecimento" e o km → recalcula os lembretes.
-        let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
+        let lastFuelDate = motorcycle.activeFuelLogs.map(\.date).max()
         let statuses = motorcycle.maintenanceStatuses()
         Analytics.evaluateOilOverdue(statuses: statuses, bikeID: motorcycle.id)
         Task {

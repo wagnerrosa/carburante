@@ -46,13 +46,13 @@ struct MotorcycleProfileView: View {
                     FuelLogListView(motorcycle: motorcycle)
                 } label: {
                     navRow(icon: "list.bullet",
-                           title: "Abastecimentos", count: motorcycle.fuelLogs.count)
+                           title: "Abastecimentos", count: motorcycle.activeFuelLogs.count)
                 }
                 NavigationLink {
                     MaintenanceListView(motorcycle: motorcycle)
                 } label: {
                     navRow(icon: "wrench.and.screwdriver.fill",
-                           title: "Manutenções", count: motorcycle.maintenanceLogs.count)
+                           title: "Manutenções", count: motorcycle.activeMaintenanceLogs.count)
                 }
             }
         }

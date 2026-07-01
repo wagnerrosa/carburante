@@ -79,6 +79,21 @@ extension Motorcycle {
         "\(make) \(model) (\(year))"
     }
 
+    // MARK: - Eventos vivos (Soft Revision — Fase 1)
+
+    /// Abastecimentos NÃO deletados logicamente. Fonte única para toda leitura
+    /// de negócio (consumo, totais, histórico, hodômetro, badges) — um log
+    /// soft-deletado deixa de existir para o usuário. O array cru `fuelLogs`
+    /// (com deletados) só é usado pelo sync, que precisa propagar o delete.
+    var activeFuelLogs: [FuelLog] {
+        fuelLogs.filter { $0.deletedAt == nil }
+    }
+
+    /// Manutenções NÃO deletadas logicamente. Mesma regra de `activeFuelLogs`.
+    var activeMaintenanceLogs: [MaintenanceLog] {
+        maintenanceLogs.filter { $0.deletedAt == nil }
+    }
+
     /// Categoria tipada. Getter tolerante (valor desconhecido → `.other`),
     /// setter grava o rawValue. Mesmo padrão de `FuelLog.fuelType`.
     var categoryEnum: MotorcycleCategory? {
@@ -96,7 +111,9 @@ extension Motorcycle {
     /// maior — ou para o `odometerBaseline` se não houver mais abastecimentos,
     /// nunca para zero (corrige o bug do hodômetro preso após exclusão).
     func reconcileOdometer(latestEntry: Double = 0) {
-        let logsMax = fuelLogs.map(\.odometer).max() ?? 0
+        // Só abastecimentos vivos: soft-deletar o mais recente recua o hodômetro
+        // para o próximo maior (ou o baseline), igual ao delete físico antigo.
+        let logsMax = activeFuelLogs.map(\.odometer).max() ?? 0
         // Migração preguiçosa: motos gravadas antes deste campo têm
         // `odometerBaseline == 0`. Se o hodômetro atual excede tudo que os
         // abastecimentos explicam, esse excedente veio de uma leitura manual —

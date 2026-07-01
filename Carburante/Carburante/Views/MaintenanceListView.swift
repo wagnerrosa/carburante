@@ -26,7 +26,7 @@ struct MaintenanceListView: View {
     /// de 5 itens é 1 linha, não 6. Os filhos seguem existindo (sincronizam,
     /// reiniciam contadores); aqui é só apresentação.
     private var logs: [MaintenanceLog] {
-        motorcycle.maintenanceLogs
+        motorcycle.activeMaintenanceLogs
             .filter { !$0.isPartOfRevisao }
             .sorted { $0.date > $1.date }
     }
@@ -155,15 +155,20 @@ struct MaintenanceListView: View {
     }
 
     private func performDelete(_ logs: [MaintenanceLog]) {
-        // Captura tipo/revisão ANTES de deletar (depois o objeto some).
+        // Captura tipo/revisão ANTES de deletar (depois some da leitura).
         let analytics = logs.map { (type: $0.type, wasRevisao: $0.type == .revisao) }
         for log in logs {
-            // Cascata: excluir uma revisão remove seus itens (ligados por UUID,
-            // sem cascade automático do SwiftData).
-            for child in log.children { modelContext.delete(child) }
-            modelContext.delete(log)
+            // Exclusão LÓGICA por ação do usuário (Soft Revision). Cascata:
+            // excluir uma revisão soft-deleta seus itens (ligados por UUID, sem
+            // cascade automático do SwiftData). `children` já filtra deletados.
+            for child in log.children { child.softDelete() }
+            log.softDelete()
         }
         try? modelContext.save()
+        // Delete agora SINCRONIZA (antes só o notify rodava; o delete físico não
+        // propagava). Push manda a linha com `deletedAt` → cruza pros devices.
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
         for a in analytics {
             Analytics.maintenanceDeleted(type: a.type, wasRevisao: a.wasRevisao)
         }

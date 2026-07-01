@@ -170,7 +170,7 @@ struct DashboardView: View {
         let statuses = moto.maintenanceStatuses()
         // Segmentos full-to-full, mais antigo → mais novo (para o mini-gráfico do card).
         let segments = ConsumptionCalculator
-            .segments(from: moto.fuelLogs.map(\.asFuelEntry))
+            .segments(from: moto.activeFuelLogs.map(\.asFuelEntry))
             .sorted { $0.endDate < $1.endDate }
 
         let reference = moto.categoryReferenceKmPerLiter
@@ -238,8 +238,8 @@ struct DashboardView: View {
         guard let moto = motorcycle else { return }
         ActivationTracker.sync(
             bikeID: moto.id,
-            fuel: !moto.fuelLogs.isEmpty,
-            maintenance: !moto.maintenanceLogs.isEmpty,
+            fuel: !moto.activeFuelLogs.isEmpty,
+            maintenance: !moto.activeMaintenanceLogs.isEmpty,
             consumption: moto.consumptionSummary.segmentCount > 0
         )
         let remaining = moto.fullTanksUntilConsumption
@@ -257,8 +257,8 @@ struct DashboardView: View {
     private func activationSteps(for moto: Motorcycle) -> [ActivationStep]? {
         guard !dismissedChecklistIDs.contains(moto.id.uuidString) else { return nil }
 
-        let hasFuel = !moto.fuelLogs.isEmpty
-        let hasMaintenance = !moto.maintenanceLogs.isEmpty
+        let hasFuel = !moto.activeFuelLogs.isEmpty
+        let hasMaintenance = !moto.activeMaintenanceLogs.isEmpty
         let hasConsumption = moto.consumptionSummary.segmentCount > 0
 
         // 1ª moto cadastrada = a mais antiga (query ordena createdAt desc → last).

@@ -62,6 +62,16 @@ create table if not exists public.fuel_logs (
     -- marca se o usuário alterou manualmente a data ou o local auto-capturado.
     date_was_edited     boolean not null default false,
     location_was_edited boolean not null default false,
+    -- Soft Revision (Fase 1 — ver PLAN/metadados-auditoria.md). Infra mínima de
+    -- auditoria/sync, invisível ao usuário:
+    --   updated_at → base do last-write-wins no pull (reconcilia edição/exclusão
+    --                da mesma linha em dois devices);
+    --   revision   → contador de edições (0 = nunca alterado);
+    --   deleted_at → exclusão LÓGICA (linha some da UI mas persiste e propaga
+    --                o delete a outros devices; nunca purgada no MVP).
+    updated_at        timestamptz not null default now(),
+    revision          integer not null default 0,
+    deleted_at        timestamptz,
     created_at        timestamptz not null default now()
 );
 
@@ -69,6 +79,13 @@ create table if not exists public.fuel_logs (
 alter table public.fuel_logs add column if not exists odometer_photo_url text;
 alter table public.fuel_logs add column if not exists date_was_edited boolean not null default false;
 alter table public.fuel_logs add column if not exists location_was_edited boolean not null default false;
+alter table public.fuel_logs add column if not exists updated_at timestamptz not null default now();
+alter table public.fuel_logs add column if not exists revision integer not null default 0;
+alter table public.fuel_logs add column if not exists deleted_at timestamptz;
+-- Backfill: linhas antigas nunca foram "atualizadas" → updated_at = created_at
+-- (o default now() da migração colocaria a data da migração, não a real).
+update public.fuel_logs set updated_at = created_at where updated_at > created_at;
+create index if not exists fuel_logs_deleted_at_idx on public.fuel_logs (deleted_at);
 create index if not exists fuel_logs_user_id_idx on public.fuel_logs (user_id);
 create index if not exists fuel_logs_motorcycle_id_idx on public.fuel_logs (motorcycle_id);
 
@@ -87,6 +104,10 @@ create table if not exists public.maintenance_logs (
     interval_km            double precision,
     interval_months        integer,
     part_of_maintenance_id uuid,
+    -- Soft Revision (Fase 1) — mesma tripla do fuel_logs.
+    updated_at     timestamptz not null default now(),
+    revision       integer not null default 0,
+    deleted_at     timestamptz,
     created_at     timestamptz not null default now()
 );
 alter table public.maintenance_logs add column if not exists oil_change_interval_km double precision;
@@ -99,6 +120,12 @@ alter table public.maintenance_logs add column if not exists part_of_maintenance
 -- Posição do pneu (dianteiro/traseiro): contadores independentes por eixo.
 -- Nulo em não-pneus e em registros de pneu antigos.
 alter table public.maintenance_logs add column if not exists tire_position text;
+-- Soft Revision (Fase 1): colunas aditivas + backfill de updated_at.
+alter table public.maintenance_logs add column if not exists updated_at timestamptz not null default now();
+alter table public.maintenance_logs add column if not exists revision integer not null default 0;
+alter table public.maintenance_logs add column if not exists deleted_at timestamptz;
+update public.maintenance_logs set updated_at = created_at where updated_at > created_at;
+create index if not exists maintenance_logs_deleted_at_idx on public.maintenance_logs (deleted_at);
 -- Backfill guardado: só roda se a coluna legada existir (ambientes que nunca
 -- aplicaram a feature de intervalo de óleo não têm `oil_change_interval_km`).
 do $$

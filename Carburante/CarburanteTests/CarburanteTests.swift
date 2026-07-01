@@ -1231,4 +1231,129 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(fleet.fleetFuelLogCount, 0)
         XCTAssertEqual(fleet.fleetTotalCostEver, 0)
     }
+
+    // MARK: - Soft Revision (Fase 1 — updated_at / revision / deleted_at)
+
+    /// Criar não incrementa revisão; updatedAt = createdAt.
+    func testSoftRevision_createStartsAtZero() {
+        let created = DateComponents(calendar: .current, year: 2026, month: 1, day: 1).date!
+        let log = FuelLog(odometer: 100, liters: 10, totalCost: 60,
+                          fuelType: .gasolinaComum, createdAt: created)
+        XCTAssertEqual(log.revision, 0)
+        XCTAssertNil(log.deletedAt)
+        XCTAssertEqual(log.updatedAt, created, "updatedAt nasce igual a createdAt")
+    }
+
+    /// markUpdated incrementa revisão e avança updatedAt.
+    func testSoftRevision_editBumpsRevisionAndTimestamp() {
+        let created = DateComponents(calendar: .current, year: 2026, month: 1, day: 1).date!
+        let log = FuelLog(odometer: 100, liters: 10, totalCost: 60,
+                          fuelType: .gasolinaComum, createdAt: created)
+        let editAt = created.addingTimeInterval(3600)
+        log.markUpdated(now: editAt)
+        XCTAssertEqual(log.revision, 1)
+        XCTAssertEqual(log.updatedAt, editAt)
+        log.markUpdated(now: editAt.addingTimeInterval(60))
+        XCTAssertEqual(log.revision, 2)
+    }
+
+    /// softDelete carimba deletedAt e updatedAt; é idempotente.
+    func testSoftRevision_softDeleteIsIdempotent() {
+        let log = FuelLog(odometer: 100, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        let at = DateComponents(calendar: .current, year: 2026, month: 2, day: 1).date!
+        log.softDelete(now: at)
+        XCTAssertEqual(log.deletedAt, at)
+        XCTAssertEqual(log.updatedAt, at)
+        // Segunda chamada não re-carimba (não sobrescreve deletedAt).
+        log.softDelete(now: at.addingTimeInterval(9999))
+        XCTAssertEqual(log.deletedAt, at, "idempotente — mantém o 1º carimbo")
+    }
+
+    /// activeFuelLogs exclui os soft-deletados; fuelLogs cru os mantém.
+    func testActiveFuelLogs_excludesSoftDeleted() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
+        ctx.insert(moto)
+        let a = FuelLog(odometer: 100, liters: 10, totalCost: 60, fuelType: .gasolinaComum, motorcycle: moto)
+        let b = FuelLog(odometer: 400, liters: 10, totalCost: 60, fuelType: .gasolinaComum, motorcycle: moto)
+        ctx.insert(a); ctx.insert(b)
+        try ctx.save()
+        XCTAssertEqual(moto.activeFuelLogs.count, 2)
+
+        b.softDelete()
+        try ctx.save()
+        XCTAssertEqual(moto.activeFuelLogs.count, 1, "o deletado some da leitura")
+        XCTAssertEqual(moto.fuelLogs.count, 2, "mas persiste no array cru (p/ o sync)")
+        XCTAssertEqual(moto.activeFuelLogs.first?.odometer, 100)
+    }
+
+    /// Soft-deletar o abastecimento mais recente recua o hodômetro (como o
+    /// delete físico antigo) — reconcileOdometer usa activeFuelLogs.
+    func testSoftDelete_newestRecalculatesOdometer() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1500, 1800], in: ctx)
+        XCTAssertEqual(moto.currentOdometer, 1800)
+
+        let newest = moto.activeFuelLogs.max { $0.odometer < $1.odometer }!
+        newest.softDelete()
+        moto.reconcileOdometer()
+        try ctx.save()
+        XCTAssertEqual(moto.currentOdometer, 1500, "cai para o próximo maior VIVO")
+    }
+
+    /// Consumo ignora abastecimentos soft-deletados (usa activeFuelLogs).
+    func testConsumption_ignoresSoftDeleted() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
+        ctx.insert(moto)
+        // Dois cheios: 1000→1300 (300 km) com 20 L no 2º = 15 km/l.
+        let d1 = DateComponents(calendar: .current, year: 2026, month: 1, day: 1).date!
+        let d2 = DateComponents(calendar: .current, year: 2026, month: 1, day: 5).date!
+        let d3 = DateComponents(calendar: .current, year: 2026, month: 1, day: 9).date!
+        ctx.insert(FuelLog(date: d1, odometer: 1000, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto))
+        ctx.insert(FuelLog(date: d2, odometer: 1300, liters: 20, totalCost: 120, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto))
+        // Terceiro cheio (será deletado) — não deve entrar na média.
+        let bogus = FuelLog(date: d3, odometer: 9999, liters: 5, totalCost: 30, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto)
+        ctx.insert(bogus)
+        try ctx.save()
+
+        bogus.softDelete()
+        try ctx.save()
+        let avg = moto.consumptionSummary.averageKmPerLiter
+        XCTAssertEqual(avg ?? 0, 15, accuracy: 0.01, "300 km ÷ 20 L; o log deletado é ignorado")
+    }
+
+    /// children filtra filhos soft-deletados de uma Revisão Geral.
+    func testChildren_excludesSoftDeleted() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
+        ctx.insert(moto)
+        let parent = MaintenanceLog(mileage: 5000, type: .revisao, motorcycle: moto)
+        ctx.insert(parent)
+        let child1 = MaintenanceLog(mileage: 5000, type: .oleo, partOfMaintenanceID: parent.id, motorcycle: moto)
+        let child2 = MaintenanceLog(mileage: 5000, type: .filtros, partOfMaintenanceID: parent.id, motorcycle: moto)
+        ctx.insert(child1); ctx.insert(child2)
+        try ctx.save()
+        XCTAssertEqual(parent.children.count, 2)
+
+        child2.softDelete()
+        try ctx.save()
+        XCTAssertEqual(parent.children.count, 1, "filho deletado some")
+        XCTAssertEqual(parent.children.first?.type, .oleo)
+    }
+
+    /// Manutenção soft-deletada não conta para lastService / statuses.
+    func testMaintenanceSchedule_ignoresSoftDeleted() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil", currentOdometer: 6000)
+        ctx.insert(moto)
+        let oil = MaintenanceLog(mileage: 5000, type: .oleo, motorcycle: moto)
+        ctx.insert(oil)
+        try ctx.save()
+        XCTAssertNotNil(moto.lastService(of: .oleo))
+
+        oil.softDelete()
+        try ctx.save()
+        XCTAssertNil(moto.lastService(of: .oleo), "manutenção deletada não é a última")
+    }
 }
