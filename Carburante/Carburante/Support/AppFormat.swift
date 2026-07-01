@@ -12,7 +12,11 @@
 
 import Foundation
 
-enum AppFormat {
+// `nonisolated`: o projeto usa SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor, que
+// marcaria estes helpers como @MainActor. Como são formatação PURA (sem estado,
+// sem UI, thread-safe), liberá-los do ator evita warnings de "main actor-isolated
+// em contexto nonisolated" ao chamá-los de builders do Charts / closures síncronas.
+nonisolated enum AppFormat {
     /// Locale canônico do MVP. Fixo para garantir datas/números em pt-BR
     /// independente do idioma do dispositivo de teste.
     static let locale = Locale(identifier: "pt_BR")
