@@ -190,6 +190,21 @@ final class SyncService {
                 context.insert(award)
             }
 
+            // --- Propriedades (moto↔usuário; referência solta por UUID) ---
+            let remoteOwnerships: [MotorcycleOwnershipDTO] = try await client
+                .from("motorcycle_ownerships").select().execute().value
+            let localOwnershipIDs = Set(try context.fetch(FetchDescriptor<MotorcycleOwnership>()).map(\.id))
+            for dto in remoteOwnerships where !localOwnershipIDs.contains(dto.id) {
+                let ownership = MotorcycleOwnership(
+                    motorcycleID: dto.motorcycle_id, userID: dto.user_id,
+                    startedAt: dto.started_at, endedAt: dto.ended_at,
+                    createdAt: dto.created_at
+                )
+                ownership.id = dto.id
+                ownership.isActive = dto.is_active
+                context.insert(ownership)
+            }
+
             // Hodômetro pode ter avançado por dados puxados de outro device.
             for moto in motoByID.values { moto.reconcileOdometer() }
 
@@ -266,6 +281,28 @@ final class SyncService {
             }
             if !awardDTOs.isEmpty {
                 try await client.from("badge_awards").upsert(awardDTOs).execute()
+            }
+
+            // Propriedade (fonte de verdade de quem é o dono). Backfill primeiro:
+            // motos sem linha ativa (criadas antes desta feature, ou salvas sem
+            // sessão) ganham uma agora, atribuída à sessão atual — migração sem
+            // ação do usuário, idempotente. Depois faz upsert de todas.
+            if MotorcycleOwnership.backfillActive(for: motorcycles, userID: uid, in: context) {
+                // Persiste as linhas novas: sem salvar, o próximo push não as veria
+                // e criaria outras (UUIDs novos) → linhas ativas duplicadas no
+                // Postgres. Salvar mantém o backfill idempotente entre execuções.
+                try context.save()
+            }
+            let ownerships = try context.fetch(FetchDescriptor<MotorcycleOwnership>())
+            let ownershipDTOs = ownerships.map { o in
+                MotorcycleOwnershipDTO(
+                    id: o.id, motorcycle_id: o.motorcycleID, user_id: o.userID,
+                    started_at: o.startedAt, ended_at: o.endedAt,
+                    is_active: o.isActive, created_at: o.createdAt
+                )
+            }
+            if !ownershipDTOs.isEmpty {
+                try await client.from("motorcycle_ownerships").upsert(ownershipDTOs).execute()
             }
 
             lastError = nil

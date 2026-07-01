@@ -132,12 +132,35 @@ create table if not exists public.badge_awards (
 );
 create index if not exists badge_awards_user_id_idx on public.badge_awards (user_id);
 
+-- ---------- motorcycle_ownerships ----------
+-- Propriedade moto↔usuário modelada À PARTE da moto: a moto é a entidade
+-- permanente (`motorcycles.id` nunca muda), quem a possui (e quando) vive aqui.
+-- No MVP existe sempre 1 linha ativa (ended_at null) por moto, mas a estrutura
+-- já suporta troca de dono / histórico de proprietários sem remodelar (venda =
+-- fecha a linha ativa, abre outra). FONTE DE VERDADE de propriedade — a coluna
+-- legada `motorcycles.user_id` fica só por compat + performance de RLS.
+create table if not exists public.motorcycle_ownerships (
+    id             uuid primary key,
+    motorcycle_id  uuid not null references public.motorcycles (id) on delete cascade,
+    user_id        uuid not null references auth.users (id) on delete cascade,
+    started_at     timestamptz not null,
+    ended_at       timestamptz,
+    is_active      boolean not null default true,
+    created_at     timestamptz not null default now()
+);
+create index if not exists motorcycle_ownerships_motorcycle_id_idx on public.motorcycle_ownerships (motorcycle_id);
+create index if not exists motorcycle_ownerships_user_id_idx on public.motorcycle_ownerships (user_id);
+-- Busca rápida do dono ATUAL de uma moto (a linha ativa).
+create index if not exists motorcycle_ownerships_active_idx
+    on public.motorcycle_ownerships (motorcycle_id) where ended_at is null;
+
 -- ---------- RLS ----------
 alter table public.users            enable row level security;
 alter table public.motorcycles      enable row level security;
 alter table public.fuel_logs        enable row level security;
 alter table public.maintenance_logs enable row level security;
 alter table public.badge_awards     enable row level security;
+alter table public.motorcycle_ownerships enable row level security;
 
 -- users: dono lê/escreve só a própria linha (id = auth.uid()).
 create policy "users self access" on public.users
@@ -154,4 +177,9 @@ create policy "maintenance_logs owner" on public.maintenance_logs
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 create policy "badge_awards owner" on public.badge_awards
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Propriedade: dono filtra por user_id (mesmo one-liner das demais). Quando a
+-- transferência chegar, revisitar p/ ex-dono LER (não mutar) a moto vendida.
+create policy "motorcycle_ownerships owner" on public.motorcycle_ownerships
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

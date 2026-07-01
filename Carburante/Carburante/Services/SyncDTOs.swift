@@ -69,3 +69,15 @@ struct BadgeAwardDTO: Codable {
     let badge_id: String
     let earned_at: Date
 }
+
+/// Propriedade moto↔usuário (fonte de verdade de quem é o dono). `ended_at` nulo
+/// = linha ativa (dono atual). Ver `MotorcycleOwnership`.
+struct MotorcycleOwnershipDTO: Codable {
+    let id: UUID
+    let motorcycle_id: UUID
+    let user_id: UUID
+    let started_at: Date
+    let ended_at: Date?
+    let is_active: Bool
+    let created_at: Date
+}
