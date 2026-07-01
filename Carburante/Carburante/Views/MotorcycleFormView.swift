@@ -243,6 +243,15 @@ struct MotorcycleFormView: View {
             )
             modelContext.insert(new)
             savedMoto = new
+            // Propriedade = entidade à parte (MotorcycleOwnership é a fonte de
+            // verdade de quem é o dono). Abre a linha ATIVA para a sessão atual.
+            // Sem sessão ainda (corrida de 1º launch antes do anon), pula — o
+            // backfill do sync cria depois. Insert silencioso, zero mudança de UX.
+            if let uid = SyncService.shared.userID {
+                modelContext.insert(
+                    MotorcycleOwnership(motorcycleID: new.id, userID: uid, startedAt: new.createdAt)
+                )
+            }
         }
 
         do {
