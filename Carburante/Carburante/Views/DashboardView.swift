@@ -164,7 +164,9 @@ struct DashboardView: View {
         }
     }
 
-    @ViewBuilder
+    // Sem @ViewBuilder: o corpo tem `let`s no topo e retorna um único ScrollView
+    // (return explícito). O builder aqui só gerava warning sem ganho — um único
+    // valor de retorno não precisa dele.
     private func dashboard(for moto: Motorcycle) -> some View {
         let summary = moto.consumptionSummary
         let statuses = moto.maintenanceStatuses()

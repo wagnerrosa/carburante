@@ -405,14 +405,14 @@ struct BadgeImageTile: View {
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.orange)
                             .frame(width: 18, height: 18)
-                            .glassEffect(.regular.tint(.orange.opacity(0.25)), in: .circle)
+                            .compatGlass(tint: .orange.opacity(0.25), in: Circle())
                             .overlay(Circle().stroke(.orange.opacity(0.4), lineWidth: 1))
                     } else if !unlocked {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(.secondary)
                             .frame(width: 18, height: 18)
-                            .glassEffect(.regular, in: .circle)
+                            .compatGlass(in: Circle())
                     } else if showLevelBadge {
                         // Número do nível sobre vidro (Liquid Glass).
                         Text("\(level)")
@@ -420,7 +420,7 @@ struct BadgeImageTile: View {
                             .monospacedDigit()
                             .foregroundStyle(.tint)
                             .frame(width: 18, height: 18)
-                            .glassEffect(.regular, in: .circle)
+                            .compatGlass(in: Circle())
                             .overlay(Circle().stroke(.tint.opacity(0.5), lineWidth: 1))
                     }
                 }
@@ -680,6 +680,28 @@ extension MaintenanceType {
         case .freios: .red
         case .revisao: .purple
         case .outro: .gray
+        }
+    }
+}
+
+extension View {
+    /// Aplica o Liquid Glass (iOS 26) quando disponível; no iOS 18 cai num
+    /// material translúcido nativo (`.ultraThinMaterial`) recortado no mesmo
+    /// shape — visual próximo do vidro, sem a API iOS 26. Mantém o app moderno
+    /// no 26 e funcional no 18. `tint` opcional pinta o vidro (selo "em breve").
+    @ViewBuilder
+    func compatGlass(tint: Color? = nil, in shape: some Shape) -> some View {
+        if #available(iOS 26.0, *) {
+            if let tint {
+                glassEffect(.regular.tint(tint), in: shape)
+            } else {
+                glassEffect(.regular, in: shape)
+            }
+        } else {
+            background {
+                shape.fill(.ultraThinMaterial)
+                if let tint { shape.fill(tint) }
+            }
         }
     }
 }

@@ -255,10 +255,13 @@ enum MaintenanceReminder {
     /// na migração para não deixar notificação órfã.
     static let legacyOilPrefix = "oil-change-"
     static let preWarningDays = 7
-    static let approachingProgress = 0.8
+    nonisolated static let approachingProgress = 0.8
 
     /// Item "em atenção" = vencido ou ≥80% do intervalo (por qualquer eixo).
-    static func isAttention(_ status: MaintenanceStatus) -> Bool {
+    /// `nonisolated`: lógica pura (sem estado/UI), chamada de contextos síncronos
+    /// nonisolated (Charts/closures); evita warning de main-actor sob o
+    /// SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor do projeto.
+    nonisolated static func isAttention(_ status: MaintenanceStatus) -> Bool {
         status.isOverdue || status.progress >= approachingProgress
     }
 

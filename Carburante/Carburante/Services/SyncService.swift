@@ -69,10 +69,12 @@ final class SyncService {
 
     /// Roda `operation` com um teto de tempo. Retorna true se completou dentro do
     /// prazo, false se estourou (a operação é cancelada). Genérico e sem valor de
-    /// retorno — as etapas de sync já gravam o resultado em `lastError`.
-    private func withTimeout(_ timeout: Duration, operation: @escaping @Sendable () async -> Void) async -> Bool {
+    /// retorno — as etapas de sync já gravam o resultado em `lastError`. Tudo
+    /// isolado no MainActor (o serviço é @MainActor), então o `ModelContext`
+    /// capturado não cruza fronteira de ator — sem @Sendable no closure.
+    private func withTimeout(_ timeout: Duration, operation: @escaping () async -> Void) async -> Bool {
         await withTaskGroup(of: Bool.self) { group in
-            group.addTask { await operation(); return true }
+            group.addTask { @MainActor in await operation(); return true }
             group.addTask {
                 try? await Task.sleep(for: timeout)
                 return false

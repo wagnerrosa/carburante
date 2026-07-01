@@ -12,7 +12,7 @@ import PostHog
 @main
 struct CarburanteApp: App {
     init() {
-        let config = PostHogConfig(apiKey: PostHogSettings.apiKey, host: PostHogSettings.host)
+        let config = PostHogConfig(projectToken: PostHogSettings.apiKey, host: PostHogSettings.host)
         // Privacy: só navegação entre telas. Sem captura de taps/labels
         // individuais (app tem GPS/gastos/hodômetro — labels podem vazar dado
         // sensível). Session replay fica OFF (default).
