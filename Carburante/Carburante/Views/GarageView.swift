@@ -351,8 +351,8 @@ struct GarageView: View {
 
     private var deletionPrompt: String {
         guard let moto = pendingDeletion else { return "" }
-        let fuel = moto.fuelLogs.count
-        let maint = moto.maintenanceLogs.count
+        let fuel = moto.activeFuelLogs.count
+        let maint = moto.activeMaintenanceLogs.count
         var parts: [String] = []
         if fuel > 0 { parts.append("\(fuel) abastecimento\(fuel == 1 ? "" : "s")") }
         if maint > 0 { parts.append("\(maint) manutenç\(maint == 1 ? "ão" : "ões")") }
@@ -365,8 +365,8 @@ struct GarageView: View {
 
     private func confirmDelete() {
         guard let moto = pendingDeletion else { return }
-        let hadLogs = !moto.fuelLogs.isEmpty
-        let count = moto.fuelLogs.count
+        let hadLogs = !moto.activeFuelLogs.isEmpty
+        let count = moto.activeFuelLogs.count
         modelContext.delete(moto)
         try? modelContext.save()
         Haptics.warning()

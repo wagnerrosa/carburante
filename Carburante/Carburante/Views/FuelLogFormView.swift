@@ -51,12 +51,12 @@ struct FuelLogFormView: View {
 
     /// É o primeiro abastecimento da moto (ignorando o próprio log em edição)?
     private var isFirstFuelUp: Bool {
-        motorcycle.fuelLogs.allSatisfy { $0.persistentModelID == fuelLog?.persistentModelID }
+        motorcycle.activeFuelLogs.allSatisfy { $0.persistentModelID == fuelLog?.persistentModelID }
     }
 
     /// Maior hodômetro registrado p/ a moto, ignorando o próprio log em edição.
     private var lastOdometer: Double {
-        let logsMax = motorcycle.fuelLogs
+        let logsMax = motorcycle.activeFuelLogs
             .filter { $0.persistentModelID != fuelLog?.persistentModelID }
             .map(\.odometer).max() ?? 0
         return max(logsMax, motorcycle.currentOdometer)
@@ -395,6 +395,9 @@ struct FuelLogFormView: View {
                 log.ocrProcessed = true
                 log.ocrConfidence = ocrConfidence
             }
+            // Soft Revision: registra que a linha mudou (revision++ / updatedAt).
+            // updatedAt é a base do last-write-wins no sync.
+            log.markUpdated()
             if !changed.isEmpty {
                 Analytics.fuelUpdated(fieldsChanged: changed, wasOcrFilled: wasOcr,
                                       timeSinceCreate: timeSinceCreate)
@@ -432,7 +435,7 @@ struct FuelLogFormView: View {
         Haptics.success()
         let ctx = modelContext
         Task { await SyncService.shared.pushAll(from: ctx) }
-        let lastFuelDate = motorcycle.fuelLogs.map(\.date).max()
+        let lastFuelDate = motorcycle.activeFuelLogs.map(\.date).max()
         let statuses = motorcycle.maintenanceStatuses()
         Task {
             await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)

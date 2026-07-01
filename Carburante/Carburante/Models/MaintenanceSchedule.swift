@@ -151,7 +151,7 @@ extension Motorcycle {
     /// filtra pelo eixo (dianteiro/traseiro têm contadores próprios). Passar
     /// `position: nil` num pneu casa registros antigos sem posição.
     func lastService(of type: MaintenanceType, position: TirePosition? = nil) -> MaintenanceLog? {
-        maintenanceLogs
+        activeMaintenanceLogs
             .filter { $0.type == type && (type != .pneus || $0.tirePosition == position) }
             .max { $0.date < $1.date }
     }
@@ -219,7 +219,7 @@ extension Motorcycle {
     /// posição). `nil` entra só se houver algum pneu antigo sem posição, para
     /// não perder o contador desse registro na migração.
     private var tirePositionsInUse: [TirePosition?] {
-        let logged = Set(maintenanceLogs.filter { $0.type == .pneus }.map(\.tirePosition))
+        let logged = Set(activeMaintenanceLogs.filter { $0.type == .pneus }.map(\.tirePosition))
         var positions: [TirePosition?] = TirePosition.allCases.filter { logged.contains($0) }
         if logged.contains(nil) { positions.append(nil) }
         return positions

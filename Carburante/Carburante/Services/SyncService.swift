@@ -140,8 +140,19 @@ final class SyncService {
             // --- Abastecimentos ---
             let remoteFuel: [FuelLogDTO] = try await client
                 .from("fuel_logs").select().execute().value
-            let localFuelIDs = Set(try context.fetch(FetchDescriptor<FuelLog>()).map(\.id))
-            for dto in remoteFuel where !localFuelIDs.contains(dto.id) {
+            let localFuel = try context.fetch(FetchDescriptor<FuelLog>())
+            let fuelByID = Dictionary(uniqueKeysWithValues: localFuel.map { ($0.id, $0) })
+            for dto in remoteFuel {
+                if let existing = fuelByID[dto.id] {
+                    // Linha já existe local → last-write-wins por `updated_at`:
+                    // só a versão remota MAIS NOVA sobrescreve (resolve o gap de
+                    // edição/exclusão da mesma linha em dois devices). Empate ou
+                    // local mais novo → mantém local (o push envia o local depois).
+                    if dto.updated_at > existing.updatedAt {
+                        applyFuel(dto, to: existing)
+                    }
+                    continue
+                }
                 guard let moto = motoByID[dto.motorcycle_id] else { continue }
                 let log = FuelLog(
                     date: dto.date, odometer: dto.odometer, liters: dto.liters,
@@ -151,22 +162,24 @@ final class SyncService {
                     ocrProcessed: dto.ocr_processed
                 )
                 log.id = dto.id
-                log.latitude = dto.latitude; log.longitude = dto.longitude
-                log.city = dto.city; log.state = dto.state; log.country = dto.country
-                log.temperatureC = dto.temperature_c
-                log.receiptImageURL = dto.receipt_image_url
-                log.odometerPhotoURL = dto.odometer_photo_url
-                log.ocrConfidence = dto.ocr_confidence
-                log.dateWasEdited = dto.date_was_edited
-                log.locationWasEdited = dto.location_was_edited
+                log.motorcycle = moto
+                applyFuel(dto, to: log)
                 context.insert(log)
             }
 
             // --- Manutenções ---
             let remoteMaint: [MaintenanceLogDTO] = try await client
                 .from("maintenance_logs").select().execute().value
-            let localMaintIDs = Set(try context.fetch(FetchDescriptor<MaintenanceLog>()).map(\.id))
-            for dto in remoteMaint where !localMaintIDs.contains(dto.id) {
+            let localMaint = try context.fetch(FetchDescriptor<MaintenanceLog>())
+            let maintByID = Dictionary(uniqueKeysWithValues: localMaint.map { ($0.id, $0) })
+            for dto in remoteMaint {
+                if let existing = maintByID[dto.id] {
+                    // Last-write-wins por `updated_at` (idem abastecimentos).
+                    if dto.updated_at > existing.updatedAt {
+                        applyMaint(dto, to: existing)
+                    }
+                    continue
+                }
                 guard let moto = motoByID[dto.motorcycle_id] else { continue }
                 let log = MaintenanceLog(
                     date: dto.date, mileage: dto.mileage, cost: dto.cost,
@@ -178,6 +191,7 @@ final class SyncService {
                     motorcycle: moto
                 )
                 log.id = dto.id
+                applyMaint(dto, to: log)
                 context.insert(log)
             }
 
@@ -216,6 +230,46 @@ final class SyncService {
         }
     }
 
+    /// Aplica os campos de um `FuelLogDTO` a um `FuelLog` (novo ou já existente).
+    /// Usado no pull tanto para inserir quanto para o last-write-wins (sobrescrita
+    /// da linha local quando a remota é mais nova). Não mexe em `id`/`motorcycle`.
+    private func applyFuel(_ dto: FuelLogDTO, to log: FuelLog) {
+        log.date = dto.date
+        log.odometer = dto.odometer
+        log.liters = dto.liters
+        log.totalCost = dto.total_cost
+        log.fuelType = FuelType(rawValue: dto.fuel_type) ?? .gasolinaComum
+        log.isFullTank = dto.is_full_tank
+        log.latitude = dto.latitude; log.longitude = dto.longitude
+        log.city = dto.city; log.state = dto.state; log.country = dto.country
+        log.temperatureC = dto.temperature_c
+        log.receiptImageURL = dto.receipt_image_url
+        log.odometerPhotoURL = dto.odometer_photo_url
+        log.ocrProcessed = dto.ocr_processed
+        log.ocrConfidence = dto.ocr_confidence
+        log.dateWasEdited = dto.date_was_edited
+        log.locationWasEdited = dto.location_was_edited
+        log.updatedAt = dto.updated_at
+        log.revision = dto.revision
+        log.deletedAt = dto.deleted_at
+    }
+
+    /// Aplica os campos de um `MaintenanceLogDTO` a um `MaintenanceLog`.
+    private func applyMaint(_ dto: MaintenanceLogDTO, to log: MaintenanceLog) {
+        log.date = dto.date
+        log.mileage = dto.mileage
+        log.cost = dto.cost
+        log.notes = dto.notes
+        log.type = MaintenanceType(rawValue: dto.type) ?? .outro
+        log.tirePosition = dto.tire_position.flatMap(TirePosition.init(rawValue:))
+        log.intervalKm = dto.interval_km
+        log.intervalMonths = dto.interval_months
+        log.partOfMaintenanceID = dto.part_of_maintenance_id
+        log.updatedAt = dto.updated_at
+        log.revision = dto.revision
+        log.deletedAt = dto.deleted_at
+    }
+
     /// Faz push de todas as motos do usuário (e seus filhos) para o Supabase.
     func pushAll(from context: ModelContext) async {
         guard !isSyncing else { return }
@@ -240,6 +294,9 @@ final class SyncService {
                 try await client.from("motorcycles").upsert(motoDTOs).execute()
             }
 
+            // Push usa os arrays CRUS (`fuelLogs`/`maintenanceLogs`, não os
+            // `active*`): linhas soft-deletadas PRECISAM subir para propagar o
+            // `deleted_at` aos outros devices.
             let fuelDTOs = motorcycles.flatMap { m in
                 m.fuelLogs.map { f in
                     FuelLogDTO(
@@ -250,7 +307,8 @@ final class SyncService {
                         state: f.state, country: f.country, temperature_c: f.temperatureC,
                         receipt_image_url: f.receiptImageURL, odometer_photo_url: f.odometerPhotoURL,
                         ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
-                        date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited
+                        date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited,
+                        updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt
                     )
                 }
             }
@@ -265,7 +323,8 @@ final class SyncService {
                         date: mt.date, mileage: mt.mileage, cost: mt.cost, notes: mt.notes,
                         interval_km: mt.intervalKm, interval_months: mt.intervalMonths,
                         part_of_maintenance_id: mt.partOfMaintenanceID,
-                        tire_position: mt.tirePositionRaw
+                        tire_position: mt.tirePositionRaw,
+                        updated_at: mt.updatedAt, revision: mt.revision, deleted_at: mt.deletedAt
                     )
                 }
             }

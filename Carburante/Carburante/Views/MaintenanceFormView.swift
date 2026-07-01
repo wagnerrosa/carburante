@@ -291,7 +291,7 @@ struct MaintenanceFormView: View {
         let parent: MaintenanceLog
         let wasEditing = maintenanceLog != nil
         // Conta antes do insert: 1ª manutenção da moto?
-        let isFirst = !wasEditing && motorcycle.maintenanceLogs.isEmpty
+        let isFirst = !wasEditing && motorcycle.activeMaintenanceLogs.isEmpty
         if let log = maintenanceLog {
             log.date = date
             log.type = type
@@ -302,6 +302,8 @@ struct MaintenanceFormView: View {
             log.intervalMonths = im
             // Editar sempre é uma posição só (o seletor não oferece "Ambos").
             log.tirePosition = type == .pneus ? tireSelection.positions.first : nil
+            // Soft Revision: registra a edição (revision++ / updatedAt p/ o sync).
+            log.markUpdated()
             parent = log
         } else if type == .pneus {
             // Criar pneu: "Ambos" grava dois logs independentes (contadores

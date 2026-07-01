@@ -154,6 +154,18 @@ final class MaintenanceLog {
     /// como "pneu sem posição" — ver `tireGroupKey`). Coluna Supabase opcional.
     var tirePositionRaw: String?
 
+    // Soft Revision (Fase 1 — ver PLAN/metadados-auditoria.md). Mesma infra
+    // mínima de auditoria/sync do FuelLog. Defaults → migração leve.
+    /// Última alteração da linha — base do last-write-wins no sync.
+    var updatedAt: Date = Date()
+    /// Contador de edições (0 = nunca alterado após criar).
+    var revision: Int = 0
+    /// Exclusão lógica: nil = vivo. Leituras usam `Motorcycle.activeMaintenanceLogs`
+    /// e `children` filtra deletados; o sync propaga o delete. Só a exclusão POR
+    /// AÇÃO DO USUÁRIO (swipe) usa isto — deletes de reconciliação do combo
+    /// Revisão continuam físicos (ver MaintenanceFormView).
+    var deletedAt: Date?
+
     var createdAt: Date
 
     /// Relação inversa: cada manutenção pertence a uma moto.
@@ -183,6 +195,7 @@ final class MaintenanceLog {
         self.tirePositionRaw = type == .pneus ? tirePosition?.rawValue : nil
         self.motorcycle = motorcycle
         self.createdAt = createdAt
+        self.updatedAt = createdAt
     }
 }
 
@@ -226,9 +239,24 @@ extension MaintenanceLog {
     /// Logs-filhos desta manutenção (itens marcados numa Revisão Geral).
     /// Vazio para tudo que não é uma revisão com itens. Ligação por UUID
     /// (não relação SwiftData) → a exclusão em cascata é feita manualmente.
+    /// Filtra deletados logicamente (um filho soft-deletado não conta).
     var children: [MaintenanceLog] {
         guard let motorcycle else { return [] }
-        return motorcycle.maintenanceLogs.filter { $0.partOfMaintenanceID == id }
+        return motorcycle.maintenanceLogs
+            .filter { $0.partOfMaintenanceID == id && $0.deletedAt == nil }
+    }
+
+    /// Marca a linha como editada: incrementa `revision` e carimba `updatedAt`.
+    func markUpdated(now: Date = Date()) {
+        revision += 1
+        updatedAt = now
+    }
+
+    /// Exclusão lógica (só para exclusão por ação do usuário). Idempotente.
+    func softDelete(now: Date = Date()) {
+        guard deletedAt == nil else { return }
+        deletedAt = now
+        updatedAt = now
     }
 
     /// Rótulo curto dos itens incluídos numa revisão. Ex.: "óleo, pneu traseiro".
