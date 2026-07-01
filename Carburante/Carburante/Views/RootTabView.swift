@@ -37,6 +37,20 @@ struct RootTabView: View {
                 GarageView()
             }
         }
+        // Aviso discreto quando a sincronização de launch falhou/estourou: o
+        // usuário precisa saber que está em modo offline (dados salvos só local)
+        // para não achar que já subiram à nuvem. Aparece no topo, sem bloquear.
+        .safeAreaInset(edge: .top) {
+            if SyncService.shared.syncDegraded {
+                Label("Sem conexão — dados salvos só neste aparelho", systemImage: "icloud.slash")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .background(.bar)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
         // Tema global: tinge tudo que herda accent (tab bar, controles, links).
         // Telas de uma moto específica sobrepõem com a cor da própria moto.
         .tint(activeTint)
@@ -64,8 +78,10 @@ struct RootTabView: View {
             // Sincronização no launch: puxa o que falta (dados de outro device do
             // mesmo usuário) ANTES de enviar o local. Pull é aditivo — nunca
             // sobrescreve linhas locais, então uma edição offline não é perdida.
-            await SyncService.shared.pullAll(into: modelContext)
-            await SyncService.shared.pushAll(from: modelContext)
+            // Com teto de tempo: numa rede ruim não trava a percepção de launch
+            // (offline-first — os dados locais já estão salvos). Se degradar,
+            // `syncDegraded` acende o aviso abaixo.
+            await SyncService.shared.syncAtLaunch(into: modelContext)
         }
         // Super properties (active_bike_count, app_locale, account_age_days)
         // recalculadas a cada foreground — account_age_days muda por dia, então

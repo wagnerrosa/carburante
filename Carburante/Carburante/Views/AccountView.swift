@@ -29,6 +29,8 @@ struct AccountView: View {
     @State private var currentNonce: String?
     @State private var errorMessage: String?
     @State private var isLinking = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
 
     var body: some View {
         Section {
@@ -72,6 +74,35 @@ struct AccountView: View {
         LabeledContent("Conta Apple", value: sync.accountEmail ?? "Conectado")
         Button("Sair", role: .destructive) {
             Task { await sync.signOut() }
+        }
+        // Exclusão de conta in-app: exigência da App Store (Guideline 5.1.1(v))
+        // para qualquer app que ofereça criação de conta. Apaga a conta e todos
+        // os dados no servidor + o espelho local; volta ao estado anônimo.
+        Button("Excluir conta", role: .destructive) {
+            showDeleteConfirm = true
+        }
+        .disabled(isDeleting)
+        .confirmationDialog(
+            "Excluir conta e todos os dados?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Excluir permanentemente", role: .destructive) {
+                isDeleting = true
+                errorMessage = nil
+                Task {
+                    let ok = await sync.deleteAccount(context: modelContext)
+                    isDeleting = false
+                    if ok {
+                        Haptics.success()
+                    } else {
+                        errorMessage = sync.lastError ?? "Falha ao excluir a conta."
+                    }
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Isso apaga sua conta, motos, abastecimentos e histórico de todos os seus dispositivos. Não pode ser desfeito.")
         }
     }
 
