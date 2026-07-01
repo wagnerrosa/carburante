@@ -210,3 +210,28 @@ create policy "badge_awards owner" on public.badge_awards
 -- transferência chegar, revisitar p/ ex-dono LER (não mutar) a moto vendida.
 create policy "motorcycle_ownerships owner" on public.motorcycle_ownerships
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- Exclusão de conta in-app (App Store Guideline 5.1.1(v)). O cliente só tem a
+-- chave publishable (não pode usar a Admin API p/ apagar usuários), então esta
+-- função SECURITY DEFINER apaga a linha do PRÓPRIO usuário em auth.users. O
+-- `on delete cascade` de todas as FKs para auth.users (motorcycles/fuel_logs/
+-- maintenance_logs/badge_awards/motorcycle_ownerships/users) remove os dados.
+-- Chamada via client.rpc("delete_current_user") — ver SyncService.deleteAccount.
+create or replace function public.delete_current_user()
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+    -- auth.uid() é o id da sessão que chamou; guard evita apagar sem sessão.
+    if auth.uid() is null then
+        raise exception 'no authenticated user';
+    end if;
+    delete from auth.users where id = auth.uid();
+end;
+$$;
+
+-- Só usuários autenticados podem chamar (não o role anon público sem sessão).
+revoke all on function public.delete_current_user() from public, anon;
+grant execute on function public.delete_current_user() to authenticated;

@@ -36,12 +36,52 @@ final class SyncService {
     private(set) var isAnonymous = true
     /// E-mail da conta logada (Apple), se houver. Anônimo → nil.
     private(set) var accountEmail: String?
+    /// A última sincronização no launch falhou ou estourou o timeout? A UI mostra
+    /// um aviso discreto ("modo offline") para o usuário não achar que os dados
+    /// subiram quando não subiram. O app continua funcional (offline-first).
+    private(set) var syncDegraded = false
 
     private init() {
         client = SupabaseClient(
             supabaseURL: SupabaseConfig.url,
             supabaseKey: SupabaseConfig.publishableKey
         )
+    }
+
+    /// Sincronização de launch: pull (aditivo) seguido de push, com um teto de
+    /// tempo. Numa rede ruim as requisições do Supabase podem demorar o timeout
+    /// padrão do URLSession (~60s), o que congelaria a percepção de "sincronizando"
+    /// — aqui limitamos a `timeout` segundos e, se estourar, marcamos degradação e
+    /// seguimos (offline-first: os dados locais já estão salvos). Chamado do
+    /// RootTabView no launch.
+    func syncAtLaunch(into context: ModelContext, timeout: Duration = .seconds(20)) async {
+        syncDegraded = false
+        let ok = await withTimeout(timeout) { [weak self] in
+            guard let self else { return }
+            await self.pullAll(into: context)
+            await self.pushAll(from: context)
+        }
+        // Estourou o teto OU alguma etapa registrou erro → estado degradado.
+        if !ok || lastError != nil {
+            syncDegraded = true
+        }
+    }
+
+    /// Roda `operation` com um teto de tempo. Retorna true se completou dentro do
+    /// prazo, false se estourou (a operação é cancelada). Genérico e sem valor de
+    /// retorno — as etapas de sync já gravam o resultado em `lastError`.
+    private func withTimeout(_ timeout: Duration, operation: @escaping @Sendable () async -> Void) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask { await operation(); return true }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return false
+            }
+            // Primeiro a terminar decide; cancela o outro.
+            let finished = await group.next() ?? false
+            group.cancelAll()
+            return finished
+        }
     }
 
     /// Garante uma sessão (anônima se ainda não houver). Retorna o user_id.
@@ -87,8 +127,22 @@ final class SyncService {
             if let context { await pullAll(into: context) }
             return true
         } catch {
-            lastError = "Falha ao entrar com Apple: \(error.localizedDescription)"
-            Analytics.syncFailed(stage: "apple_link", errorCode: Self.errorCode(error))
+            // O segredo Apple do Supabase (JWT ES256) expira a cada ~6 meses; se
+            // estiver vencido/mal configurado o link falha com erro do provedor.
+            // Distinguimos isso de rede/credencial para o log ficar acionável e a
+            // mensagem ao usuário não sugerir problema no aparelho dele.
+            let desc = error.localizedDescription.lowercased()
+            let providerConfigIssue =
+                desc.contains("provider") || desc.contains("client") ||
+                desc.contains("secret") || desc.contains("invalid_grant") ||
+                desc.contains("invalid_client") || desc.contains("unauthorized")
+            if providerConfigIssue {
+                lastError = "Login com Apple indisponível no momento. Tente mais tarde."
+                Analytics.syncFailed(stage: "apple_link_provider", errorCode: Self.errorCode(error))
+            } else {
+                lastError = "Falha ao entrar com Apple: \(error.localizedDescription)"
+                Analytics.syncFailed(stage: "apple_link", errorCode: Self.errorCode(error))
+            }
             return false
         }
     }
@@ -101,6 +155,56 @@ final class SyncService {
         isAnonymous = true
         accountEmail = nil
         await ensureSession()
+    }
+
+    /// Apaga permanentemente a conta do usuário e TODOS os seus dados (exigência
+    /// da App Store — Guideline 5.1.1(v), para qualquer app com criação de conta).
+    /// Chama a função Postgres `delete_current_user()` (SECURITY DEFINER) que
+    /// remove a linha do próprio usuário em `auth.users`; o ON DELETE CASCADE das
+    /// tabelas apaga motos/abastecimentos/manutenções/badges/ownerships no
+    /// servidor. Depois limpa o SwiftData local e volta a uma sessão anônima nova.
+    /// Retorna true em sucesso. Ver supabase/schema.sql (delete_current_user).
+    @discardableResult
+    func deleteAccount(context: ModelContext) async -> Bool {
+        guard await ensureSession() != nil else {
+            lastError = "Sem sessão para excluir a conta."
+            return false
+        }
+        do {
+            try await client.rpc("delete_current_user").execute()
+        } catch {
+            lastError = "Falha ao excluir a conta: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "delete_account", errorCode: Self.errorCode(error))
+            return false
+        }
+        // Servidor limpo → apaga o espelho local para não ressincronizar dados de
+        // uma conta que não existe mais.
+        Self.wipeLocalData(context)
+        // Encerra a sessão (o usuário no servidor já não existe) e abre uma anônima
+        // nova, deixando o app pronto para um recomeço limpo.
+        try? await client.auth.signOut()
+        userID = nil
+        isAnonymous = true
+        accountEmail = nil
+        await ensureSession()
+        lastError = nil
+        return true
+    }
+
+    /// Remove todas as linhas locais de todos os @Model do app. Usado após excluir
+    /// a conta no servidor.
+    private static func wipeLocalData(_ context: ModelContext) {
+        do {
+            try context.delete(model: FuelLog.self)
+            try context.delete(model: MaintenanceLog.self)
+            try context.delete(model: BadgeAward.self)
+            try context.delete(model: MotorcycleOwnership.self)
+            try context.delete(model: Motorcycle.self)
+            try context.save()
+        } catch {
+            // Falha ao limpar o local não desfaz a exclusão no servidor; só loga.
+            Analytics.syncFailed(stage: "delete_account_local", errorCode: SyncService.errorCode(error))
+        }
     }
 
     /// Classe do erro para analytics — NUNCA a mensagem crua (pode conter
