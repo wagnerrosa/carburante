@@ -96,6 +96,9 @@ alter table public.maintenance_logs add column if not exists oil_change_interval
 alter table public.maintenance_logs add column if not exists interval_km double precision;
 alter table public.maintenance_logs add column if not exists interval_months integer;
 alter table public.maintenance_logs add column if not exists part_of_maintenance_id uuid;
+-- Posição do pneu (dianteiro/traseiro): contadores independentes por eixo.
+-- Nulo em não-pneus e em registros de pneu antigos.
+alter table public.maintenance_logs add column if not exists tire_position text;
 -- Backfill guardado: só roda se a coluna legada existir (ambientes que nunca
 -- aplicaram a feature de intervalo de óleo não têm `oil_change_interval_km`).
 do $$

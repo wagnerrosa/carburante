@@ -14,8 +14,9 @@ struct MaintenanceListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: MaintenanceLog?
     @State private var showingAdd = false
-    /// Tipo a registrar ao tocar numa linha "Programadas" (abre o form prefixado).
-    @State private var scheduledAddType: MaintenanceType?
+    /// Status a registrar ao tocar numa linha "Programadas" (abre o form
+    /// prefixado com o tipo e, p/ pneu, a posição).
+    @State private var scheduledAdd: MaintenanceStatus?
     /// Revisões com itens, aguardando confirmação de exclusão em cascata.
     @State private var pendingDelete: [MaintenanceLog] = []
     @State private var showDeleteConfirm = false
@@ -68,7 +69,7 @@ struct MaintenanceListView: View {
                         Section {
                             ForEach(statuses) { status in
                                 Button {
-                                    scheduledAddType = status.type
+                                    scheduledAdd = status
                                 } label: {
                                     ScheduledRow(status: status, themeColor: motorcycle.themeColor)
                                 }
@@ -116,8 +117,12 @@ struct MaintenanceListView: View {
         .sheet(item: $editingLog) { log in
             MaintenanceFormView(motorcycle: motorcycle, maintenanceLog: log)
         }
-        .sheet(item: $scheduledAddType) { type in
-            MaintenanceFormView(motorcycle: motorcycle, initialType: type)
+        .sheet(item: $scheduledAdd) { status in
+            MaintenanceFormView(
+                motorcycle: motorcycle,
+                initialType: status.type,
+                initialTirePosition: status.position
+            )
         }
         .confirmationDialog(
             confirmTitle,
@@ -196,7 +201,7 @@ private struct ScheduledRow: View {
             IconTile(systemName: status.type.icon, tint: status.type.tint, size: 38)
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text(status.type.rawValue).font(.headline)
+                    Text(status.displayName).font(.headline)
                     Spacer()
                     Text(status.remainingShort)
                         .font(.subheadline)
@@ -224,7 +229,7 @@ private struct ScheduledRow: View {
         .padding(.vertical, 2)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(status.type.rawValue)
+        .accessibilityLabel(status.displayName)
         .accessibilityValue("\(status.remainingShort). \(status.dueDescription)")
     }
 }
@@ -237,7 +242,7 @@ private struct MaintenanceRow: View {
             IconTile(systemName: log.type.icon, tint: log.type.tint, size: 38)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(log.type.rawValue)
+                    Text(log.displayName)
                         .font(.headline)
                     Spacer()
                     Text(AppFormat.km(log.mileage))

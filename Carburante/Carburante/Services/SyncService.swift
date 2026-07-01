@@ -172,6 +172,7 @@ final class SyncService {
                     date: dto.date, mileage: dto.mileage, cost: dto.cost,
                     notes: dto.notes,
                     type: MaintenanceType(rawValue: dto.type) ?? .outro,
+                    tirePosition: dto.tire_position.flatMap(TirePosition.init(rawValue:)),
                     intervalKm: dto.interval_km, intervalMonths: dto.interval_months,
                     partOfMaintenanceID: dto.part_of_maintenance_id,
                     motorcycle: moto
@@ -248,7 +249,8 @@ final class SyncService {
                         id: mt.id, motorcycle_id: m.id, user_id: uid, type: mt.typeRaw,
                         date: mt.date, mileage: mt.mileage, cost: mt.cost, notes: mt.notes,
                         interval_km: mt.intervalKm, interval_months: mt.intervalMonths,
-                        part_of_maintenance_id: mt.partOfMaintenanceID
+                        part_of_maintenance_id: mt.partOfMaintenanceID,
+                        tire_position: mt.tirePositionRaw
                     )
                 }
             }

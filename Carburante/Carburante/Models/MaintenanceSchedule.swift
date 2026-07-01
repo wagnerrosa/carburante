@@ -17,6 +17,9 @@ import Foundation
 /// comparável e fácil de testar.
 struct MaintenanceStatus: Equatable, Identifiable {
     let type: MaintenanceType
+    /// Posição do pneu, quando o tipo é `.pneus` e o registro a informa. Dá a
+    /// dianteiro e traseiro contadores/linhas independentes. Nil no resto.
+    var position: TirePosition? = nil
     /// Intervalo por km em vigor (nil → não acompanhado por km).
     let intervalKm: Double?
     /// Intervalo por tempo em meses em vigor (nil → não acompanhado por tempo).
@@ -38,7 +41,16 @@ struct MaintenanceStatus: Equatable, Identifiable {
     /// Já passou do ponto por QUALQUER eixo acompanhado.
     let isOverdue: Bool
 
-    var id: String { type.rawValue }
+    var id: String { position.map { "\(type.rawValue)-\($0.rawValue)" } ?? type.rawValue }
+
+    /// Rótulo exibido, já com a posição do pneu. Ex.: "Pneu dianteiro".
+    var displayName: String { MaintenanceType.displayName(type, position: position) }
+
+    /// Chave ASCII estável p/ identificadores de notificação, distinguindo a
+    /// posição do pneu (dianteiro/traseiro geram lembretes separados).
+    var identifierKey: String {
+        position.map { "\(type.identifierKey)-\($0.identifierKey)" } ?? type.identifierKey
+    }
 
     /// km já rodados no intervalo atual (≥0); nil quando sem eixo km.
     var kmIntoInterval: Double? {
@@ -135,9 +147,13 @@ enum MaintenanceSchedule {
 }
 
 extension Motorcycle {
-    /// Última manutenção registrada de um tipo (por data).
-    func lastService(of type: MaintenanceType) -> MaintenanceLog? {
-        maintenanceLogs.filter { $0.type == type }.max { $0.date < $1.date }
+    /// Última manutenção registrada de um tipo (por data). Para pneus, `position`
+    /// filtra pelo eixo (dianteiro/traseiro têm contadores próprios). Passar
+    /// `position: nil` num pneu casa registros antigos sem posição.
+    func lastService(of type: MaintenanceType, position: TirePosition? = nil) -> MaintenanceLog? {
+        maintenanceLogs
+            .filter { $0.type == type && (type != .pneus || $0.tirePosition == position) }
+            .max { $0.date < $1.date }
     }
 
     /// km rodados desde a última manutenção do tipo (≥0). Nil se nunca registrada.
@@ -154,10 +170,13 @@ extension Motorcycle {
         return calendar.dateComponents([.month], from: last.date, to: now).month
     }
 
-    /// Status da próxima manutenção de um tipo, considerando o hodômetro atual.
-    func maintenanceStatus(for type: MaintenanceType, now: Date = Date()) -> MaintenanceStatus? {
-        let last = lastService(of: type)
-        return MaintenanceSchedule.status(
+    /// Status da próxima manutenção de um tipo (opcionalmente por posição de
+    /// pneu), considerando o hodômetro atual.
+    func maintenanceStatus(
+        for type: MaintenanceType, position: TirePosition? = nil, now: Date = Date()
+    ) -> MaintenanceStatus? {
+        let last = lastService(of: type, position: position)
+        guard var status = MaintenanceSchedule.status(
             for: type,
             lastDate: last?.date,
             lastMileage: last?.mileage,
@@ -165,22 +184,45 @@ extension Motorcycle {
             intervalMonths: last?.effectiveIntervalMonths,
             currentMileage: currentOdometer,
             now: now
-        )
+        ) else { return nil }
+        status.position = position
+        return status
     }
 
     /// Status de TODOS os tipos AGENDÁVEIS com ≥1 manutenção, ordenados por
     /// urgência (vencidos primeiro; depois maior progresso). `.revisao` fica de
     /// fora (`isSchedulable == false`): é ação de registro, não meta — os itens
-    /// que ela reinicia já aparecem aqui por conta própria. Chokepoint único:
+    /// que ela reinicia já aparecem aqui por conta própria. Pneus rendem uma
+    /// linha por posição registrada (dianteiro/traseiro independentes; posição
+    /// nil de registros antigos vira sua própria linha). Chokepoint único:
     /// alimenta Programadas, o herói do Resumo e os lembretes.
     func maintenanceStatuses(now: Date = Date()) -> [MaintenanceStatus] {
-        MaintenanceType.allCases
-            .filter { $0.isSchedulable }
-            .compactMap { maintenanceStatus(for: $0, now: now) }
-            .sorted {
-                if $0.isOverdue != $1.isOverdue { return $0.isOverdue }
-                return $0.progress > $1.progress
+        var out: [MaintenanceStatus] = []
+        for type in MaintenanceType.allCases where type.isSchedulable {
+            if type == .pneus {
+                for position in tirePositionsInUse {
+                    if let s = maintenanceStatus(for: .pneus, position: position, now: now) {
+                        out.append(s)
+                    }
+                }
+            } else if let s = maintenanceStatus(for: type, now: now) {
+                out.append(s)
             }
+        }
+        return out.sorted {
+            if $0.isOverdue != $1.isOverdue { return $0.isOverdue }
+            return $0.progress > $1.progress
+        }
+    }
+
+    /// Posições de pneu que têm ≥1 registro, na ordem dianteiro→traseiro→(sem
+    /// posição). `nil` entra só se houver algum pneu antigo sem posição, para
+    /// não perder o contador desse registro na migração.
+    private var tirePositionsInUse: [TirePosition?] {
+        let logged = Set(maintenanceLogs.filter { $0.type == .pneus }.map(\.tirePosition))
+        var positions: [TirePosition?] = TirePosition.allCases.filter { logged.contains($0) }
+        if logged.contains(nil) { positions.append(nil) }
+        return positions
     }
 
     /// A manutenção mais urgente entre todos os tipos (o card-herói do Resumo).
@@ -226,18 +268,18 @@ enum MaintenanceReminder {
         for status: MaintenanceStatus, now: Date, calendar: Calendar = .current
     ) -> [MaintenancePlan] {
         guard !status.isOverdue, let dueDate = status.dueDate else { return [] }
-        let key = status.type.identifierKey
+        let key = status.identifierKey
         var out: [MaintenancePlan] = []
         if let pre = calendar.date(byAdding: .day, value: -preWarningDays, to: dueDate), pre > now {
             out.append(MaintenancePlan(
                 idSuffix: "\(key)-date-pre", fireDate: pre,
-                title: "\(status.type.rawValue): se aproximando",
+                title: "\(status.displayName): se aproximando",
                 body: "Prevista para \(AppFormat.date(dueDate))."))
         }
         if dueDate > now {
             out.append(MaintenancePlan(
                 idSuffix: "\(key)-date-due", fireDate: dueDate,
-                title: "\(status.type.rawValue): prevista para hoje",
+                title: "\(status.displayName): prevista para hoje",
                 body: dueBody(status)))
         }
         return out
@@ -250,8 +292,8 @@ enum MaintenanceReminder {
         if attention.count == 1 {
             let s = attention[0]
             let title = s.isOverdue
-                ? "\(s.type.rawValue): vencida"
-                : "\(s.type.rawValue): próxima"
+                ? "\(s.displayName): vencida"
+                : "\(s.displayName): próxima"
             let body: String
             if s.isOverdue {
                 body = "Recomendada o quanto antes."
@@ -260,7 +302,7 @@ enum MaintenanceReminder {
             } else {
                 body = "Revise em breve."
             }
-            return MaintenancePlan(idSuffix: "\(s.type.identifierKey)-km",
+            return MaintenancePlan(idSuffix: "\(s.identifierKey)-km",
                                    fireDate: morning, title: title, body: body)
         }
         return MaintenancePlan(
