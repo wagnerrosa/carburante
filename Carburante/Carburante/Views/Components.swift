@@ -669,6 +669,24 @@ struct GroupedCard<Content: View>: View {
     }
 }
 
+extension Motorcycle {
+    /// Texto de confirmação de exclusão com o resumo do cascade (abastecimentos
+    /// e manutenções que se perdem junto). Compartilhado entre a Garagem (swipe
+    /// em "Outras motos") e o perfil da moto ("Excluir moto").
+    var deletionConfirmationText: String {
+        let fuel = activeFuelLogs.count
+        let maint = activeMaintenanceLogs.count
+        var parts: [String] = []
+        if fuel > 0 { parts.append("\(fuel) abastecimento\(fuel == 1 ? "" : "s")") }
+        if maint > 0 { parts.append("\(maint) manutenç\(maint == 1 ? "ão" : "ões")") }
+
+        if parts.isEmpty {
+            return "Excluir \(displayName)?"
+        }
+        return "Excluir \(displayName) e \(parts.joined(separator: " e "))? Esta ação não pode ser desfeita."
+    }
+}
+
 extension MaintenanceType {
     /// Cor semântica do tile por tipo de manutenção (padrão Ajustes).
     var tint: Color {

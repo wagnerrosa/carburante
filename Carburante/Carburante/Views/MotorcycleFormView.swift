@@ -22,11 +22,17 @@ struct MotorcycleFormView: View {
     @State private var model: String = ""
     @State private var year: Int = Calendar.current.component(.year, from: Date())
     @State private var country: String = "Brasil"
-    @State private var currentOdometer: Double = 0
+    /// Opcional: nil mostra o placeholder (não um "0" a apagar). nil → 0 no save.
+    @State private var currentOdometer: Double?
     /// Opcional — nil = "Não informado". Pode ser completado depois.
     @State private var category: MotorcycleCategory?
     @State private var displacementCC: Int?
     @State private var saveError: String?
+    /// Confirmação de descarte (Cancelar/swipe-down com dados digitados).
+    @State private var showDiscardConfirm = false
+    /// Moto ativa do app — cadastro novo assume a chave (a moto recém-criada
+    /// vira a ativa; tema e Resumo reagem na hora, comportamento previsível).
+    @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
     @FocusState private var odometerFocused: Bool
     @FocusState private var displacementFocused: Bool
 
@@ -67,6 +73,23 @@ struct MotorcycleFormView: View {
     }
 
     private let yearRange = Array(1950...Calendar.current.component(.year, from: Date()) + 1).reversed()
+
+    /// Há investimento do usuário a proteger? Novo: qualquer campo preenchido;
+    /// edição: qualquer campo divergente do carregado.
+    private var hasChanges: Bool {
+        if let m = motorcycle {
+            return effectiveMake.trimmingCharacters(in: .whitespaces) != m.make
+                || model.trimmingCharacters(in: .whitespaces) != m.model
+                || year != m.year
+                || country.trimmingCharacters(in: .whitespaces) != m.country
+                || currentOdometer != (m.currentOdometer > 0 ? m.currentOdometer : nil)
+                || category != m.categoryEnum
+                || displacementCC != m.displacementCC
+        }
+        return !model.isEmpty || (isOther && !make.isEmpty)
+            || currentOdometer != nil || category != nil || displacementCC != nil
+            || selectedMake != (MotorcycleMake.catalog.first ?? "")
+    }
 
     var body: some View {
         NavigationStack {
@@ -129,7 +152,8 @@ struct MotorcycleFormView: View {
 
                 Section("Hodômetro") {
                     HStack {
-                        TextField("Quilometragem atual", value: $currentOdometer, format: .number)
+                        TextField("Quilometragem atual", value: $currentOdometer,
+                                  format: .number, prompt: Text("Quilometragem atual"))
                             .keyboardType(.decimalPad)
                             .focused($odometerFocused)
                         Text("km")
@@ -167,7 +191,9 @@ struct MotorcycleFormView: View {
                     .animation(.smooth(duration: 0.3), value: make)
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("Cancelar") {
+                        if hasChanges { showDiscardConfirm = true } else { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { save() }
@@ -183,6 +209,14 @@ struct MotorcycleFormView: View {
             }
             .onAppear(perform: loadIfEditing)
             .onChange(of: selectedMake) { Haptics.selection() }
+            // Protege dados digitados contra swipe-down acidental.
+            .interactiveDismissDisabled(hasChanges)
+            .confirmationDialog(isEditing ? "Descartar alterações?" : "Descartar esta moto?",
+                                isPresented: $showDiscardConfirm,
+                                titleVisibility: .visible) {
+                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Continuar editando", role: .cancel) {}
+            }
         }
         // Tema ao vivo no NavigationStack inteiro: form + barra de navegação
         // (Cancelar/Salvar/título/Pickers) assumem a cor da marca — identidade
@@ -206,7 +240,8 @@ struct MotorcycleFormView: View {
         model = m.model
         year = m.year
         country = m.country
-        currentOdometer = m.currentOdometer
+        // 0 → nil: mostra o placeholder em vez de um "0" a apagar.
+        currentOdometer = m.currentOdometer > 0 ? m.currentOdometer : nil
         category = m.categoryEnum
         displacementCC = m.displacementCC
     }
@@ -226,7 +261,7 @@ struct MotorcycleFormView: View {
             m.country = trimmedCountry
             // O hodômetro do form é a leitura manual (baseline); reconcilia o
             // efetivo com os abastecimentos existentes (nunca abaixo deles).
-            m.odometerBaseline = currentOdometer
+            m.odometerBaseline = currentOdometer ?? 0
             m.reconcileOdometer()
             m.categoryEnum = category
             m.displacementCC = displacementCC
@@ -237,7 +272,7 @@ struct MotorcycleFormView: View {
                 model: trimmedModel,
                 year: year,
                 country: trimmedCountry,
-                currentOdometer: currentOdometer,
+                currentOdometer: currentOdometer ?? 0,
                 category: category?.rawValue,
                 displacementCC: displacementCC
             )
@@ -261,6 +296,11 @@ struct MotorcycleFormView: View {
             return
         }
         Haptics.success()
+        // Moto nova vira a ativa (comportamento previsível — antes só trocava
+        // quando a chave nunca tinha sido materializada, via fallback .first).
+        if !wasEditing {
+            activeMotorcycleID = savedMoto.id.uuidString
+        }
         // Analytics: só na criação (não na edição — sem evento _updated p/ moto
         // no plano v1). is_first_bike calculado antes deste insert virar visível
         // na Query → contar as motos existentes que NÃO são esta.

@@ -87,8 +87,16 @@ struct FuelEntryFlowView: View {
     @State private var galleryItem: PhotosPickerItem?
 
     @State private var saveError: String?
+    /// Confirmação de descarte (Cancelar/swipe-down com dados digitados).
+    @State private var showDiscardConfirm = false
 
     // MARK: - Derivados
+
+    /// Há investimento do usuário a proteger? (campos digitados ou foto lida).
+    /// Data/cidade pré-preenchidas automaticamente não contam.
+    private var hasInput: Bool {
+        odometer != nil || cost != nil || liters != nil || ocrProcessed
+    }
 
     private var lastOdometer: Double {
         max(motorcycle.activeFuelLogs.map(\.odometer).max() ?? 0, motorcycle.currentOdometer)
@@ -190,6 +198,15 @@ struct FuelEntryFlowView: View {
                 }
             }
             .onAppear(perform: prefill)
+            // Protege o investimento do usuário: swipe-down com dados digitados
+            // pede confirmação (padrão Mail/Notas) em vez de descartar em silêncio.
+            .interactiveDismissDisabled(hasInput)
+            .confirmationDialog("Descartar este abastecimento?",
+                                isPresented: $showDiscardConfirm,
+                                titleVisibility: .visible) {
+                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Continuar editando", role: .cancel) {}
+            }
             // Detecta correção manual de campo após o OCR ter preenchido →
             // ocr_outcome = .edited. Ignora a escrita feita pelo próprio OCR
             // (isRecognizing) p/ não marcar falso-positivo.
@@ -528,7 +545,10 @@ struct FuelEntryFlowView: View {
                     .padding(.horizontal, 12).padding(.top, 12)
             }
 
-            DatePicker("Data", selection: $date, displayedComponents: [.date, .hourAndMinute])
+            // Registro é do que já aconteceu — sem data futura (mesma regra do
+            // form de manutenção).
+            DatePicker("Data", selection: $date, in: ...Date(),
+                       displayedComponents: [.date, .hourAndMinute])
                 .padding(.horizontal, 16).padding(.vertical, 8)
             Divider().padding(.leading, 16)
 
@@ -599,18 +619,25 @@ struct FuelEntryFlowView: View {
     private func advance() {
         guard canAdvance else { return }
         Haptics.selection()
-        fillFocus = nil
         switch step {
-        case .odometer: goTo(.fill)
-        case .fill:     goTo(.review)
-        case .review:   break
+        case .odometer:
+            goTo(.fill)
+            // Foco direto no 1º campo do passo (mínimo de toques).
+            fillFocus = .cost
+        case .fill:
+            fillFocus = nil
+            goTo(.review)
+        case .review:
+            break
         }
     }
 
     private func back() {
         fillFocus = nil
         switch step {
-        case .odometer: dismiss()
+        case .odometer:
+            // Cancelar com dados digitados confirma antes de descartar.
+            if hasInput { showDiscardConfirm = true } else { dismiss() }
         case .fill:     goTo(.odometer)
         case .review:   goTo(.fill)
         }
@@ -625,6 +652,9 @@ struct FuelEntryFlowView: View {
 
     private func prefill() {
         if let last = motorcycle.latestFuelLog { fuelType = last.fuelType }
+        // Autofoco no hodômetro: o teclado já sobe pronto (ação nº 1 em
+        // segundos, sem toque extra na linha).
+        fillFocus = .odometer
         Analytics.fuelEntryStarted(entryPoint: entryPoint)
     }
 
