@@ -867,6 +867,43 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(moto.nextDueMaintenance(now: day(2026, 6, 18))?.type, .oleo)
     }
 
+    /// Retro-registro (data antiga, km menor) não rouba a âncora do próximo
+    /// vencimento — a última continua sendo a mais recente por data.
+    func testLastServiceBackfillOlderDateKeepsAnchor() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 21000)
+        ctx.insert(moto)
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1), mileage: 20000, type: .oleo, motorcycle: moto))
+        try ctx.save()
+        // Backfill inserido DEPOIS, com data e km antigos.
+        ctx.insert(MaintenanceLog(date: day(2026, 1, 1), mileage: 5000, type: .oleo, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.lastService(of: .oleo)?.mileage, 20000)
+    }
+
+    /// Mesmo DIA decide pelo maior km, mesmo com horas diferentes — o form
+    /// carimba a hora de abertura, então um retro-registro digitado à tarde
+    /// (km menor) "parecia" mais novo que o registro real da manhã e roubava
+    /// a âncora do próximo vencimento.
+    func testLastServiceSameDayTieBreaksByMileage() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022,
+                              country: "Brasil", currentOdometer: 21000)
+        ctx.insert(moto)
+        // Registro real: 1º de junho às 9h, 20.000 km.
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1).addingTimeInterval(9 * 3600),
+                                  mileage: 20000, type: .oleo, motorcycle: moto))
+        try ctx.save()
+        // Retro-registro digitado às 14h do MESMO dia, com km antigo.
+        ctx.insert(MaintenanceLog(date: day(2026, 6, 1).addingTimeInterval(14 * 3600),
+                                  mileage: 5000, type: .oleo, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.lastService(of: .oleo)?.mileage, 20000)
+    }
+
     /// Custo/km por segmento full-to-full, mais antigo → mais novo.
     func testCostPerKmSeries() {
         let entries = [

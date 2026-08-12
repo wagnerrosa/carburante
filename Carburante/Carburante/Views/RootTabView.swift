@@ -32,23 +32,11 @@ struct RootTabView: View {
         TabView {
             Tab("Resumo", systemImage: "gauge.with.dots.needle.bottom.50percent") {
                 DashboardView()
+                    .syncDegradedBanner()
             }
             Tab("Garagem", systemImage: "motorcycle") {
                 GarageView()
-            }
-        }
-        // Aviso discreto quando a sincronização de launch falhou/estourou: o
-        // usuário precisa saber que está em modo offline (dados salvos só local)
-        // para não achar que já subiram à nuvem. Aparece no topo, sem bloquear.
-        .safeAreaInset(edge: .top) {
-            if SyncService.shared.syncDegraded {
-                Label("Sem conexão — dados salvos só neste aparelho", systemImage: "icloud.slash")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                    .background(.bar)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .syncDegradedBanner()
             }
         }
         // Tema global: tinge tudo que herda accent (tab bar, controles, links).
@@ -102,6 +90,39 @@ struct RootTabView: View {
             set: { if !$0 { hasCompletedOnboarding = true } }
         )
     }
+}
+
+/// Aviso discreto quando a sincronização de launch falhou/estourou: o usuário
+/// precisa saber que está em modo offline (dados salvos só local) para não
+/// achar que já subiram à nuvem. Ancorado ACIMA da tab bar (safe area inferior
+/// do conteúdo da tab — padrão mini-player do app Música). No topo ele cobria
+/// os botões da navigation bar (UIKit-backed), que ignora o safeAreaInset do
+/// SwiftUI aplicado fora do NavigationStack.
+private struct SyncDegradedBanner: ViewModifier {
+    /// Lida dentro do body → registra a observação (@Observable), atualiza ao vivo.
+    private var degraded: Bool { SyncService.shared.syncDegraded }
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if degraded {
+                    Label("Sem conexão — dados salvos só neste aparelho", systemImage: "icloud.slash")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(.bar)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            // A transition só anima se a mudança de estado for animada; o
+            // SyncService seta o flag sem withAnimation, então animamos aqui.
+            .animation(.default, value: degraded)
+    }
+}
+
+extension View {
+    func syncDegradedBanner() -> some View { modifier(SyncDegradedBanner()) }
 }
 
 #Preview {
