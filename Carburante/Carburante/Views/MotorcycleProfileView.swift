@@ -12,9 +12,12 @@ import SwiftUI
 import SwiftData
 
 struct MotorcycleProfileView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Bindable var motorcycle: Motorcycle
     @State private var showingEdit = false
     @State private var showingFuelLog = false
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         List {
@@ -55,6 +58,15 @@ struct MotorcycleProfileView: View {
                            title: "Manutenções", count: motorcycle.activeMaintenanceLogs.count)
                 }
             }
+
+            // Antes a exclusão só existia via swipe em "Outras motos" na Garagem —
+            // a moto ativa (ou a única) não tinha como ser excluída. Aqui é o
+            // lugar canônico (padrão Ajustes: destrutivo no fim do detalhe).
+            Section {
+                Button("Excluir moto", role: .destructive) {
+                    showDeleteConfirm = true
+                }
+            }
         }
         .navigationTitle(motorcycle.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -71,6 +83,28 @@ struct MotorcycleProfileView: View {
         .sheet(isPresented: $showingFuelLog) {
             FuelLogFormView(motorcycle: motorcycle)
         }
+        .confirmationDialog(
+            motorcycle.deletionConfirmationText,
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Excluir", role: .destructive) { deleteMotorcycle() }
+            Button("Cancelar", role: .cancel) {}
+        }
+    }
+
+    /// Mesma semântica da exclusão na Garagem (cascade físico + haptic + evento).
+    /// Excluída a ativa, o Resumo/Garagem caem no fallback natural (`.first`).
+    private func deleteMotorcycle() {
+        let hadLogs = !motorcycle.activeFuelLogs.isEmpty
+        let count = motorcycle.activeFuelLogs.count
+        modelContext.delete(motorcycle)
+        try? modelContext.save()
+        Haptics.warning()
+        let remaining = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>())) ?? 0
+        Analytics.motorcycleDeleted(hadFuelLogs: hadLogs, fuelLogCount: count,
+                                    remainingBikeCount: remaining)
+        dismiss()
     }
 
     private func navRow(icon: String, title: String, count: Int) -> some View {

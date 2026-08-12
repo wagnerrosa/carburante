@@ -79,6 +79,9 @@ struct DashboardView: View {
                 // que tipo de uso o multi-moto alterna.
                 guard motorcycles.count > 1 else { return }
                 let to = motorcycles.first { $0.id.uuidString == newID }
+                // Cadastro novo também seta a chave (moto nova vira ativa) —
+                // não é troca; ignora moto recém-criada.
+                if let to, Date().timeIntervalSince(to.createdAt) < 5 { return }
                 Analytics.motorcycleSwitched(bikeCount: motorcycles.count,
                                              toCategory: to?.category)
             }
@@ -175,7 +178,6 @@ struct DashboardView: View {
             .segments(from: moto.activeFuelLogs.map(\.asFuelEntry))
             .sorted { $0.endDate < $1.endDate }
 
-        let reference = moto.categoryReferenceKmPerLiter
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if let steps = activationSteps(for: moto) {
@@ -194,16 +196,6 @@ struct DashboardView: View {
                 }
 
                 metricsGrid(summary, moto: moto)
-
-                // Comparação com a categoria abaixo da grade de métricas (bloco
-                // próprio, descoberta clara). Só quando há referência e consumo
-                // medido. Tap → tela Consumo cheia.
-                if let reference, summary.segmentCount > 0 {
-                    Button { showingConsumption = true } label: {
-                        categoryComparisonCard(summary, reference: reference)
-                    }
-                    .buttonStyle(.plain)
-                }
 
                 if let next = statuses.first {
                     sectionTitle("Próxima manutenção")
@@ -288,113 +280,6 @@ struct DashboardView: View {
         ])
         // Todos concluídos → some.
         return steps.allSatisfy(\.isDone) ? nil : steps
-    }
-
-    // MARK: - Card de comparação com a categoria
-
-    /// Card de comparação com a categoria no padrão Saúde "Energia Ativa":
-    /// cabeçalho ícone+título+chevron, **manchete interpretativa** (a frase do
-    /// delta é o herói), divisor, e duas barras GROSSAS empilhadas — número grande
-    /// acima de cada uma, rótulo embutido DENTRO da barra (ano no print do Saúde),
-    /// preenchimento proporcional à escala comum. Tap → tela Consumo cheia.
-    private func categoryComparisonCard(_ summary: ConsumptionSummary, reference: Double) -> some View {
-        let mine = summary.averageKmPerLiter
-        let delta = mine.map { ($0 - reference) / reference }
-        let scale = max(mine ?? 0, reference)
-        let themeColor = motorcycle?.themeColor ?? BrandTheme.default
-        return GroupedCard {
-            VStack(alignment: .leading, spacing: 12) {
-                // Cabeçalho (estilo Saúde): ícone + título + chevron, na cor do tema.
-                HStack(spacing: 6) {
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    Text("Comparação com a categoria")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-
-                // Manchete que interpreta o dado (a alma do card Saúde).
-                if let delta {
-                    comparisonHeadline(delta)
-                }
-
-                Divider()
-
-                // Barras grossas com rótulo embutido — sua moto (tema) e a média
-                // da categoria (cinza), na MESMA escala.
-                VStack(alignment: .leading, spacing: 14) {
-                    categoryBar(label: "Sua moto", value: mine, scale: scale,
-                                fill: themeColor, embeddedLabelColor: .white)
-                    categoryBar(label: "Média da categoria", value: reference, scale: scale,
-                                fill: Color(.systemGray4), embeddedLabelColor: .primary)
-                }
-
-                Text("Estimativa da categoria. Em breve: seu histórico e outros pilotos da mesma moto.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-    }
-
-    /// Manchete grande do card (estilo "Você está queimando menos calorias…").
-    private func comparisonHeadline(_ delta: Double) -> some View {
-        let pct = abs(delta * 100).formatted(.number.precision(.fractionLength(0)).locale(AppFormat.locale))
-        let text: String = {
-            if delta > 0.05 {
-                return "Sua moto faz \(pct)% a mais que a média da categoria."
-            } else if delta < -0.05 {
-                return "Sua moto faz \(pct)% a menos que a média da categoria."
-            } else {
-                return "Sua moto está na média da categoria."
-            }
-        }()
-        return Text(text)
-            .font(.title3.weight(.semibold))
-            .foregroundStyle(.primary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    /// Uma barra do card no padrão "Energia Ativa": número grande (title) acima,
-    /// e barra grossa preenchida proporcionalmente com o rótulo embutido à esquerda
-    /// (dentro da parte preenchida quando há espaço; o ano no print do Saúde).
-    private func categoryBar(label: String, value: Double?, scale: Double, fill: Color, embeddedLabelColor: Color) -> some View {
-        let frac = scale > 0 ? (value ?? 0) / scale : 0
-        return VStack(alignment: .leading, spacing: 2) {
-            // Número grande SEM bold, fonte SF padrão (não rounded) — igual ao
-            // Saúde, que usa peso regular nos big numbers.
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(value.map { $0.formatted(.number.precision(.fractionLength(1)).locale(AppFormat.locale)) } ?? "—")
-                    .font(.largeTitle.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.primary)
-                Text("km/l")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-            }
-            GeometryReader { geo in
-                let w = max(geo.size.width * frac, frac > 0 ? 40 : 0)
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color(.systemGray6))
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(fill)
-                        .frame(width: w)
-                        .overlay(alignment: .leading) {
-                            Text(label)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(embeddedLabelColor)
-                                .lineLimit(1)
-                                .padding(.leading, 10)
-                        }
-                }
-            }
-            .frame(height: 26)
-        }
     }
 
     // MARK: - Blocos

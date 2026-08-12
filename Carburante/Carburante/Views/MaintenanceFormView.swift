@@ -64,6 +64,8 @@ struct MaintenanceFormView: View {
     /// Posição do pneu quando "Pneus" está marcado numa Revisão Geral.
     @State private var revisaoTireSelection: TireSelection = .ambos
     @State private var saveError: String?
+    /// Confirmação de descarte (Cancelar/swipe-down com dados digitados).
+    @State private var showDiscardConfirm = false
     /// Evita que o `onChange(of: type)` (disparado ao carregar) sobrescreva os
     /// valores carregados/iniciais com os defaults do tipo.
     @State private var didLoad = false
@@ -79,6 +81,22 @@ struct MaintenanceFormView: View {
 
     private var mileagePrompt: String {
         motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "Hodômetro"
+    }
+
+    /// Há investimento do usuário a proteger? Novo: campo digitado/item marcado
+    /// (intervalos pré-preenchidos com defaults não contam); edição: divergência
+    /// do carregado.
+    private var hasChanges: Bool {
+        if let log = maintenanceLog {
+            return date != log.date || type != log.type || mileage != log.mileage
+                || cost != log.cost || notes != log.notes
+                || intervalKm != log.effectiveIntervalKm
+                || intervalMonths != log.effectiveIntervalMonths
+                || revisaoItems != Set(log.children.map(\.type))
+        }
+        return mileage != nil || cost != nil
+            || !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !revisaoItems.isEmpty
     }
 
     var body: some View {
@@ -217,7 +235,9 @@ struct MaintenanceFormView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("Cancelar") {
+                        if hasChanges { showDiscardConfirm = true } else { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { save() }
@@ -229,6 +249,14 @@ struct MaintenanceFormView: View {
                 }
             }
             .onAppear(perform: load)
+            // Protege dados digitados contra swipe-down acidental.
+            .interactiveDismissDisabled(hasChanges)
+            .confirmationDialog(isEditing ? "Descartar alterações?" : "Descartar esta manutenção?",
+                                isPresented: $showDiscardConfirm,
+                                titleVisibility: .visible) {
+                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Continuar editando", role: .cancel) {}
+            }
             // Trocar o tipo repõe os intervalos com os defaults do novo tipo
             // (só após o carregamento inicial, p/ não apagar valores carregados).
             .onChange(of: type) { _, newType in

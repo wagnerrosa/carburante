@@ -25,6 +25,8 @@ struct FuelLogFormView: View {
     @State private var fuelType: FuelType = .gasolinaComum
     @State private var isFullTank: Bool = true
     @State private var validationMessage: String?
+    /// Confirmação de descarte (Cancelar/swipe-down com alterações).
+    @State private var showDiscardConfirm = false
     @FocusState private var fieldFocused: Bool
 
     // Localização (capturada em background ao abrir um novo registro)
@@ -99,6 +101,14 @@ struct FuelLogFormView: View {
         ).isEmpty
     }
 
+    /// Há alterações não salvas na edição? Protege contra descarte silencioso.
+    private var hasChanges: Bool {
+        guard let log = fuelLog else { return false }
+        return date != log.date || odometer != log.odometer || liters != log.liters
+            || totalCost != log.totalCost || fuelType != log.fuelType
+            || isFullTank != log.isFullTank
+    }
+
     /// Placeholder do hodômetro: último valor conhecido, deixa claro que é leitura total.
     private var odometerPrompt: String {
         lastOdometer > 0 ? "Último: \(AppFormat.odometer(lastOdometer)) km" : "Hodômetro atual"
@@ -139,7 +149,11 @@ struct FuelLogFormView: View {
 
                 ocrSection
                 Section {
-                    DatePicker("Data", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    // Sem data futura; o `max` preserva a edição de um log futuro
+                    // legado sem clamp silencioso (mesma regra da manutenção).
+                    DatePicker("Data", selection: $date,
+                               in: ...max(Date(), fuelLog?.date ?? .distantPast),
+                               displayedComponents: [.date, .hourAndMinute])
 
                     HStack {
                         TextField("Hodômetro atual", value: $odometer, format: .number, prompt: Text(odometerPrompt))
@@ -228,7 +242,9 @@ struct FuelLogFormView: View {
             .tint(motorcycle.themeColor)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { dismiss() }
+                    Button("Cancelar") {
+                        if hasChanges { showDiscardConfirm = true } else { dismiss() }
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Salvar") { save() }
@@ -240,6 +256,14 @@ struct FuelLogFormView: View {
                 }
             }
             .onAppear(perform: loadIfEditing)
+            // Protege alterações não salvas contra swipe-down acidental.
+            .interactiveDismissDisabled(hasChanges)
+            .confirmationDialog("Descartar alterações?",
+                                isPresented: $showDiscardConfirm,
+                                titleVisibility: .visible) {
+                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Continuar editando", role: .cancel) {}
+            }
             .task {
                 // Captura localização só em registro novo; best-effort, não bloqueia.
                 guard fuelLog == nil else { return }

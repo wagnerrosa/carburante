@@ -350,17 +350,7 @@ struct GarageView: View {
     }
 
     private var deletionPrompt: String {
-        guard let moto = pendingDeletion else { return "" }
-        let fuel = moto.activeFuelLogs.count
-        let maint = moto.activeMaintenanceLogs.count
-        var parts: [String] = []
-        if fuel > 0 { parts.append("\(fuel) abastecimento\(fuel == 1 ? "" : "s")") }
-        if maint > 0 { parts.append("\(maint) manutenç\(maint == 1 ? "ão" : "ões")") }
-
-        if parts.isEmpty {
-            return "Excluir \(moto.displayName)?"
-        }
-        return "Excluir \(moto.displayName) e \(parts.joined(separator: " e "))? Esta ação não pode ser desfeita."
+        pendingDeletion?.deletionConfirmationText ?? ""
     }
 
     private func confirmDelete() {
