@@ -147,13 +147,23 @@ enum MaintenanceSchedule {
 }
 
 extension Motorcycle {
-    /// Última manutenção registrada de um tipo (por data). Para pneus, `position`
-    /// filtra pelo eixo (dianteiro/traseiro têm contadores próprios). Passar
-    /// `position: nil` num pneu casa registros antigos sem posição.
-    func lastService(of type: MaintenanceType, position: TirePosition? = nil) -> MaintenanceLog? {
+    /// Última manutenção registrada de um tipo (por DIA; empate no mesmo dia
+    /// decide pelo maior km). Dia, não timestamp: o form carimba a hora de
+    /// quando foi aberto, então um retro-registro feito à tarde "parecia" mais
+    /// novo que o registro real da manhã e roubava a âncora do próximo
+    /// vencimento. O hodômetro é monotônico — no mesmo dia, km maior = serviço
+    /// mais recente. Para pneus, `position` filtra pelo eixo (dianteiro/traseiro
+    /// têm contadores próprios); `position: nil` casa registros antigos sem posição.
+    func lastService(
+        of type: MaintenanceType, position: TirePosition? = nil,
+        calendar: Calendar = .current
+    ) -> MaintenanceLog? {
         activeMaintenanceLogs
             .filter { $0.type == type && (type != .pneus || $0.tirePosition == position) }
-            .max { $0.date < $1.date }
+            .max {
+                (calendar.startOfDay(for: $0.date), $0.mileage)
+                    < (calendar.startOfDay(for: $1.date), $1.mileage)
+            }
     }
 
     /// km rodados desde a última manutenção do tipo (≥0). Nil se nunca registrada.

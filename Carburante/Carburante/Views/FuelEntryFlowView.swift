@@ -285,6 +285,10 @@ struct FuelEntryFlowView: View {
                     Text("km").foregroundStyle(.secondary).frame(width: 28, alignment: .leading)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 12)
+                // Linha inteira tocável (como fillRow): sem isso, só o TextField
+                // (160pt à direita) foca — tocar no rótulo "Hodômetro" morria.
+                .contentShape(Rectangle())
+                .onTapGesture { fillFocus = .odometer }
                 .background(Color(.secondarySystemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
@@ -536,6 +540,9 @@ struct FuelEntryFlowView: View {
                     .focused($fillFocus, equals: .city)
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
+            // Linha inteira tocável (como fillRow) — o rótulo "Cidade" era zona morta.
+            .contentShape(Rectangle())
+            .onTapGesture { fillFocus = .city }
 
             if dateWasEdited || locationWasEdited {
                 Divider().padding(.leading, 16)

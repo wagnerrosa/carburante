@@ -85,7 +85,13 @@ struct MaintenanceFormView: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Data", selection: $date, displayedComponents: [.date])
+                    // Passado liberado (retro-registro é bem-vindo); futuro não —
+                    // manutenção é registro do que já foi feito. Um log futuro
+                    // criado antes deste limite continua editável (max com a
+                    // data dele, senão o picker clamparia a data sem o usuário pedir).
+                    DatePicker("Data", selection: $date,
+                               in: ...max(Date(), maintenanceLog?.date ?? .distantPast),
+                               displayedComponents: [.date])
                     Picker("Tipo", selection: $type) {
                         ForEach(MaintenanceType.allCases) { t in
                             Label(t.rawValue, systemImage: t.icon).tag(t)
@@ -102,6 +108,11 @@ struct MaintenanceFormView: View {
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
                         Text("R$").foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    if let backfillWarning {
+                        Label(backfillWarning, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
                     }
                 }
 
@@ -268,6 +279,44 @@ struct MaintenanceFormView: View {
                 if isOn { revisaoItems.insert(item) } else { revisaoItems.remove(item) }
             }
         )
+    }
+
+    /// Âncoras atuais de próximo vencimento que ESTE save pode substituir:
+    /// o tipo do form; para pneus, cada posição selecionada ("Ambos" = as duas);
+    /// para Revisão Geral, cada item marcado (os logs-filhos reiniciam esses
+    /// contadores, não o da revisão em si).
+    private var backfillAnchors: [MaintenanceLog] {
+        switch type {
+        case .pneus:
+            return tireSelection.positions.compactMap {
+                motorcycle.lastService(of: .pneus, position: $0)
+            }
+        case .revisao:
+            return revisaoItems.flatMap { item -> [MaintenanceLog] in
+                if item == .pneus {
+                    return revisaoTireSelection.positions.compactMap {
+                        motorcycle.lastService(of: .pneus, position: $0)
+                    }
+                }
+                return motorcycle.lastService(of: item).map { [$0] } ?? []
+            }
+        default:
+            return motorcycle.lastService(of: type).map { [$0] } ?? []
+        }
+    }
+
+    /// Aviso de retro-registro (nunca bloqueia o Salvar): km menor que alguma
+    /// âncora com data igual ou mais nova → este registro viraria a âncora do
+    /// próximo vencimento e "voltaria" o contador. Registro antigo é bem-vindo —
+    /// só precisa da data certa. Comparação por dia (a hora do form é arbitrária).
+    private var backfillWarning: String? {
+        guard maintenanceLog == nil, let km = mileage, km > 0 else { return nil }
+        let calendar = Calendar.current
+        let regressed = backfillAnchors.filter {
+            km < $0.mileage && calendar.startOfDay(for: date) >= calendar.startOfDay(for: $0.date)
+        }
+        guard let worst = regressed.max(by: { $0.mileage < $1.mileage }) else { return nil }
+        return "Km menor que a última (\(AppFormat.km(worst.mileage))). Se é um registro antigo, ajuste a data — senão o próximo vencimento volta para trás."
     }
 
     private var canSave: Bool {
