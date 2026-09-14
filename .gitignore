@@ -1,6 +1,7 @@
 claude.md
 PLAN/
 .env
+.mcp.json
 # Xcode user-specific state
 xcuserdata/
 *.xcuserstate
