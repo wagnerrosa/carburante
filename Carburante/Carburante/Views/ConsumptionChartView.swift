@@ -305,6 +305,8 @@ struct ConsumptionChartView: View {
             }
         }
         .frame(height: 260)
+        // Scrub sem retorno tátil parecia "morto" ao arrastar entre barras.
+        .sensoryFeedback(.selection, trigger: selectedBar?.id)
     }
 
     /// Uma barra do gráfico (segmento + posição).

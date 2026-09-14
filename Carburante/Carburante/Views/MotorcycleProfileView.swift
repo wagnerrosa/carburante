@@ -81,7 +81,7 @@ struct MotorcycleProfileView: View {
             MotorcycleFormView(motorcycle: motorcycle)
         }
         .sheet(isPresented: $showingFuelLog) {
-            FuelLogFormView(motorcycle: motorcycle)
+            FuelLogFormView(motorcycle: motorcycle, entryPoint: "motorcycle_profile")
         }
         .confirmationDialog(
             motorcycle.deletionConfirmationText,

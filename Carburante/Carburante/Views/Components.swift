@@ -121,7 +121,8 @@ struct BrandLogoTile: View {
             }
             .overlay {
                 // Hairline de contorno (separa o tile do fundo claro do sistema).
-                shape.stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+                // `separator` é adaptativo: preto fixo sumia no Dark Mode.
+                shape.stroke(Color(.separator), lineWidth: 0.5)
             }
             .shadow(color: .black.opacity(0.18), radius: size * 0.05, y: size * 0.03)
             .accessibilityHidden(true)
