@@ -19,6 +19,18 @@ struct FuelLogListView: View {
         motorcycle.activeFuelLogs.sorted { $0.date > $1.date }
     }
 
+    /// Abastecimentos agrupados por mês, em ordem decrescente — mesmo padrão do
+    /// histórico de manutenções (os dois históricos leem igual).
+    private var monthGroups: [MonthGroup] {
+        let cal = Calendar.current
+        let dict = Dictionary(grouping: logs) { log -> Date in
+            cal.date(from: cal.dateComponents([.year, .month], from: log.date)) ?? log.date
+        }
+        return dict.keys.sorted(by: >).map { key in
+            MonthGroup(id: key, logs: dict[key]?.sorted { $0.date > $1.date } ?? [])
+        }
+    }
+
     /// km/l por abastecimento que FECHA um segmento full-to-full, casado por
     /// odômetro. Logs sem medição (1º cheio, parcial) não entram → sem pílula.
     private var kmPerLiterByOdometer: [Double: Double] {
@@ -49,17 +61,21 @@ struct FuelLogListView: View {
                 let kmpl = kmPerLiterByOdometer
                 let avg = averageKmPerLiter
                 List {
-                    ForEach(logs) { log in
-                        Button {
-                            editingLog = log
-                        } label: {
-                            FuelLogRow(log: log,
-                                       kmPerLiter: kmpl[log.odometer],
-                                       averageKmPerLiter: avg)
+                    ForEach(monthGroups) { group in
+                        Section(group.title) {
+                            ForEach(group.logs) { log in
+                                Button {
+                                    editingLog = log
+                                } label: {
+                                    FuelLogRow(log: log,
+                                               kmPerLiter: kmpl[log.odometer],
+                                               averageKmPerLiter: avg)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .onDelete { delete($0, in: group.logs) }
                         }
-                        .buttonStyle(.plain)
                     }
-                    .onDelete(perform: delete)
                 }
             }
         }
@@ -77,21 +93,26 @@ struct FuelLogListView: View {
             }
         }
         .sheet(isPresented: $showingAdd) {
-            FuelLogFormView(motorcycle: motorcycle)
+            FuelLogFormView(motorcycle: motorcycle, entryPoint: "fuel_list")
         }
         .sheet(item: $editingLog) { log in
             FuelLogFormView(motorcycle: motorcycle, fuelLog: log)
         }
     }
 
-    private func delete(_ offsets: IndexSet) {
-        // `logs` está ordenado por data desc → índice 0 é o mais recente.
-        let deletedMostRecent = offsets.contains(0)
+    /// `offsets` indexa o grupo do mês, não a lista inteira — resolve para o log
+    /// antes de excluir (o índice global não bate mais com o agrupamento).
+    private func delete(_ offsets: IndexSet, in group: [FuelLog]) {
+        let targets = offsets.map { group[$0] }
+        // O mais recente da lista inteira é o índice 0 de `logs` (data desc).
+        let deletedMostRecent = logs.first.map { first in
+            targets.contains { $0.id == first.id }
+        } ?? false
         // Exclusão LÓGICA (Soft Revision): carimba `deletedAt` em vez de remover.
         // A leitura some (logs usa `activeFuelLogs`) e o sync propaga o delete a
         // outros devices — antes um delete físico só sumia local, nunca cruzava.
-        for index in offsets {
-            logs[index].softDelete()
+        for log in targets {
+            log.softDelete()
         }
         Analytics.fuelDeleted(wasMostRecent: deletedMostRecent)
         // Reconcilia o hodômetro: `activeFuelLogs` já exclui os soft-deletados,
@@ -107,6 +128,17 @@ struct FuelLogListView: View {
         Task {
             await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
             await NotificationService.shared.rescheduleMaintenance(statuses: statuses)
+        }
+    }
+
+    /// Grupo de um mês para a `Section`.
+    private struct MonthGroup: Identifiable {
+        let id: Date
+        let logs: [FuelLog]
+
+        var title: String {
+            id.formatted(Date.FormatStyle().month(.wide).year().locale(AppFormat.locale))
+                .capitalized
         }
     }
 }
@@ -131,16 +163,19 @@ private struct FuelLogRow: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                // O combustível fica sempre nesta linha: antes a pílula de km/l
+                // ocupava o lugar dele e a informação sumia justo nos logs que
+                // fecham um segmento.
                 HStack {
                     Text(AppFormat.liters(log.liters))
                     Text("•")
                     Text(AppFormat.currency(log.totalCost))
+                    Text("•")
+                    Text(log.fuelType.rawValue)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     if let kmPerLiter {
                         VariationPill(kmPerLiter: kmPerLiter, average: averageKmPerLiter)
-                    } else {
-                        Text(log.fuelType.rawValue)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .font(.subheadline)

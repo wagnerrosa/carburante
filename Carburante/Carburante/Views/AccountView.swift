@@ -72,7 +72,10 @@ struct AccountView: View {
     @ViewBuilder
     private var signedInState: some View {
         LabeledContent("Conta Apple", value: sync.accountEmail ?? "Conectado")
-        Button("Sair", role: .destructive) {
+        // Sem `role: .destructive`: sair volta à sessão anônima e mantém os
+        // dados locais. Vermelho fica reservado a "Excluir conta" (HIG:
+        // destructive = perda de dados).
+        Button("Sair") {
             Task { await sync.signOut() }
         }
         // Exclusão de conta in-app: exigência da App Store (Guideline 5.1.1(v))

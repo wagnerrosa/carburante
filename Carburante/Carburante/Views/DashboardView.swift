@@ -23,6 +23,9 @@ struct DashboardView: View {
     @State private var showingConsumption = false
     /// Navega para a manutenção a partir do checklist de ativação.
     @State private var showingMaintenance = false
+    /// Checklist de ativação → form de manutenção direto (a lista intermediária
+    /// só mostrava o estado vazio com outro CTA: dois toques para a mesma ação).
+    @State private var showingMaintenanceForm = false
     /// IDs das motos cujo checklist de ativação foi dispensado pelo usuário,
     /// como CSV de UUIDs (AppStorage não guarda Set). Dismiss é POR MOTO: fechar
     /// numa moto não esconde nas outras, e cada moto nova reaparece com o guia.
@@ -66,11 +69,16 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingFuelLog) {
                 if let moto = motorcycle {
-                    FuelLogFormView(motorcycle: moto)
+                    FuelLogFormView(motorcycle: moto, entryPoint: "dashboard")
                 }
             }
             .sheet(isPresented: $showingAddMoto) {
                 MotorcycleFormView()
+            }
+            .sheet(isPresented: $showingMaintenanceForm) {
+                if let moto = motorcycle {
+                    MaintenanceFormView(motorcycle: moto)
+                }
             }
             .onChange(of: activeMotorcycleID) { _, newID in
                 Haptics.selection()
@@ -124,6 +132,8 @@ struct DashboardView: View {
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            // Ícone sozinho não tem texto para o VoiceOver ler.
+            .accessibilityLabel("Abastecer")
 
             Divider().frame(height: 20)
 
@@ -164,6 +174,8 @@ struct DashboardView: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Trocar de moto")
+            .accessibilityValue(moto.displayName)
         }
     }
 
@@ -195,7 +207,11 @@ struct DashboardView: View {
                     consumptionCard(summary, segments: [], moto: moto)
                 }
 
-                metricsGrid(summary, moto: moto)
+                // Sem abastecimento a grade seria 4 tiles "—"/"R$ 0,00"/"0 km":
+                // ruído sem informação. O estado vazio já traz o CTA de registro.
+                if !moto.activeFuelLogs.isEmpty {
+                    metricsGrid(summary, moto: moto)
+                }
 
                 if let next = statuses.first {
                     sectionTitle("Próxima manutenção")
@@ -271,7 +287,7 @@ struct DashboardView: View {
                            action: { showingFuelLog = true }),
             ActivationStep(title: "Registre uma manutenção",
                            isDone: hasMaintenance,
-                           action: { showingMaintenance = true }),
+                           action: { showingMaintenanceForm = true }),
             // Consumo aparece sozinho (não é uma ação direta) → leva à tela Consumo
             // só depois de existir, para o usuário ver o resultado.
             ActivationStep(title: "Veja seu primeiro consumo",

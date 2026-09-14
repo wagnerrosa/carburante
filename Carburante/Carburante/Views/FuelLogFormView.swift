@@ -17,6 +17,9 @@ struct FuelLogFormView: View {
     let motorcycle: Motorcycle
     /// Nil = novo abastecimento. Não-nil = edição.
     var fuelLog: FuelLog?
+    /// De onde o registro foi aberto (analytics). Repassado ao fluxo progressivo
+    /// — sem isso todo abastecimento novo era contado como "toolbar_plus".
+    var entryPoint: String = "toolbar_plus"
 
     @State private var date: Date = Date()
     @State private var odometer: Double?
@@ -119,7 +122,7 @@ struct FuelLogFormView: View {
         // Form clássico — editar log histórico não se beneficia do passo a passo
         // e relaxa a regra monotônica do hodômetro.
         if fuelLog == nil {
-            FuelEntryFlowView(motorcycle: motorcycle)
+            FuelEntryFlowView(motorcycle: motorcycle, entryPoint: entryPoint)
         } else {
             editForm
         }

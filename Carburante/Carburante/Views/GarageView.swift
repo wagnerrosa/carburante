@@ -55,18 +55,20 @@ struct GarageView: View {
             }
             .navigationTitle("Garagem")
             .toolbar {
+                // HIG: criação fica no trailing. Ajustes vai para o leading —
+                // o `+` da ação principal ganha a borda de alcance do polegar.
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label("Adicionar moto", systemImage: "plus")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingSettings = true
                     } label: {
                         Label("Ajustes", systemImage: "gearshape")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("Adicionar moto", systemImage: "plus")
                     }
                 }
             }

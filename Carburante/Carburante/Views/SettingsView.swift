@@ -10,6 +10,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+
     /// Compartilhar dados de uso (analytics). Default true — analytics de produto
     /// anônimo é opt-out (sem ATT/IDFA). A fonte de verdade do opt-out é aplicada
     /// ao PostHog em `CarburanteApp` no launch e aqui na mudança.
@@ -36,6 +38,12 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Ajustes")
+            // Sheet sem botão de fechar dependia só do swipe-down.
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("OK") { dismiss() }
+                }
+            }
         }
     }
 
