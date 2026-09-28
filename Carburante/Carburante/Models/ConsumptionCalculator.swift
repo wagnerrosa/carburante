@@ -85,20 +85,35 @@ extension FuelLog {
 }
 
 extension Motorcycle {
+    /// Abastecimentos que alimentam consumo, gráficos e recordes. Fica de fora o
+    /// HISTÓRICO anterior ao 1º registro na hora (o passado da moto): recibo
+    /// antigo tem buracos e inventaria km/l absurdo (PLAN/registro-retroativo.md,
+    /// decisão 1). Histórico INTERCALADO entre registros na hora (abastecimento
+    /// real lançado com atraso) fica dentro — tirá-lo abriria um buraco no
+    /// trecho cheio→cheio e inflaria o km/l. Sem nenhum registro na hora → vazio.
+    var consumptionFuelLogs: [FuelLog] {
+        let active = activeFuelLogs
+        guard let start = active.filter({ !$0.isHistorical }).map(\.odometer).min() else { return [] }
+        return active.filter { $0.odometer >= start }
+    }
+
+    /// Entradas do cálculo de consumo (ver `consumptionFuelLogs`).
+    var consumptionEntries: [FuelEntry] { consumptionFuelLogs.map(\.asFuelEntry) }
+
     /// Resumo de consumo da moto a partir dos seus abastecimentos.
     var consumptionSummary: ConsumptionSummary {
-        ConsumptionCalculator.summary(from: activeFuelLogs.map(\.asFuelEntry))
+        ConsumptionCalculator.summary(from: consumptionEntries)
     }
 
     /// Quantos abastecimentos cheios faltam até o 1º km/l aparecer (0/1/2).
     /// Base das mensagens que explicam o método full-to-full ao usuário.
     var fullTanksUntilConsumption: Int {
-        ConsumptionCalculator.fullTanksUntilFirstReading(from: activeFuelLogs.map(\.asFuelEntry))
+        ConsumptionCalculator.fullTanksUntilFirstReading(from: consumptionEntries)
     }
 
     /// Recordes pessoais (PRs) da moto — para a seção Recordes da Garagem.
     var records: GarageRecords {
-        ConsumptionCalculator.records(from: activeFuelLogs.map(\.asFuelEntry))
+        ConsumptionCalculator.records(from: consumptionEntries)
     }
 
     /// Km rodados desde o cadastro (leitura manual de referência). Base do
@@ -128,7 +143,7 @@ extension Motorcycle {
 
     /// Gasto somado por mês para a sparkline (últimos 6 meses, com zeros).
     func monthlyExpenseSeries(now: Date = Date()) -> [(month: Date, total: Double)] {
-        ConsumptionCalculator.monthlyExpense(from: activeFuelLogs.map(\.asFuelEntry), now: now)
+        ConsumptionCalculator.monthlyExpense(from: consumptionEntries, now: now)
     }
 
     /// Gasto do mês-civil atual.
@@ -138,30 +153,31 @@ extension Motorcycle {
 
     /// Preço por litro de cada abastecimento (série da sparkline).
     var pricePerLiterSeries: [Double] {
-        ConsumptionCalculator.pricePerLiterSeries(from: activeFuelLogs.map(\.asFuelEntry))
+        ConsumptionCalculator.pricePerLiterSeries(from: consumptionEntries)
     }
 
     /// Preço médio por litro = gasto total ÷ litros totais (ponderado pelo
     /// volume, não média simples dos preços). nil sem litros.
     var averagePricePerLiter: Double? {
-        let liters = activeFuelLogs.reduce(0) { $0 + $1.liters }
-        let cost = activeFuelLogs.reduce(0) { $0 + $1.totalCost }
+        let logs = consumptionFuelLogs
+        let liters = logs.reduce(0) { $0 + $1.liters }
+        let cost = logs.reduce(0) { $0 + $1.totalCost }
         return liters > 0 ? cost / liters : nil
     }
 
     /// Custo por km de cada segmento (série da sparkline do tile Custo/km).
     var costPerKmSeries: [Double] {
-        ConsumptionCalculator.costPerKmSeries(from: activeFuelLogs.map(\.asFuelEntry))
+        ConsumptionCalculator.costPerKmSeries(from: consumptionEntries)
     }
 
     /// km rodados por mês.
     func monthlyDistanceSeries(now: Date = Date()) -> [(month: Date, distance: Double)] {
-        ConsumptionCalculator.monthlyDistance(from: activeFuelLogs.map(\.asFuelEntry), now: now)
+        ConsumptionCalculator.monthlyDistance(from: consumptionEntries, now: now)
     }
 
     /// km rodados por semana (barras densas do tile "Rodados", estilo Fitness).
     func weeklyDistanceSeries(now: Date = Date()) -> [DistanceBar] {
-        ConsumptionCalculator.weeklyDistance(from: activeFuelLogs.map(\.asFuelEntry), now: now)
+        ConsumptionCalculator.weeklyDistance(from: consumptionEntries, now: now)
     }
 
     /// km rodados no mês-civil atual (número grande do tile).
@@ -184,8 +200,10 @@ extension Array where Element == Motorcycle {
         var ccClubs = Set<Int>()
 
         for moto in self {
-            if !moto.activeMaintenanceLogs.isEmpty { hasMaintenance = true }
-            fullTanks += moto.activeFuelLogs.filter(\.isFullTank).count
+            // Só registros NA HORA contam para conquistas — histórico (lançado
+            // dias depois do fato) não (PLAN/registro-retroativo.md, decisão 2).
+            if moto.activeMaintenanceLogs.contains(where: { !$0.isHistorical }) { hasMaintenance = true }
+            fullTanks += moto.activeFuelLogs.filter { $0.isFullTank && !$0.isHistorical }.count
             // "Acima da média": melhor km/l medido supera a régua da categoria.
             // Régua nil (sem cilindrada/categoria) → não conta (degrada limpo).
             if let best = moto.records.bestKmPerLiter,

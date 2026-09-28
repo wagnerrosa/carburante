@@ -53,6 +53,12 @@ struct FuelLogDTO: Codable {
     let updated_at: Date
     let revision: Int
     let deleted_at: Date?
+    /// Quando o registro entrou no app. Base da regra "histórico vs na hora"
+    /// (`EventProvenance`) — sem sincronizar, um reinstall recriava o log com
+    /// `Date()` e tudo virava histórico. NÃO-opcional: o upsert em lote manda a
+    /// união das chaves, e nil viraria NULL numa coluna NOT NULL. O servidor só
+    /// aceita valor MENOR (trigger `keep_earliest_created_at`).
+    let created_at: Date
 }
 
 struct MaintenanceLogDTO: Codable {
@@ -74,6 +80,8 @@ struct MaintenanceLogDTO: Codable {
     let updated_at: Date
     let revision: Int
     let deleted_at: Date?
+    /// Ver `FuelLogDTO.created_at`.
+    let created_at: Date
 }
 
 struct BadgeAwardDTO: Codable {

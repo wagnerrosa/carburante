@@ -104,9 +104,12 @@ enum Analytics {
         capture("fuel_entry_started", ["entry_point": entryPoint])
     }
 
+    /// `isHistorical`: registrado dias depois do fato (`EventProvenance`) — filtre
+    /// insights de hábito/retenção por `is_historical = false` (histórico infla
+    /// `log_number`/`unlocks_consumption` sem ser uso recorrente).
     static func fuelCreated(fuelType: FuelType, isFullTank: Bool, ocrOutcome: OCROutcome,
                             hasLocation: Bool, logNumber: Int, liters: Double, cost: Double,
-                            unlocksConsumption: Bool, currency: String) {
+                            unlocksConsumption: Bool, currency: String, isHistorical: Bool) {
         capture("fuel_created", [
             "fuel_type": fuelType.rawValue,
             "is_full_tank": isFullTank,
@@ -117,6 +120,7 @@ enum Analytics {
             "cost_band": costBand(cost),
             "currency": currency,
             "unlocks_consumption": unlocksConsumption,
+            "is_historical": isHistorical,
         ])
     }
 
@@ -134,15 +138,25 @@ enum Analytics {
 
     // MARK: - Maintenance
 
+    /// `isHistorical`: registrado dias depois do fato (`EventProvenance`).
+    /// `fromHistoryEntry`: aberto por "Adicionar histórico" (mede a descoberta).
     static func maintenanceCreated(type: MaintenanceType, isFirst: Bool, fromScheduledPrompt: Bool,
-                                   customInterval: Bool, revisaoItemCount: Int?) {
+                                   customInterval: Bool, revisaoItemCount: Int?,
+                                   isHistorical: Bool, fromHistoryEntry: Bool) {
         capture("maintenance_created", [
             "type": type.rawValue,
             "is_first_maintenance": isFirst,
             "from_scheduled_prompt": fromScheduledPrompt,
             "custom_interval": customInterval,
             "revisao_item_count": revisaoItemCount as Any,
+            "is_historical": isHistorical,
+            "from_history_entry": fromHistoryEntry,
         ])
+    }
+
+    /// Usuário dispensou o convite "Sua moto já tem histórico?" do Resumo.
+    static func historyInviteDismissed() {
+        capture("history_invite_dismissed")
     }
 
     /// App agendou lembrete(s) de manutenção. Mede a cobertura do motor de

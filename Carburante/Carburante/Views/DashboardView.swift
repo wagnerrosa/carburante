@@ -31,6 +31,11 @@ struct DashboardView: View {
     /// como CSV de UUIDs (AppStorage não guarda Set). Dismiss é POR MOTO: fechar
     /// numa moto não esconde nas outras, e cada moto nova reaparece com o guia.
     @AppStorage("activationChecklistDismissedIDs") private var dismissedChecklistIDsCSV: String = ""
+    /// Convite "Sua moto já tem histórico?" dispensado — CSV de UUIDs, por moto
+    /// (mesmo padrão do checklist).
+    @AppStorage("historyInviteDismissedIDs") private var dismissedHistoryInviteIDsCSV: String = ""
+    /// Convite de histórico → form de manutenção em modo histórico.
+    @State private var showingHistoryForm = false
 
     private var dismissedChecklistIDs: Set<String> {
         Set(dismissedChecklistIDsCSV.split(separator: ",").map(String.init))
@@ -40,6 +45,24 @@ struct DashboardView: View {
         var ids = dismissedChecklistIDs
         ids.insert(moto.id.uuidString)
         dismissedChecklistIDsCSV = ids.sorted().joined(separator: ",")
+    }
+
+    private var dismissedHistoryInviteIDs: Set<String> {
+        Set(dismissedHistoryInviteIDsCSV.split(separator: ",").map(String.init))
+    }
+
+    private func dismissHistoryInvite(for moto: Motorcycle) {
+        var ids = dismissedHistoryInviteIDs
+        ids.insert(moto.id.uuidString)
+        dismissedHistoryInviteIDsCSV = ids.sorted().joined(separator: ",")
+    }
+
+    /// Convite de histórico: moto usada, sem nenhum histórico ainda, não
+    /// dispensado. Quem decide se o checklist está na tela é o chamador (o
+    /// convite nunca empilha com os primeiros passos).
+    private func showsHistoryInvite(for moto: Motorcycle) -> Bool {
+        !dismissedHistoryInviteIDs.contains(moto.id.uuidString)
+            && moto.looksUsed && !moto.hasHistoricalRecords
     }
 
     /// Moto exibida: a ativa (persistida), ou a primeira disponível.
@@ -79,6 +102,11 @@ struct DashboardView: View {
             .sheet(isPresented: $showingMaintenanceForm) {
                 if let moto = motorcycle {
                     MaintenanceFormView(motorcycle: moto)
+                }
+            }
+            .sheet(isPresented: $showingHistoryForm) {
+                if let moto = motorcycle {
+                    MaintenanceFormView(motorcycle: moto, isHistoryEntry: true)
                 }
             }
             .onChange(of: activeMotorcycleID) { _, newID in
@@ -188,7 +216,7 @@ struct DashboardView: View {
         let statuses = moto.maintenanceStatuses()
         // Segmentos full-to-full, mais antigo → mais novo (para o mini-gráfico do card).
         let segments = ConsumptionCalculator
-            .segments(from: moto.activeFuelLogs.map(\.asFuelEntry))
+            .segments(from: moto.consumptionEntries)
             .sorted { $0.endDate < $1.endDate }
 
         return ScrollView {
@@ -196,6 +224,13 @@ struct DashboardView: View {
                 if let steps = activationSteps(for: moto) {
                     ActivationChecklist(steps: steps) {
                         withAnimation { dismissChecklist(for: moto) }
+                    }
+                } else if showsHistoryInvite(for: moto) {
+                    HistoryInviteCard {
+                        showingHistoryForm = true
+                    } onDismiss: {
+                        withAnimation { dismissHistoryInvite(for: moto) }
+                        Analytics.historyInviteDismissed()
                     }
                 }
 

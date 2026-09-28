@@ -47,6 +47,10 @@ struct MaintenanceFormView: View {
     /// Posição de pneu inicial p/ nova manutenção (linha "Programadas" de pneu).
     /// Ignorada em edição e em tipos que não são pneu.
     var initialTirePosition: TirePosition?
+    /// Aberto por "Adicionar histórico": registro de algo feito ANTES (moto usada,
+    /// histórico anterior ao app). Data é o que decide — exigida antes de hoje,
+    /// senão nasceria "na hora" e reiniciaria o vencimento para hoje.
+    var isHistoryEntry: Bool = false
 
     @State private var date: Date = Date()
     @State private var type: MaintenanceType = .oleo
@@ -80,7 +84,20 @@ struct MaintenanceFormView: View {
     }
 
     private var mileagePrompt: String {
-        motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "Hodômetro"
+        if isHistoryEntry { return "Km na época" }
+        return motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "Hodômetro"
+    }
+
+    /// Modo histórico criando: data ainda é hoje → falta escolher quando foi.
+    private var needsPastDate: Bool {
+        isHistoryEntry && !isEditing
+            && Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: Date())
+    }
+
+    /// Este registro vai ficar (ou já é) marcado como Histórico? Criando, conta
+    /// a partir de agora; editando, do `createdAt` do próprio log.
+    private var willBeHistorical: Bool {
+        EventProvenance.isHistorical(date: date, createdAt: maintenanceLog?.createdAt ?? Date())
     }
 
     /// Há investimento do usuário a proteger? Novo: campo digitado/item marcado
@@ -107,7 +124,7 @@ struct MaintenanceFormView: View {
                     // manutenção é registro do que já foi feito. Um log futuro
                     // criado antes deste limite continua editável (max com a
                     // data dele, senão o picker clamparia a data sem o usuário pedir).
-                    DatePicker("Data", selection: $date,
+                    DatePicker(isHistoryEntry ? "Quando foi feita" : "Data", selection: $date,
                                in: ...max(Date(), maintenanceLog?.date ?? .distantPast),
                                displayedComponents: [.date])
                     Picker("Tipo", selection: $type) {
@@ -128,9 +145,19 @@ struct MaintenanceFormView: View {
                         Text("R$").foregroundStyle(.secondary)
                     }
                 } footer: {
-                    if let backfillWarning {
-                        Label(backfillWarning, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 6) {
+                        if needsPastDate {
+                            Text("Escolha a data em que a manutenção foi feita.")
+                        } else if willBeHistorical {
+                            // Transparência: registro tardio vale menos (não conta
+                            // para conquistas) — PLAN/registro-retroativo.md.
+                            Label("Fica marcado como Histórico e não conta para conquistas.",
+                                  systemImage: "clock.arrow.circlepath")
+                        }
+                        if let backfillWarning {
+                            Label(backfillWarning, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
 
@@ -231,7 +258,7 @@ struct MaintenanceFormView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Editar Manutenção" : "Nova Manutenção")
+            .navigationTitle(isEditing ? "Editar Manutenção" : (isHistoryEntry ? "Manutenção Antiga" : "Nova Manutenção"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -348,7 +375,7 @@ struct MaintenanceFormView: View {
     }
 
     private var canSave: Bool {
-        guard (mileage ?? 0) > 0 else { return false }
+        guard (mileage ?? 0) > 0, !needsPastDate else { return false }
         // Revisão Geral precisa de ≥1 item: sem item não reinicia contador nem
         // aparece em Programadas (não é agendável) → o serviço se perderia.
         if type == .revisao, revisaoItems.isEmpty { return false }
@@ -433,7 +460,9 @@ struct MaintenanceFormView: View {
                 isFirst: isFirst,
                 fromScheduledPrompt: initialType != nil,
                 customInterval: ik != nil || im != nil,
-                revisaoItemCount: type == .revisao ? revisaoItems.count : nil
+                revisaoItemCount: type == .revisao ? revisaoItems.count : nil,
+                isHistorical: parent.isHistorical,
+                fromHistoryEntry: isHistoryEntry
             )
             // Registrar a partir do prompt agendado = adoção da manutenção programada.
             if initialType != nil, AdoptionTracker.markAndCheck(.scheduledMaintenance) {

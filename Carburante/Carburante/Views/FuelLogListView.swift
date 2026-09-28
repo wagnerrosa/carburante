@@ -35,7 +35,7 @@ struct FuelLogListView: View {
     /// odômetro. Logs sem medição (1º cheio, parcial) não entram → sem pílula.
     private var kmPerLiterByOdometer: [Double: Double] {
         Dictionary(
-            ConsumptionCalculator.segments(from: motorcycle.activeFuelLogs.map(\.asFuelEntry))
+            ConsumptionCalculator.segments(from: motorcycle.consumptionEntries)
                 .map { ($0.endOdometer, $0.kmPerLiter) },
             uniquingKeysWith: { _, new in new }
         )
@@ -155,7 +155,8 @@ private struct FuelLogRow: View {
             IconTile(systemName: "fuelpump.fill", size: 38)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(AppFormat.dateTime(log.date))
+                    // Histórico: a hora digitada depois não diz nada — só a data.
+                    Text(log.isHistorical ? AppFormat.date(log.date) : AppFormat.dateTime(log.date))
                         .font(.headline)
                     Spacer()
                     Text(AppFormat.km(log.odometer))
@@ -185,6 +186,10 @@ private struct FuelLogRow: View {
                     Label(place, systemImage: "mappin.and.ellipse")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                // Registrado depois do fato — informação, não alerta.
+                if log.isHistorical {
+                    HistoryMarker()
                 }
             }
         }

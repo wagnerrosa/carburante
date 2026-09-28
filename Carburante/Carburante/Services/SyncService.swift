@@ -270,6 +270,7 @@ final class SyncService {
                     if dto.updated_at > existing.updatedAt {
                         applyFuel(dto, to: existing)
                     }
+                    healCreatedAt(&existing.createdAt, remote: dto.created_at)
                     continue
                 }
                 guard let moto = motoByID[dto.motorcycle_id] else { continue }
@@ -278,7 +279,8 @@ final class SyncService {
                     totalCost: dto.total_cost,
                     fuelType: FuelType(rawValue: dto.fuel_type) ?? .gasolinaComum,
                     isFullTank: dto.is_full_tank, motorcycle: moto,
-                    ocrProcessed: dto.ocr_processed
+                    ocrProcessed: dto.ocr_processed,
+                    createdAt: dto.created_at
                 )
                 log.id = dto.id
                 log.motorcycle = moto
@@ -297,6 +299,7 @@ final class SyncService {
                     if dto.updated_at > existing.updatedAt {
                         applyMaint(dto, to: existing)
                     }
+                    healCreatedAt(&existing.createdAt, remote: dto.created_at)
                     continue
                 }
                 guard let moto = motoByID[dto.motorcycle_id] else { continue }
@@ -307,7 +310,8 @@ final class SyncService {
                     tirePosition: dto.tire_position.flatMap(TirePosition.init(rawValue:)),
                     intervalKm: dto.interval_km, intervalMonths: dto.interval_months,
                     partOfMaintenanceID: dto.part_of_maintenance_id,
-                    motorcycle: moto
+                    motorcycle: moto,
+                    createdAt: dto.created_at
                 )
                 log.id = dto.id
                 applyMaint(dto, to: log)
@@ -347,6 +351,15 @@ final class SyncService {
             lastError = "Falha ao baixar dados: \(error.localizedDescription)"
             Analytics.syncFailed(stage: "pull", errorCode: Self.errorCode(error))
         }
+    }
+
+    /// `createdAt` é um fato imutável (quando o registro entrou no app): vale o
+    /// MENOR entre local e remoto, independente do last-write-wins. Cura devices
+    /// que puxaram o log antes de o campo sincronizar (ganharam `Date()` do
+    /// pull). Tolerância de 1 s: o JSON perde sub-milissegundos e não queremos
+    /// reescrever toda linha a cada launch.
+    private func healCreatedAt(_ local: inout Date, remote: Date) {
+        if remote < local.addingTimeInterval(-1) { local = remote }
     }
 
     /// Aplica os campos de um `FuelLogDTO` a um `FuelLog` (novo ou já existente).
@@ -440,7 +453,8 @@ final class SyncService {
                         receipt_image_url: f.receiptImageURL, odometer_photo_url: f.odometerPhotoURL,
                         ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
                         date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited,
-                        updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt
+                        updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt,
+                        created_at: f.createdAt
                     )
                 }
             }
@@ -456,7 +470,8 @@ final class SyncService {
                         interval_km: mt.intervalKm, interval_months: mt.intervalMonths,
                         part_of_maintenance_id: mt.partOfMaintenanceID,
                         tire_position: mt.tirePositionRaw,
-                        updated_at: mt.updatedAt, revision: mt.revision, deleted_at: mt.deletedAt
+                        updated_at: mt.updatedAt, revision: mt.revision, deleted_at: mt.deletedAt,
+                        created_at: mt.createdAt
                     )
                 }
             }

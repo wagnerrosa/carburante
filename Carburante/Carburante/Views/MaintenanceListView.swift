@@ -14,6 +14,8 @@ struct MaintenanceListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: MaintenanceLog?
     @State private var showingAdd = false
+    /// "Adicionar histórico": manutenção feita antes (form em modo histórico).
+    @State private var showingHistory = false
     /// Status a registrar ao tocar numa linha "Programadas" (abre o form
     /// prefixado com o tipo e, p/ pneu, a posição).
     @State private var scheduledAdd: MaintenanceStatus?
@@ -62,6 +64,12 @@ struct MaintenanceListView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+                    // Moto usada: o passado (óleo/pneus/revisões antes do app).
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
+                    }
                 }
             } else {
                 List {
@@ -94,6 +102,16 @@ struct MaintenanceListView: View {
                             .onDelete { delete($0, in: group.logs) }
                         }
                     }
+                    // Secundário e no fim: o `+` segue sendo o caminho do dia a dia.
+                    Section {
+                        Button {
+                            showingHistory = true
+                        } label: {
+                            Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
+                        }
+                    } footer: {
+                        Text("Trocas de óleo, pneus e revisões feitas antes de usar o app.")
+                    }
                 }
             }
         }
@@ -113,6 +131,9 @@ struct MaintenanceListView: View {
         }
         .sheet(isPresented: $showingAdd) {
             MaintenanceFormView(motorcycle: motorcycle)
+        }
+        .sheet(isPresented: $showingHistory) {
+            MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true)
         }
         .sheet(item: $editingLog) { log in
             MaintenanceFormView(motorcycle: motorcycle, maintenanceLog: log)
@@ -270,6 +291,12 @@ private struct MaintenanceRow: View {
                 // Revisão geral lista os itens incluídos. Filhos não aparecem no
                 // histórico (filtrados em `logs`), então não há linha "Parte da
                 // revisão geral" — só o pai, com o resumo dos itens.
+                // Registrado depois do fato — informação, não alerta. Linha
+                // própria: na linha da data espremia data e custo.
+                if log.isHistorical {
+                    HistoryMarker()
+                }
+
                 if log.type == .revisao, !log.includedItemsLabel.isEmpty {
                     Label("Inclui: \(log.includedItemsLabel)", systemImage: "checklist")
                         .font(.caption)

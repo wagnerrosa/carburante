@@ -237,3 +237,30 @@ $$;
 -- Só usuários autenticados podem chamar (não o role anon público sem sessão).
 revoke all on function public.delete_current_user() from public, anon;
 grant execute on function public.delete_current_user() to authenticated;
+
+-- `created_at` dos logs é FATO IMUTÁVEL (quando o registro entrou no app) e base
+-- da regra "histórico vs na hora" (app: EventProvenance). O app passou a enviá-lo
+-- no upsert; como a ordem dos pushes entre devices não é garantida (um device
+-- que puxou o log antes do campo sincronizar tem `created_at` = hora do pull),
+-- o servidor só aceita valor MENOR — o mais antigo sempre vence. Build antigo
+-- que não manda a coluna não é afetado (new.created_at = old.created_at).
+create or replace function public.keep_earliest_created_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+    new.created_at := least(old.created_at, new.created_at);
+    return new;
+end;
+$$;
+
+drop trigger if exists fuel_logs_keep_earliest_created_at on public.fuel_logs;
+create trigger fuel_logs_keep_earliest_created_at
+    before update on public.fuel_logs
+    for each row execute function public.keep_earliest_created_at();
+
+drop trigger if exists maintenance_logs_keep_earliest_created_at on public.maintenance_logs;
+create trigger maintenance_logs_keep_earliest_created_at
+    before update on public.maintenance_logs
+    for each row execute function public.keep_earliest_created_at();
