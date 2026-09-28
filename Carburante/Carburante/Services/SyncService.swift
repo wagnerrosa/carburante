@@ -21,6 +21,7 @@
 import Foundation
 import SwiftData
 import Supabase
+import UIKit
 
 @MainActor
 @Observable
@@ -170,11 +171,13 @@ final class SyncService {
     /// Retorna true em sucesso. Ver supabase/schema.sql (delete_current_user).
     @discardableResult
     func deleteAccount(context: ModelContext) async -> Bool {
-        guard await ensureSession() != nil else {
+        guard let uid = await ensureSession() else {
             lastError = "Sem sessão para excluir a conta."
             return false
         }
         do {
+            // Fotos antes do usuário: depois do RPC ninguém mais consegue apagá-las.
+            try await deleteRemotePhotos(userID: uid)
             try await client.rpc("delete_current_user").execute()
         } catch {
             lastError = "Falha ao excluir a conta: \(error.localizedDescription)"
@@ -205,6 +208,7 @@ final class SyncService {
             try context.delete(model: MotorcycleOwnership.self)
             try context.delete(model: Motorcycle.self)
             try context.save()
+            PhotoStorage.deleteAllLocal()
         } catch {
             // Falha ao limpar o local não desfaz a exclusão no servidor; só loga.
             Analytics.syncFailed(stage: "delete_account_local", errorCode: SyncService.errorCode(error))
@@ -271,6 +275,11 @@ final class SyncService {
                         applyFuel(dto, to: existing)
                     }
                     healCreatedAt(&existing.createdAt, remote: dto.created_at)
+                    // Foto fora do LWW: o upload muda a referência sem mexer em
+                    // `updated_at`, então só o merge entrega o path a este device.
+                    existing.odometerPhotoURL = PhotoReference.merge(
+                        local: existing.odometerPhotoURL, remote: dto.odometer_photo_url
+                    )
                     continue
                 }
                 guard let moto = motoByID[dto.motorcycle_id] else { continue }
@@ -376,7 +385,9 @@ final class SyncService {
         log.city = dto.city; log.state = dto.state; log.country = dto.country
         log.temperatureC = dto.temperature_c
         log.receiptImageURL = dto.receipt_image_url
-        log.odometerPhotoURL = dto.odometer_photo_url
+        // Nunca sobrescreve uma foto local ainda não enviada (ver PhotoReference.merge).
+        log.odometerPhotoURL = PhotoReference.merge(local: log.odometerPhotoURL,
+                                                    remote: dto.odometer_photo_url)
         log.ocrProcessed = dto.ocr_processed
         log.ocrConfidence = dto.ocr_confidence
         log.dateWasEdited = dto.date_was_edited
@@ -443,20 +454,7 @@ final class SyncService {
             // `active*`): linhas soft-deletadas PRECISAM subir para propagar o
             // `deleted_at` aos outros devices.
             let fuelDTOs = motorcycles.flatMap { m in
-                m.fuelLogs.map { f in
-                    FuelLogDTO(
-                        id: f.id, motorcycle_id: m.id, user_id: uid, date: f.date,
-                        odometer: f.odometer, liters: f.liters, total_cost: f.totalCost,
-                        fuel_type: f.fuelTypeRaw, is_full_tank: f.isFullTank,
-                        latitude: f.latitude, longitude: f.longitude, city: f.city,
-                        state: f.state, country: f.country, temperature_c: f.temperatureC,
-                        receipt_image_url: f.receiptImageURL, odometer_photo_url: f.odometerPhotoURL,
-                        ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
-                        date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited,
-                        updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt,
-                        created_at: f.createdAt
-                    )
-                }
+                m.fuelLogs.map { fuelDTO($0, motorcycleID: m.id, userID: uid) }
             }
             if !fuelDTOs.isEmpty {
                 try await client.from("fuel_logs").upsert(fuelDTOs).execute()
@@ -513,10 +511,99 @@ final class SyncService {
                 try await client.from("motorcycle_ownerships").upsert(ownershipDTOs).execute()
             }
 
+            // Fotos por ÚLTIMO: os dados já subiram, então uma rede lenta (fotos
+            // são o payload mais pesado) não segura linhas nem estoura o timeout
+            // do launch antes delas. As que subirem agora re-sobem a linha com o
+            // path remoto; as que falharem ficam locais e tentam no próximo push.
+            let uploaded = await uploadPendingPhotos(motorcycles, userID: uid)
+            if !uploaded.isEmpty {
+                try context.save()
+                let dtos = uploaded.compactMap { f in
+                    f.motorcycle.map { fuelDTO(f, motorcycleID: $0.id, userID: uid) }
+                }
+                try await client.from("fuel_logs").upsert(dtos).execute()
+            }
+
             lastError = nil
         } catch {
             lastError = "Falha ao sincronizar: \(error.localizedDescription)"
             Analytics.syncFailed(stage: "push", errorCode: Self.errorCode(error))
+        }
+    }
+
+    private func fuelDTO(_ f: FuelLog, motorcycleID: UUID, userID: UUID) -> FuelLogDTO {
+        FuelLogDTO(
+            id: f.id, motorcycle_id: motorcycleID, user_id: userID, date: f.date,
+            odometer: f.odometer, liters: f.liters, total_cost: f.totalCost,
+            fuel_type: f.fuelTypeRaw, is_full_tank: f.isFullTank,
+            latitude: f.latitude, longitude: f.longitude, city: f.city,
+            state: f.state, country: f.country, temperature_c: f.temperatureC,
+            receipt_image_url: f.receiptImageURL,
+            odometer_photo_url: PhotoReference.pushValue(f.odometerPhotoURL),
+            ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
+            date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited,
+            updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt,
+            created_at: f.createdAt
+        )
+    }
+
+    // MARK: - Fotos do hodômetro (Storage)
+
+    /// Sobe as fotos com upload pendente (referência local) pro bucket privado e
+    /// troca a referência pelo path remoto. Devolve os logs que mudaram. Falha
+    /// por foto é engolida (best-effort): a foto segue no disco e tenta de novo
+    /// no próximo push — não derruba o sync dos dados.
+    private func uploadPendingPhotos(_ motorcycles: [Motorcycle], userID: UUID) async -> [FuelLog] {
+        let pending = motorcycles.flatMap(\.fuelLogs).filter {
+            $0.deletedAt == nil && PhotoReference.isPendingUpload($0.odometerPhotoURL)
+        }
+        var uploaded: [FuelLog] = []
+        for log in pending {
+            guard let data = PhotoStorage.data(for: log.odometerPhotoURL) else { continue }
+            let path = PhotoReference.remotePath(userID: userID, logID: log.id)
+            do {
+                // upsert: uma foto trocada na edição sobrescreve a anterior (mesmo path).
+                try await client.storage.from(PhotoReference.bucket).upload(
+                    path, data: data, options: FileOptions(contentType: "image/jpeg", upsert: true)
+                )
+                log.odometerPhotoURL = path
+                uploaded.append(log)
+            } catch {
+                Analytics.syncFailed(stage: "photo_upload", errorCode: Self.errorCode(error))
+            }
+        }
+        return uploaded
+    }
+
+    /// Foto do hodômetro para exibir: disco deste device primeiro (offline);
+    /// senão baixa do bucket privado com a sessão (RLS: só a própria pasta).
+    func odometerPhoto(for ref: String?) async -> UIImage? {
+        if let local = PhotoStorage.localImage(for: ref) { return local }
+        guard PhotoReference.isRemote(ref), let ref, await ensureSession() != nil else { return nil }
+        do {
+            let data = try await client.storage.from(PhotoReference.bucket).download(path: ref)
+            return UIImage(data: data)
+        } catch {
+            Analytics.syncFailed(stage: "photo_download", errorCode: Self.errorCode(error))
+            return nil
+        }
+    }
+
+    /// Apaga TODAS as fotos do usuário no bucket (exclusão de conta). Precisa
+    /// rodar ANTES de apagar o usuário: o cascade do Postgres não alcança o
+    /// Storage, e sem o usuário as policies não deixam mais ninguém apagar.
+    private func deleteRemotePhotos(userID: UUID) async throws {
+        let bucket = client.storage.from(PhotoReference.bucket)
+        let folder = userID.uuidString
+        while true {
+            let files = try await bucket.list(path: folder, options: SearchOptions(limit: 100))
+            guard !files.isEmpty else { return }
+            let removed = try await bucket.remove(paths: files.map { "\(folder)/\($0.name)" })
+            // RLS negando o delete devolve lista vazia sem erro — sem esta guarda
+            // o loop listaria os mesmos arquivos para sempre.
+            guard !removed.isEmpty else {
+                throw URLError(.noPermissionsToReadFile)
+            }
         }
     }
 }

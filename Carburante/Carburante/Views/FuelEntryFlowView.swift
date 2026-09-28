@@ -74,6 +74,10 @@ struct FuelEntryFlowView: View {
     @State private var odometerOCRStatus: OCRStatus?   // passo hodômetro
     @State private var receiptOCRStatus: OCRStatus?    // passo valor+litros
     @State private var isRecognizing = false
+    /// Foto do hodômetro tirada/escolhida — vai pro disco só ao salvar (o nome
+    /// do arquivo é o `id` do FuelLog). Guardada mesmo se o OCR falhar: é o
+    /// comprovante do km, não só insumo do OCR.
+    @State private var odometerPhoto: UIImage?
 
     /// Resultado de leitura por foto, exibido no feedback do passo.
     private struct OCRStatus {
@@ -347,8 +351,15 @@ struct FuelEntryFlowView: View {
                 }
 
                 if let s = odometerOCRStatus {
-                    feedbackLabel(s.text, icon: s.icon, color: s.color)
-                        .padding(.horizontal, 4)
+                    HStack {
+                        feedbackLabel(s.text, icon: s.icon, color: s.color)
+                        Spacer()
+                        // A foto fica guardada no registro — miniatura confirma.
+                        if let odometerPhoto {
+                            OdometerPhotoPreview(pendingImage: odometerPhoto)
+                        }
+                    }
+                    .padding(.horizontal, 4)
                 }
 
                 // Campo único com teclado nativo (igual valor+litros).
@@ -795,6 +806,7 @@ struct FuelEntryFlowView: View {
         switch photoTarget {
         case .odometer:
             odometerOCRStatus = nil
+            odometerPhoto = image
             do {
                 let r = try await TextRecognizer.recognize(in: cg)
                 if let odo = OCRParser.parseOdometer(r.lines) {
@@ -882,6 +894,11 @@ struct FuelEntryFlowView: View {
         // Proveniência: registra se o contexto auto-capturado foi mexido à mão.
         log.dateWasEdited = dateWasEdited
         log.locationWasEdited = locationWasEdited
+        // Guarda a foto do hodômetro no disco (offline, imediato) — o upload
+        // pro Supabase Storage roda em background no próximo push.
+        if let odometerPhoto {
+            log.odometerPhotoURL = PhotoStorage.save(odometerPhoto, for: log.id)
+        }
         modelContext.insert(log)
         motorcycle.reconcileOdometer(latestEntry: odo)
         do {

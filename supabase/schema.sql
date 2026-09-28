@@ -264,3 +264,50 @@ drop trigger if exists maintenance_logs_keep_earliest_created_at on public.maint
 create trigger maintenance_logs_keep_earliest_created_at
     before update on public.maintenance_logs
     for each row execute function public.keep_earliest_created_at();
+
+-- Foto do hodômetro (comprovante do km rodado — base da auditoria anti-burla e,
+-- no futuro, de uma checagem por IA). Bucket PRIVADO: nada de URL pública (não
+-- dá para revogar); o app baixa autenticado e as policies abaixo restringem à
+-- própria pasta ("{user_id}/{fuel_log_id}.jpg"). Acesso de terceiros (amigo,
+-- comprador da moto, moderação) vira policy nova quando existir — não URL.
+-- `fuel_logs.odometer_photo_url` guarda o PATH no bucket, não uma URL.
+-- Exclusão de conta: o cascade do Postgres NÃO alcança o Storage — o app apaga
+-- a pasta do usuário antes de chamar delete_current_user().
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('fuel-log-photos', 'fuel-log-photos', false, 5242880, array['image/jpeg'])
+on conflict (id) do update
+    set public = excluded.public,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "fuel_log_photos_insert_own" on storage.objects;
+create policy "fuel_log_photos_insert_own"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'fuel-log-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "fuel_log_photos_update_own" on storage.objects;
+create policy "fuel_log_photos_update_own"
+on storage.objects for update to authenticated
+using (
+  bucket_id = 'fuel-log-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "fuel_log_photos_select_own" on storage.objects;
+create policy "fuel_log_photos_select_own"
+on storage.objects for select to authenticated
+using (
+  bucket_id = 'fuel-log-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "fuel_log_photos_delete_own" on storage.objects;
+create policy "fuel_log_photos_delete_own"
+on storage.objects for delete to authenticated
+using (
+  bucket_id = 'fuel-log-photos'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
