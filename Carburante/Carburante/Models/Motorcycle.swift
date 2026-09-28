@@ -39,6 +39,12 @@ final class Motorcycle {
     /// Consumo informado pelo fabricante (km/l). Nulo no MVP — backfill depois.
     var manufacturerConsumption: Double?
     var createdAt: Date
+    /// Exclusão lógica (Soft Revision). Não-nil = moto excluída pelo usuário: some
+    /// da leitura (as `@Query` filtram por `activePredicate`) mas a linha fica
+    /// para o sync propagar o delete. Um delete físico não chegava ao Supabase e
+    /// o pull aditivo ressuscitava a moto no launch seguinte. Default nil →
+    /// migração leve.
+    var deletedAt: Date?
 
     /// Abastecimentos da moto. Apagar a moto apaga seus abastecimentos.
     @Relationship(deleteRule: .cascade, inverse: \FuelLog.motorcycle)
@@ -77,6 +83,23 @@ extension Motorcycle {
     /// Rótulo curto para listas/títulos: "Honda CB 500 (2022)".
     var displayName: String {
         "\(make) \(model) (\(year))"
+    }
+
+    // MARK: - Exclusão lógica da moto
+
+    /// Filtro das `@Query`/fetches de leitura: só motos não excluídas.
+    static var activePredicate: Predicate<Motorcycle> {
+        #Predicate<Motorcycle> { $0.deletedAt == nil }
+    }
+
+    /// Exclui a moto logicamente e, em cascata, seus abastecimentos e manutenções
+    /// (cada filho carimba o próprio `deletedAt`/`updatedAt` → o push propaga e o
+    /// pull LWW dos outros devices aplica). Idempotente.
+    func softDelete(now: Date = Date()) {
+        guard deletedAt == nil else { return }
+        deletedAt = now
+        for log in fuelLogs { log.softDelete(now: now) }
+        for log in maintenanceLogs { log.softDelete(now: now) }
     }
 
     // MARK: - Eventos vivos (Soft Revision — Fase 1)

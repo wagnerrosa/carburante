@@ -230,6 +230,16 @@ final class SyncService {
             let localMotos = try context.fetch(FetchDescriptor<Motorcycle>())
             var motoByID = Dictionary(uniqueKeysWithValues: localMotos.map { ($0.id, $0) })
 
+            // Exclusão lógica vinda de outro device: aplica na moto local viva.
+            // Só a moto — os logs filhos trazem o próprio `deleted_at` (LWW abaixo).
+            for dto in remoteMotos {
+                if let deletedAt = dto.deleted_at, let local = motoByID[dto.id], local.deletedAt == nil {
+                    local.deletedAt = deletedAt
+                }
+            }
+
+            // Moto remota ausente local → insere (mesmo excluída: mantém a FK dos
+            // logs e o histórico; a leitura já a esconde via `activePredicate`).
             for dto in remoteMotos where motoByID[dto.id] == nil {
                 let moto = Motorcycle(
                     make: dto.make, model: dto.model, year: dto.year,
@@ -239,6 +249,7 @@ final class SyncService {
                 )
                 moto.id = dto.id
                 moto.odometerBaseline = dto.odometer_baseline
+                moto.deletedAt = dto.deleted_at
                 context.insert(moto)
                 motoByID[dto.id] = moto
             }
@@ -393,7 +404,8 @@ final class SyncService {
                     country: m.country, current_odometer: m.currentOdometer,
                     odometer_baseline: m.odometerBaseline,
                     category: m.category, displacement_cc: m.displacementCC,
-                    manufacturer_consumption: m.manufacturerConsumption
+                    manufacturer_consumption: m.manufacturerConsumption,
+                    deleted_at: m.deletedAt
                 )
             }
             if !motoDTOs.isEmpty {
@@ -452,7 +464,9 @@ final class SyncService {
             // motos sem linha ativa (criadas antes desta feature, ou salvas sem
             // sessão) ganham uma agora, atribuída à sessão atual — migração sem
             // ação do usuário, idempotente. Depois faz upsert de todas.
-            if MotorcycleOwnership.backfillActive(for: motorcycles, userID: uid, in: context) {
+            if MotorcycleOwnership.backfillActive(
+                for: motorcycles.filter { $0.deletedAt == nil }, userID: uid, in: context
+            ) {
                 // Persiste as linhas novas: sem salvar, o próximo push não as veria
                 // e criaria outras (UUIDs novos) → linhas ativas duplicadas no
                 // Postgres. Salvar mantém o backfill idempotente entre execuções.
