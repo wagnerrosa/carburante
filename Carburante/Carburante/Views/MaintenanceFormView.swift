@@ -443,7 +443,9 @@ struct MaintenanceFormView: View {
         if type == .revisao {
             syncRevisaoChildren(parent: parent)
         } else {
-            for child in parent.children { modelContext.delete(child) }
+            // Exclusão LÓGICA: delete físico nunca chegava ao servidor e o pull
+            // do próximo launch ressuscitava o filho.
+            for child in parent.children { child.softDelete() }
         }
         do {
             try modelContext.save()
@@ -501,13 +503,14 @@ struct MaintenanceFormView: View {
         }
         for item in plan.toKeep {
             if let child = existing.first(where: { $0.type == item }) {
-                child.date = parent.date
-                child.mileage = parent.mileage
+                follow(parent, child)
             }
         }
+        // Exclusão LÓGICA (propaga via sync): o delete físico nunca chegava ao
+        // servidor e o pull do próximo launch ressuscitava o item desmarcado.
         for item in plan.toDelete {
             if let child = existing.first(where: { $0.type == item }) {
-                modelContext.delete(child)
+                child.softDelete()
             }
         }
         syncRevisaoTireChildren(parent: parent, existing: existing)
@@ -525,6 +528,7 @@ struct MaintenanceFormView: View {
         if let legacy = tireChildren.first(where: { $0.tirePosition == nil }),
            let target = wanted.first(where: { pos in !tireChildren.contains { $0.tirePosition == pos } }) {
             legacy.tirePosition = target
+            legacy.markUpdated()
         }
         let byPosition = Dictionary(
             grouping: parent.children.filter { $0.type == .pneus },
@@ -534,8 +538,7 @@ struct MaintenanceFormView: View {
             let current = byPosition[position]?.first
             if wanted.contains(position) {
                 if let child = current {
-                    child.date = parent.date
-                    child.mileage = parent.mileage
+                    follow(parent, child)
                 } else {
                     let child = MaintenanceLog(
                         date: parent.date, mileage: parent.mileage, cost: 0, notes: "",
@@ -546,12 +549,22 @@ struct MaintenanceFormView: View {
                     modelContext.insert(child)
                 }
             } else if let child = current {
-                modelContext.delete(child)
+                child.softDelete()
             }
         }
         // Remove filho-pneu sem posição que não foi reaproveitado (desmarcado).
         for child in parent.children where child.type == .pneus && child.tirePosition == nil {
-            modelContext.delete(child)
+            child.softDelete()
         }
+    }
+
+    /// Filho mantido acompanha data/km do pai. Só carimba a edição (revision/
+    /// updatedAt) quando algo mudou — sem isso o last-write-wins do pull nos
+    /// outros devices nunca aplicava a correção.
+    private func follow(_ parent: MaintenanceLog, _ child: MaintenanceLog) {
+        guard child.date != parent.date || child.mileage != parent.mileage else { return }
+        child.date = parent.date
+        child.mileage = parent.mileage
+        child.markUpdated()
     }
 }

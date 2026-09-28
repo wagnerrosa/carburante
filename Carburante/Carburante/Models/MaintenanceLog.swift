@@ -161,9 +161,10 @@ final class MaintenanceLog {
     /// Contador de edições (0 = nunca alterado após criar).
     var revision: Int = 0
     /// Exclusão lógica: nil = vivo. Leituras usam `Motorcycle.activeMaintenanceLogs`
-    /// e `children` filtra deletados; o sync propaga o delete. Só a exclusão POR
-    /// AÇÃO DO USUÁRIO (swipe) usa isto — deletes de reconciliação do combo
-    /// Revisão continuam físicos (ver MaintenanceFormView).
+    /// e `children` filtra deletados; o sync propaga o delete. Vale para a
+    /// exclusão pelo usuário (swipe) E para os itens desmarcados de uma Revisão
+    /// Geral — delete físico nunca chega ao servidor e o pull (aditivo) traria o
+    /// item de volta no próximo launch.
     var deletedAt: Date?
 
     var createdAt: Date
@@ -252,7 +253,7 @@ extension MaintenanceLog {
         updatedAt = now
     }
 
-    /// Exclusão lógica (só para exclusão por ação do usuário). Idempotente.
+    /// Exclusão lógica (swipe e itens desmarcados da Revisão). Idempotente.
     func softDelete(now: Date = Date()) {
         guard deletedAt == nil else { return }
         deletedAt = now
