@@ -63,9 +63,9 @@ struct MotorcycleFormView: View {
     /// Título contextual: "Nova {Marca}" quando uma marca do catálogo está
     /// escolhida (ex.: "Nova Kawasaki"); senão o genérico. Edição usa "Editar".
     private var titleText: String {
-        if isEditing { return "Editar Moto" }
+        if isEditing { return "Moto" }
         let mk = effectiveMake.trimmingCharacters(in: .whitespaces)
-        return MotorcycleMake.isKnown(mk) ? "Nova \(mk)" : "Nova Moto"
+        return MotorcycleMake.isKnown(mk) ? "Nova \(mk)" : "Nova moto"
     }
 
     /// Mínimo para registrar: marca + modelo. Categoria, cilindrada e país são
@@ -111,12 +111,20 @@ struct MotorcycleFormView: View {
                     // marca muda → o valor ficava na cor da 1ª marca (Honda/vermelho).
                     // `.id` força recriar o Picker p/ pegar o tint novo.
                     .id("marca-\(effectiveMake)")
+                    // Rótulo sempre visível (igual "País"): preenchido, "Iron"
+                    // sozinho não dizia que era o modelo.
                     if isOther {
-                        TextField("Nome da marca", text: $make)
+                        LabeledContent("Nome da marca") {
+                            TextField("Nome da marca", text: $make, prompt: Text("Obrigatório"))
+                                .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.words)
+                        }
+                    }
+                    LabeledContent("Modelo") {
+                        TextField("Modelo", text: $model, prompt: Text("Obrigatório"))
+                            .multilineTextAlignment(.trailing)
                             .textInputAutocapitalization(.words)
                     }
-                    TextField("Modelo", text: $model)
-                        .textInputAutocapitalization(.words)
                     Picker("Ano", selection: $year) {
                         ForEach(yearRange, id: \.self) { y in
                             Text(String(y)).tag(y)
@@ -135,12 +143,10 @@ struct MotorcycleFormView: View {
                     }
                     .tint(previewTheme)
                     .id("cat-\(effectiveMake)")
-                    HStack {
-                        TextField("Cilindrada", value: $displacementCC, format: .number)
+                    UnitField(label: "Cilindrada", unit: "cc") {
+                        TextField("Cilindrada", value: $displacementCC, format: .number, prompt: Text("0"))
                             .keyboardType(.numberPad)
                             .focused($displacementFocused)
-                        Text("cc")
-                            .foregroundStyle(.secondary)
                     }
                     LabeledContent("País") {
                         TextField("País", text: $country)
@@ -154,13 +160,11 @@ struct MotorcycleFormView: View {
                 }
 
                 Section("Hodômetro") {
-                    HStack {
+                    UnitField(label: "Atual", unit: "km") {
                         TextField("Quilometragem atual", value: $currentOdometer,
-                                  format: .number, prompt: Text("Quilometragem atual"))
+                                  format: .number, prompt: Text("0"))
                             .keyboardType(.decimalPad)
                             .focused($odometerFocused)
-                        Text("km")
-                            .foregroundStyle(.secondary)
                     }
                 }
 
