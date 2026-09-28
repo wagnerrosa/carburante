@@ -30,6 +30,10 @@ struct FuelEntryFlowView: View {
     let motorcycle: Motorcycle
     /// De onde o fluxo foi aberto (analytics). Default = toolbar "+".
     var entryPoint: String = "toolbar_plus"
+    /// Abastecimento ANTIGO ("Adicionar histórico"): a data vem primeiro (passo
+    /// 1) e decide os limites do hodômetro; sem GPS (o local de agora seria
+    /// falso); fica fora do consumo e das conquistas (PLAN/registro-retroativo.md).
+    var isHistoryEntry: Bool = false
 
     /// Passo atual. `fill` reúne valor + litros (uma foto traz os dois).
     private enum Step: Int, CaseIterable {
@@ -89,6 +93,9 @@ struct FuelEntryFlowView: View {
     @State private var saveError: String?
     /// Confirmação de descarte (Cancelar/swipe-down com dados digitados).
     @State private var showDiscardConfirm = false
+    /// Fluxo normal que virou registro antigo pelo atalho "Foi em outro dia?"
+    /// (km abaixo do último — abastecimento esquecido).
+    @State private var switchedToHistory = false
 
     // MARK: - Derivados
 
@@ -98,12 +105,50 @@ struct FuelEntryFlowView: View {
         odometer != nil || cost != nil || liters != nil || ocrProcessed
     }
 
-    private var lastOdometer: Double {
-        max(motorcycle.activeFuelLogs.map(\.odometer).max() ?? 0, motorcycle.currentOdometer)
+    /// Registro de abastecimento antigo (aberto assim ou via "Foi em outro dia?").
+    private var historyMode: Bool { isHistoryEntry || switchedToHistory }
+
+    /// Limites do hodômetro para a DATA escolhida. No caso de todo dia (hoje,
+    /// depois do último registro) = piso global de sempre, sem teto.
+    private var bounds: OdometerBounds {
+        OdometerBounds.forEntry(
+            on: date,
+            logs: motorcycle.activeFuelLogs.map { ($0.date, $0.odometer) },
+            currentOdometer: motorcycle.currentOdometer,
+            registeredAt: motorcycle.createdAt
+        )
     }
 
-    private var odometerFloor: Double? {
-        lastOdometer > 0 ? lastOdometer : nil
+    /// Referência do "+X km desde o último"/km-l ao vivo: o piso da data.
+    private var lastOdometer: Double { bounds.floor ?? 0 }
+
+    private var odometerFloor: Double? { bounds.floor }
+
+    /// Modo histórico com a data ainda em hoje → falta escolher o dia.
+    private var needsPastDate: Bool {
+        historyMode && Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: Date())
+    }
+
+    /// Vai ficar marcado como Histórico (fora do consumo e das conquistas).
+    private var willBeHistorical: Bool {
+        EventProvenance.isHistorical(date: date, createdAt: Date())
+    }
+
+    /// Por que o km digitado não cabe na data (nil = cabe). Mesma regra do
+    /// validador — texto para o usuário, sem precisar descobrir no Salvar.
+    private var odometerBoundsMessage: String? {
+        guard let odo = odometer, odo > 0 else { return nil }
+        if let floor = odometerFloor, odo < floor {
+            if let d = bounds.floorDate {
+                return "Menor que o abastecimento de \(AppFormat.date(d)) (\(AppFormat.km(floor)))"
+            }
+            return "Menor que o último (\(AppFormat.km(floor)))"
+        }
+        if let ceiling = bounds.ceiling, odo > ceiling {
+            let when = bounds.ceilingDate.map { " de \(AppFormat.date($0))" } ?? ""
+            return "Maior que o abastecimento\(when) (\(AppFormat.km(ceiling)))"
+        }
+        return nil
     }
 
     private var pricePerLiter: Double? {
@@ -112,7 +157,9 @@ struct FuelEntryFlowView: View {
     }
 
     private var estimatedKmPerLiter: Double? {
-        guard isFullTank, let odo = odometer, let l = liters, l > 0,
+        // Histórico não entra no consumo → não promete um km/l.
+        guard !historyMode, !willBeHistorical,
+              isFullTank, let odo = odometer, let l = liters, l > 0,
               lastOdometer > 0, odo > lastOdometer else { return nil }
         return (odo - lastOdometer) / l
     }
@@ -123,9 +170,10 @@ struct FuelEntryFlowView: View {
     }
 
     private var canSave: Bool {
-        FuelLogValidator.validate(
+        !needsPastDate && FuelLogValidator.validate(
             odometer: odometer ?? 0, liters: liters ?? 0,
-            totalCost: cost ?? 0, lastOdometer: odometerFloor
+            totalCost: cost ?? 0, lastOdometer: odometerFloor,
+            nextOdometer: bounds.ceiling
         ).isEmpty
     }
 
@@ -133,9 +181,8 @@ struct FuelEntryFlowView: View {
     private var canAdvance: Bool {
         switch step {
         case .odometer:
-            guard let odo = odometer, odo > 0 else { return false }
-            if let floor = odometerFloor { return odo >= floor }
-            return true
+            guard let odo = odometer, odo > 0, !needsPastDate else { return false }
+            return odometerBoundsMessage == nil
         case .fill:
             guard let c = cost, c > 0, let l = liters, l > 0 else { return false }
             return true
@@ -214,6 +261,9 @@ struct FuelEntryFlowView: View {
             .onChange(of: cost) { markOcrEditIfManual() }
             .onChange(of: liters) { markOcrEditIfManual() }
             .task {
+                // Abastecimento antigo: o local de AGORA seria falso (e evita
+                // pedir permissão de localização à toa).
+                guard !isHistoryEntry else { return }
                 let snap = await locationService.currentSnapshot()
                 location = snap
                 // Pré-preenche a cidade só se o usuário ainda não digitou nada.
@@ -247,7 +297,9 @@ struct FuelEntryFlowView: View {
         }
     }
 
-    private var navTitle: String { step == .review ? "Revisar" : "Novo abastecimento" }
+    private var navTitle: String {
+        step == .review ? "Revisar" : (historyMode ? "Abastecimento antigo" : "Novo abastecimento")
+    }
 
     private var photoDialogTitle: String {
         photoTarget == .odometer ? "Ler o hodômetro por foto" : "Ler o comprovante ou a bomba"
@@ -276,12 +328,23 @@ struct FuelEntryFlowView: View {
         ScrollView {
             VStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Qual o hodômetro agora?")
+                    Text(historyMode ? "Quando foi e qual era o hodômetro?" : "Qual o hodômetro agora?")
                         .font(.title3.weight(.semibold))
-                    Text("Digite, ou toque em Escanear para ler da foto.")
+                    Text(historyMode
+                         ? "Escolha o dia do abastecimento e digite o km daquele dia."
+                         : "Digite, ou toque em Escanear para ler da foto.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Registro antigo: a DATA vem primeiro — é ela que decide entre
+                // quais abastecimentos o km tem de caber.
+                if historyMode {
+                    DatePicker("Dia", selection: $date, in: ...Date(), displayedComponents: [.date])
+                        .padding(.horizontal, 16).padding(.vertical, 8)
+                        .background(Color(.secondarySystemGroupedBackground),
+                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
 
                 if let s = odometerOCRStatus {
                     feedbackLabel(s.text, icon: s.icon, color: s.color)
@@ -311,7 +374,9 @@ struct FuelEntryFlowView: View {
 
                 odometerFeedback.padding(.horizontal, 4)
 
-                if lastOdometer > 0 {
+                if historyMode {
+                    boundsHint.padding(.horizontal, 4)
+                } else if lastOdometer > 0 {
                     Text("Último registro: \(AppFormat.km(lastOdometer))")
                         .font(.caption).foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -327,13 +392,55 @@ struct FuelEntryFlowView: View {
 
     @ViewBuilder
     private var odometerFeedback: some View {
-        if let floor = odometerFloor, let odo = odometer, odo > 0, odo < floor {
-            feedbackLabel("Menor que o último (\(AppFormat.km(floor)))",
-                          icon: "exclamationmark.triangle.fill", color: .orange)
-        } else if let delta = odometerDelta, delta > 0 {
+        if needsPastDate {
+            feedbackLabel("Escolha o dia do abastecimento", icon: "calendar", color: .secondary)
+        } else if let msg = odometerBoundsMessage {
+            VStack(alignment: .leading, spacing: 8) {
+                feedbackLabel(msg, icon: "exclamationmark.triangle.fill", color: .orange)
+                // Abastecimento esquecido: km abaixo do último no fluxo de todo
+                // dia → oferece registrar como antigo, sem caçar "Adicionar histórico".
+                if !historyMode {
+                    Button("Foi em outro dia? Escolher a data") { switchToHistory() }
+                        .font(.footnote.weight(.semibold))
+                }
+            }
+        } else if bounds.isBackdated, bounds.ceiling == nil, let odo = odometer,
+                  motorcycle.currentOdometer > 0, odo > motorcycle.currentOdometer {
+            // Retroativo sem abastecimento posterior acima do hodômetro atual:
+            // vale, mas mexe no hodômetro da moto — deixa isso explícito.
+            feedbackLabel("Isto vai atualizar o hodômetro de \(AppFormat.km(motorcycle.currentOdometer)) para \(AppFormat.km(odo))",
+                          icon: "info.circle", color: .secondary)
+        } else if !historyMode, let delta = odometerDelta, delta > 0 {
             feedbackLabel("+\(AppFormat.km(delta)) desde o último",
                           icon: "checkmark.circle.fill", color: .secondary)
         }
+    }
+
+    /// Registro antigo: entre quais abastecimentos o km tem de caber.
+    @ViewBuilder
+    private var boundsHint: some View {
+        let b = bounds
+        VStack(alignment: .leading, spacing: 2) {
+            if let floor = b.floor, let d = b.floorDate {
+                Text("Antes deste dia: \(AppFormat.km(floor)) em \(AppFormat.date(d))")
+            }
+            if let ceiling = b.ceiling, let d = b.ceilingDate {
+                Text("Depois deste dia: \(AppFormat.km(ceiling)) em \(AppFormat.date(d))")
+            }
+        }
+        .font(.caption).foregroundStyle(.tertiary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Atalho "Foi em outro dia?": vira registro antigo. O local capturado
+    /// agora não é o do abastecimento esquecido — limpa o que foi auto-preenchido.
+    private func switchToHistory() {
+        Haptics.selection()
+        withAnimation { switchedToHistory = true }
+        if editedCity == (location?.city ?? "") { editedCity = "" }
+        if editedState == (location?.state ?? "") { editedState = "" }
+        location = nil
+        fillFocus = nil
     }
 
     // MARK: - Passo 2 — Valor + Litros (foto em destaque, digitar opcional)
@@ -404,7 +511,16 @@ struct FuelEntryFlowView: View {
     private var reviewScreen: some View {
         ScrollView {
             VStack(spacing: 16) {
-                if let kmL = estimatedKmPerLiter {
+                if historyMode || willBeHistorical {
+                    // Transparência: registro antigo vale menos.
+                    Label("Registro de histórico: fica fora do consumo e das conquistas.",
+                          systemImage: "clock.arrow.circlepath")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(Color(.secondarySystemGroupedBackground),
+                                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                } else if let kmL = estimatedKmPerLiter {
                     VStack(spacing: 2) {
                         Text("Consumo deste tanque")
                             .font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
@@ -444,6 +560,11 @@ struct FuelEntryFlowView: View {
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 contextCard
+
+                // Data trocada na revisão pode tirar o km do intervalo válido.
+                if let msg = odometerBoundsMessage {
+                    feedbackLabel(msg, icon: "exclamationmark.triangle.fill", color: .orange)
+                }
 
                 if let err = saveError {
                     Label(err, systemImage: "exclamationmark.triangle.fill")
@@ -548,7 +669,7 @@ struct FuelEntryFlowView: View {
             // Registro é do que já aconteceu — sem data futura (mesma regra do
             // form de manutenção).
             DatePicker("Data", selection: $date, in: ...Date(),
-                       displayedComponents: [.date, .hourAndMinute])
+                       displayedComponents: historyMode ? [.date] : [.date, .hourAndMinute])
                 .padding(.horizontal, 16).padding(.vertical, 8)
             Divider().padding(.leading, 16)
 
@@ -564,7 +685,9 @@ struct FuelEntryFlowView: View {
             .contentShape(Rectangle())
             .onTapGesture { fillFocus = .city }
 
-            if dateWasEdited || locationWasEdited {
+            // Registro antigo: data/local digitados à mão são o normal, não um
+            // ajuste a sinalizar.
+            if !historyMode, dateWasEdited || locationWasEdited {
                 Divider().padding(.leading, 16)
                 Label(editNote, systemImage: "pencil.circle")
                     .font(.caption2).foregroundStyle(.secondary)
@@ -653,8 +776,8 @@ struct FuelEntryFlowView: View {
     private func prefill() {
         if let last = motorcycle.latestFuelLog { fuelType = last.fuelType }
         // Autofoco no hodômetro: o teclado já sobe pronto (ação nº 1 em
-        // segundos, sem toque extra na linha).
-        fillFocus = .odometer
+        // segundos, sem toque extra na linha). Registro antigo começa pela data.
+        if !isHistoryEntry { fillFocus = .odometer }
         Analytics.fuelEntryStarted(entryPoint: entryPoint)
     }
 
@@ -731,12 +854,14 @@ struct FuelEntryFlowView: View {
     private func save() {
         let odo = odometer ?? 0, lit = liters ?? 0, c = cost ?? 0
         let errors = FuelLogValidator.validate(
-            odometer: odo, liters: lit, totalCost: c, lastOdometer: odometerFloor
+            odometer: odo, liters: lit, totalCost: c, lastOdometer: odometerFloor,
+            nextOdometer: bounds.ceiling
         )
-        guard errors.isEmpty else {
+        guard errors.isEmpty, !needsPastDate else {
             saveError = "Verifique os valores antes de salvar."
             for e in errors {
-                Analytics.validationBlockedSave(error: e.analyticsKey, screen: "fuel_flow")
+                Analytics.validationBlockedSave(error: e.analyticsKey,
+                                                screen: historyMode ? "fuel_flow_history" : "fuel_flow")
             }
             return
         }

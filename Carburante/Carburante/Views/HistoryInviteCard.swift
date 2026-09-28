@@ -13,8 +13,10 @@
 import SwiftUI
 
 struct HistoryInviteCard: View {
-    /// Abre o registro de histórico.
-    let onRegister: () -> Void
+    /// Abre o registro de manutenção antiga.
+    let onMaintenance: () -> Void
+    /// Abre o registro de abastecimento antigo.
+    let onFuel: () -> Void
     /// Dispensa o card (gravado pelo chamador em @AppStorage, por moto).
     let onDismiss: () -> Void
 
@@ -39,9 +41,32 @@ struct HistoryInviteCard: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Registrar histórico", action: onRegister)
-                    .buttonStyle(.bordered)
+                HistoryMenu(onMaintenance: onMaintenance, onFuel: onFuel) {
+                    Text("Registrar histórico")
+                }
+                .buttonStyle(.bordered)
             }
+        }
+    }
+}
+
+/// Escolha do que registrar como histórico — mesmo menu no convite do Resumo e
+/// no perfil da moto (as listas abrem direto o próprio tipo).
+struct HistoryMenu<Label: View>: View {
+    let onMaintenance: () -> Void
+    let onFuel: () -> Void
+    @ViewBuilder var label: Label
+
+    var body: some View {
+        Menu {
+            Button(action: onMaintenance) {
+                SwiftUI.Label("Manutenção antiga", systemImage: "wrench.and.screwdriver")
+            }
+            Button(action: onFuel) {
+                SwiftUI.Label("Abastecimento antigo", systemImage: "fuelpump")
+            }
+        } label: {
+            label
         }
     }
 }
@@ -67,7 +92,7 @@ extension Motorcycle {
 }
 
 #Preview {
-    HistoryInviteCard(onRegister: {}, onDismiss: {})
+    HistoryInviteCard(onMaintenance: {}, onFuel: {}, onDismiss: {})
         .padding()
         .background(Color(.systemGroupedBackground))
         .tint(BrandTheme.default)

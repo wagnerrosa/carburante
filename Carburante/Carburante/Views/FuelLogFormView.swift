@@ -20,6 +20,9 @@ struct FuelLogFormView: View {
     /// De onde o registro foi aberto (analytics). Repassado ao fluxo progressivo
     /// — sem isso todo abastecimento novo era contado como "toolbar_plus".
     var entryPoint: String = "toolbar_plus"
+    /// Registro de um abastecimento ANTIGO ("Adicionar histórico") — só para
+    /// registro novo; repassado ao fluxo progressivo (data primeiro).
+    var isHistoryEntry: Bool = false
 
     @State private var date: Date = Date()
     @State private var odometer: Double?
@@ -122,7 +125,8 @@ struct FuelLogFormView: View {
         // Form clássico — editar log histórico não se beneficia do passo a passo
         // e relaxa a regra monotônica do hodômetro.
         if fuelLog == nil {
-            FuelEntryFlowView(motorcycle: motorcycle, entryPoint: entryPoint)
+            FuelEntryFlowView(motorcycle: motorcycle, entryPoint: entryPoint,
+                              isHistoryEntry: isHistoryEntry)
         } else {
             editForm
         }
@@ -477,6 +481,8 @@ struct FuelLogFormView: View {
             case .odometerNotPositive: return "Hodômetro deve ser maior que zero."
             case .odometerBelowLast(let last):
                 return "Hodômetro não pode ser menor que o último (\(AppFormat.km(last)))."
+            case .odometerAboveNext(let next):
+                return "Hodômetro não pode ser maior que o do abastecimento seguinte (\(AppFormat.km(next)))."
             case .litersNotPositive: return "Litros deve ser maior que zero."
             case .costNegative: return "Valor não pode ser negativo."
             }
