@@ -336,36 +336,6 @@ struct StatRow: View {
     }
 }
 
-/// Placeholder de medalha na Garagem — ícone + rótulo curto, sem hierarquia de
-/// raridade ainda. Design completo (marca/cilindrada/Iron Butt/níveis) vive em
-/// `PLAN/badges.md`. `unlocked` controla o realce; bloqueada fica esmaecida.
-struct BadgePlaceholder: View {
-    let systemImage: String
-    let label: String
-    var unlocked: Bool = false
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: systemImage)
-                .font(.system(size: 30))
-                .foregroundStyle(unlocked ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
-                .symbolRenderingMode(.hierarchical)
-                .frame(width: 56, height: 56)
-                .background(Color(.tertiarySystemGroupedBackground),
-                            in: Circle())
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(unlocked ? .secondary : .tertiary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity)
-        .opacity(unlocked ? 1 : 0.55)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(unlocked ? "\(label), conquistada" : "\(label), bloqueada")
-    }
-}
-
 /// Badge com arte 3D (asset em `Badges/`), estilo Apple Fitness: colorido quando
 /// conquistado, dessaturado + cadeado quando bloqueado. Ver PLAN/badges.md.
 ///
