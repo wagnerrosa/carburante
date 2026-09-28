@@ -31,6 +31,8 @@ final class SyncService {
     private(set) var userID: UUID?
     private(set) var lastError: String?
     private(set) var isSyncing = false
+    /// Pedido de push que chegou com outro em voo → roda mais uma passada.
+    @ObservationIgnored private var pushPending = false
     /// Sessão atual é anônima? true até promover via Sign in with Apple. A UI da
     /// conta mostra o botão de login quando anônimo, o estado logado quando não.
     private(set) var isAnonymous = true
@@ -388,11 +390,23 @@ final class SyncService {
     }
 
     /// Faz push de todas as motos do usuário (e seus filhos) para o Supabase.
+    /// Chamada com um push já em voo (ex.: save durante o sync do launch numa
+    /// rede lenta) não é descartada: marca `pushPending` e o push em voo roda de
+    /// novo ao terminar — o snapshot dele pode ter sido lido antes do save.
     func pushAll(from context: ModelContext) async {
-        guard !isSyncing else { return }
+        guard !isSyncing else {
+            pushPending = true
+            return
+        }
         isSyncing = true
         defer { isSyncing = false }
+        repeat {
+            pushPending = false
+            await performPush(from: context)
+        } while pushPending
+    }
 
+    private func performPush(from context: ModelContext) async {
         guard let uid = await ensureSession() else { return }
 
         do {
