@@ -782,7 +782,8 @@ struct FuelEntryFlowView: View {
             cost: c,
             // Este registro destrava a 1ª leitura de consumo se fecha o 2º cheio.
             unlocksConsumption: isFullTank && fullTanks == 2,
-            currency: "BRL"
+            currency: "BRL",
+            isHistorical: log.isHistorical
         )
         // 1º OCR aceito = adoção da feature OCR (1 vez por usuário).
         if ocrProcessed, ocrOutcome != .notUsed, AdoptionTracker.markAndCheck(.ocr) {

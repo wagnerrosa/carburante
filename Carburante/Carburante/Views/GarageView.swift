@@ -196,7 +196,12 @@ struct GarageView: View {
         let r = motorcycles.fleetRecords
         Section(aggregatesAcrossBikes ? "Recordes de todas as motos" : "Recordes") {
             if r.bestKmPerLiter == nil && r.longestSegment == nil && r.cheapestPricePerLiter == nil {
-                Text("Registre mais abastecimentos para desbloquear recordes.")
+                // Só histórico registrado → explica por que não há recorde ainda
+                // (histórico não conta — PLAN/registro-retroativo.md, decisão 2).
+                let hasHistory = motorcycles.contains { $0.activeFuelLogs.contains(where: \.isHistorical) }
+                Text(hasHistory
+                     ? "Recordes contam só abastecimentos registrados na hora. Registre os próximos para desbloquear."
+                     : "Registre mais abastecimentos para desbloquear recordes.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -248,8 +253,10 @@ struct GarageView: View {
     private var badgesSection: some View {
         let ctx = motorcycles.badgeFleetContext
         let visible = BadgeEvaluator.visibleBadges(ctx)
-        let unlocked = BadgeEvaluator.unlockedIDs(ctx)
-        let level = ProfileLevel.from(points: BadgeEvaluator.totalPoints(ctx))
+        // Medalha já ganha (award persistido) continua acesa — ver
+        // `unlockedIDs(_:keeping:)`. Pontos/nível seguem o mesmo conjunto.
+        let unlocked = BadgeEvaluator.unlockedIDs(ctx, keeping: Set(earnedDates.keys))
+        let level = ProfileLevel.from(points: BadgeEvaluator.points(for: unlocked))
         let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
         // Estilo Garmin: separa conquistadas das ainda perseguíveis. "Disponíveis"

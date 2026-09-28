@@ -11,6 +11,23 @@
 import SwiftUI
 import Charts
 
+/// Marca discreta de registro "Histórico" (lançado dias depois do fato — ver
+/// `EventProvenance`). Informação, não alerta: caption secundária, sem cor.
+/// Mesmo símbolo do botão "Adicionar histórico".
+struct HistoryMarker: View {
+    var body: some View {
+        // HStack em vez de `Label`: dentro de List o Label alinha o ícone na
+        // coluna de ícones da linha e abre um vão grande até o texto.
+        HStack(spacing: 4) {
+            Image(systemName: "clock.arrow.circlepath")
+            Text("Histórico")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// Tile de ícone colorido à esquerda de uma linha (padrão Ajustes/Casa).
 /// `tint` nil → usa a accent color do ambiente (o tema da marca) — para ícones
 /// decorativos (abastecimento, navegação). Tipos de manutenção passam cor

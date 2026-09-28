@@ -100,7 +100,7 @@ extension Badge {
         // arte 3D (`firstFuel`) → marcados como família de 4 níveis (1→4) para a UI
         // desenhar o número, senão as 4 medalhas ficam idênticas (feedback do usuário).
         Badge(id: "fuel_1",  title: "1º Abastecimento", assetName: "firstFuel", group: .universal,
-              detail: "Seu primeiro abastecimento com tanque cheio registrado. Ele é a âncora do cálculo de consumo.",
+              detail: "Seu primeiro abastecimento com tanque cheio registrado na hora. Ele é a âncora do cálculo de consumo.",
               requiredFullTanks: 1, level: 1, levelCount: 4, points: 1),
         Badge(id: "fuel_2",  title: "Primeira média", assetName: "firstFuel", group: .universal,
               detail: "Com dois tanques cheios o app já calcula seu consumo (km/l) pelo método full-to-full.",
@@ -109,11 +109,11 @@ extension Badge {
               detail: "Três tanques cheios desbloqueiam o gráfico de tendência no Resumo — dá para ver se o consumo melhora ou piora.",
               requiredFullTanks: 3, level: 3, levelCount: 4, points: 4),
         Badge(id: "fuel_10", title: "Abastecedor", assetName: "firstFuel", group: .universal,
-              detail: "Dez tanques cheios registrados. O hábito virou rotina e os números ficam cada vez mais confiáveis.",
+              detail: "Dez tanques cheios registrados na hora. O hábito virou rotina e os números ficam cada vez mais confiáveis.",
               requiredFullTanks: 10, level: 4, levelCount: 4, points: 10),
 
         Badge(id: "first_maintenance", title: "1ª Manutenção", assetName: "firstMaintenance", group: .universal,
-              detail: "Você registrou sua primeira manutenção. Manter o histórico ajuda a prever trocas e a cuidar da moto.",
+              detail: "Você registrou sua primeira manutenção na hora. Manter o histórico ajuda a prever trocas e a cuidar da moto.",
               points: 2),
 
         Badge(id: "best_consumption", title: "Acima da média", assetName: "bestConsumption", group: .universal,
@@ -310,9 +310,26 @@ enum BadgeEvaluator {
     /// persistido, recalcula a cada render. `iron_butt` nunca está em `unlockedIDs`
     /// e vale 0 → não soma. Badges repetíveis ainda não existem (contam 1×).
     static func totalPoints(_ ctx: BadgeFleetContext) -> Int {
-        let unlocked = unlockedIDs(ctx)
-        return Badge.all
-            .filter { unlocked.contains($0.id) }
+        points(for: unlockedIDs(ctx))
+    }
+
+    /// Conquistadas = o que os dados liberam hoje ∪ o que já foi conquistado
+    /// antes (`BadgeAward` persistido). Medalha ganha não se perde: quando uma
+    /// regra endurece (ex.: histórico deixou de contar — PLAN/registro-retroativo.md,
+    /// decisão 3) ou um dado muda, o que já estava aceso continua aceso. Só IDs
+    /// do catálogo que podem ser conquistados entram (award órfão/"em breve" não).
+    static func unlockedIDs(_ ctx: BadgeFleetContext, keeping earned: Set<String>) -> Set<String> {
+        let earnable = Set(Badge.all.filter { !$0.isComingSoon }.map(\.id))
+        return unlockedIDs(ctx).union(earned.intersection(earnable))
+    }
+
+    /// Soma de pontos de um conjunto de IDs (só IDs do catálogo contam). A
+    /// Garagem passa `unlockedIDs(ctx) ∪ conquistas persistidas`: medalha já
+    /// ganha continua valendo mesmo que o critério deixe de valer (ex.: registro
+    /// que virou histórico — PLAN/registro-retroativo.md, decisão 3).
+    static func points(for ids: Set<String>) -> Int {
+        Badge.all
+            .filter { ids.contains($0.id) }
             .reduce(0) { $0 + $1.points }
     }
 }

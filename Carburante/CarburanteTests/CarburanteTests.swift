@@ -1370,14 +1370,15 @@ final class CarburanteTests: XCTestCase {
         let ctx = try makeContext()
         let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil")
         ctx.insert(moto)
-        // Dois cheios: 1000→1300 (300 km) com 20 L no 2º = 15 km/l.
+        // Dois cheios: 1000→1300 (300 km) com 20 L no 2º = 15 km/l. createdAt =
+        // data do evento (registrados na hora — senão viram histórico e saem do consumo).
         let d1 = DateComponents(calendar: .current, year: 2026, month: 1, day: 1).date!
         let d2 = DateComponents(calendar: .current, year: 2026, month: 1, day: 5).date!
         let d3 = DateComponents(calendar: .current, year: 2026, month: 1, day: 9).date!
-        ctx.insert(FuelLog(date: d1, odometer: 1000, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto))
-        ctx.insert(FuelLog(date: d2, odometer: 1300, liters: 20, totalCost: 120, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto))
+        ctx.insert(FuelLog(date: d1, odometer: 1000, liters: 10, totalCost: 60, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto, createdAt: d1))
+        ctx.insert(FuelLog(date: d2, odometer: 1300, liters: 20, totalCost: 120, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto, createdAt: d2))
         // Terceiro cheio (será deletado) — não deve entrar na média.
-        let bogus = FuelLog(date: d3, odometer: 9999, liters: 5, totalCost: 30, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto)
+        let bogus = FuelLog(date: d3, odometer: 9999, liters: 5, totalCost: 30, fuelType: .gasolinaComum, isFullTank: true, motorcycle: moto, createdAt: d3)
         ctx.insert(bogus)
         try ctx.save()
 
@@ -1419,5 +1420,134 @@ final class CarburanteTests: XCTestCase {
         oil.softDelete()
         try ctx.save()
         XCTAssertNil(moto.lastService(of: .oleo), "manutenção deletada não é a última")
+    }
+
+    // MARK: - Registro retroativo (histórico vs na hora — PLAN/registro-retroativo.md)
+
+    /// Abastecimento com data/createdAt explícitos (createdAt depois de `ruleStart`).
+    private func fuelLog(_ odo: Double, _ liters: Double, date: Date, created: Date,
+                         full: Bool = true) -> FuelLog {
+        FuelLog(date: date, odometer: odo, liters: liters, totalCost: liters * 6,
+                fuelType: .gasolinaComum, isFullTank: full, createdAt: created)
+    }
+
+    /// Limite em dias de calendário: 7 dias depois ainda é na hora; 8 é histórico.
+    func testProvenance_boundaryInCalendarDays() {
+        let created = day(2026, 10, 20)
+        XCTAssertFalse(EventProvenance.isHistorical(date: day(2026, 10, 13), createdAt: created), "7 dias = na hora")
+        XCTAssertTrue(EventProvenance.isHistorical(date: day(2026, 10, 12), createdAt: created), "8 dias = histórico")
+        XCTAssertFalse(EventProvenance.isHistorical(date: created, createdAt: created))
+    }
+
+    /// Horário dentro do dia não muda a classificação (compara dias, não segundos).
+    func testProvenance_timeOfDayIgnored() {
+        let cal = Calendar.current
+        let created = cal.date(bySettingHour: 23, minute: 55, second: 0, of: day(2026, 10, 20))!
+        let date = cal.date(bySettingHour: 0, minute: 5, second: 0, of: day(2026, 10, 13))!
+        XCTAssertFalse(EventProvenance.isHistorical(date: date, createdAt: created),
+                       "7 dias de calendário, mesmo com ~8×24h de diferença")
+    }
+
+    /// Registro criado antes da regra existir nunca é histórico (regra vale daqui
+    /// pra frente; `createdAt` antigo não é confiável).
+    func testProvenance_beforeRuleStartNeverHistorical() {
+        let created = EventProvenance.ruleStart.addingTimeInterval(-60)
+        XCTAssertFalse(EventProvenance.isHistorical(date: day(2020, 1, 1), createdAt: created))
+        XCTAssertTrue(EventProvenance.isHistorical(date: day(2020, 1, 1),
+                                                   createdAt: EventProvenance.ruleStart))
+    }
+
+    /// Passado da moto (histórico ANTES do 1º registro na hora) fica fora do
+    /// consumo: o buraco 15.000→20.000 inventaria ~450 km/l.
+    func testConsumption_excludesHistoryBeforeLiveEra() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.fuelLogs = [
+            fuelLog(15_000, 10, date: day(2026, 3, 1), created: day(2026, 10, 20)),   // histórico
+            fuelLog(20_000, 11, date: day(2026, 10, 1), created: day(2026, 10, 1)),   // na hora
+            fuelLog(20_400, 10, date: day(2026, 10, 10), created: day(2026, 10, 10)), // na hora
+        ]
+        XCTAssertEqual(moto.consumptionFuelLogs.count, 2)
+        let summary = moto.consumptionSummary
+        XCTAssertEqual(summary.segmentCount, 1)
+        XCTAssertEqual(summary.averageKmPerLiter ?? 0, 40, accuracy: 0.001)
+        XCTAssertEqual(moto.records.bestKmPerLiter ?? 0, 40, accuracy: 0.001, "recorde ignora o passado")
+    }
+
+    /// Histórico INTERCALADO (abastecimento real lançado com atraso) fica dentro:
+    /// tirá-lo abriria buraco no trecho e inflaria o km/l dos registros na hora.
+    func testConsumption_keepsInterleavedHistory() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        let late = fuelLog(20_400, 10, date: day(2026, 10, 5), created: day(2026, 10, 20))  // lançado 15 dias depois
+        moto.fuelLogs = [
+            fuelLog(20_000, 10, date: day(2026, 10, 1), created: day(2026, 10, 1)),
+            late,
+            fuelLog(20_800, 10, date: day(2026, 10, 19), created: day(2026, 10, 19)),
+        ]
+        XCTAssertTrue(late.isHistorical)
+        XCTAssertEqual(moto.consumptionFuelLogs.count, 3)
+        XCTAssertEqual(moto.consumptionSummary.segmentCount, 2)
+        XCTAssertEqual(moto.consumptionSummary.averageKmPerLiter ?? 0, 40, accuracy: 0.001)
+    }
+
+    /// Só histórico → nada de consumo (e faltam 2 cheios na hora para o 1º km/l).
+    func testConsumption_onlyHistoryIsEmpty() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.fuelLogs = [
+            fuelLog(10_000, 10, date: day(2026, 1, 1), created: day(2026, 10, 20)),
+            fuelLog(10_400, 10, date: day(2026, 1, 10), created: day(2026, 10, 20)),
+        ]
+        XCTAssertTrue(moto.consumptionFuelLogs.isEmpty)
+        XCTAssertEqual(moto.consumptionSummary.segmentCount, 0)
+        XCTAssertNil(moto.records.bestKmPerLiter)
+        XCTAssertEqual(moto.fullTanksUntilConsumption, 2)
+        XCTAssertEqual(moto.fuelLogCount, 2, "histórico continua na lista e nos totais")
+    }
+
+    /// Sem histórico nenhum, o consumo é idêntico ao de antes da regra.
+    func testConsumption_withoutHistoryUnchanged() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.fuelLogs = [
+            fuelLog(1_000, 8, date: day(2026, 10, 1), created: day(2026, 10, 1)),
+            fuelLog(1_300, 10, date: day(2026, 10, 5), created: day(2026, 10, 5)),
+            fuelLog(1_500, 5, date: day(2026, 10, 7), created: day(2026, 10, 7), full: false),
+            fuelLog(1_800, 5, date: day(2026, 10, 9), created: day(2026, 10, 9)),
+        ]
+        let before = ConsumptionCalculator.summary(from: moto.activeFuelLogs.map(\.asFuelEntry))
+        XCTAssertEqual(moto.consumptionSummary, before)
+    }
+
+    /// Conquistas: manutenção e cheios HISTÓRICOS não contam; os na hora sim.
+    func testBadgeContext_ignoresHistory() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.maintenanceLogs = [
+            MaintenanceLog(date: day(2025, 6, 1), mileage: 8_000, type: .oleo, createdAt: day(2026, 10, 20)),
+        ]
+        moto.fuelLogs = [
+            fuelLog(9_000, 10, date: day(2025, 7, 1), created: day(2026, 10, 20)),
+            fuelLog(10_000, 10, date: day(2026, 10, 18), created: day(2026, 10, 18)),
+        ]
+        var ctx = [moto].badgeFleetContext
+        XCTAssertFalse(ctx.hasMaintenanceLog, "só manutenção histórica → não conta")
+        XCTAssertEqual(ctx.fullTankCount, 1, "cheio histórico não conta")
+
+        moto.maintenanceLogs.append(
+            MaintenanceLog(date: day(2026, 10, 19), mileage: 10_100, type: .oleo, createdAt: day(2026, 10, 19)))
+        ctx = [moto].badgeFleetContext
+        XCTAssertTrue(ctx.hasMaintenanceLog, "manutenção na hora conta")
+    }
+
+    /// Convite de histórico: moto rodada (≥ 1.000 km na 1ª leitura) sem histórico.
+    func testHistoryInvite_looksUsedAndHistory() {
+        let zero = Motorcycle(make: "Honda", model: "CG", year: 2026, country: "Brasil")
+        XCTAssertFalse(zero.looksUsed, "moto zero sem leitura")
+        let used = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil",
+                              currentOdometer: 25_000)
+        used.odometerBaseline = 25_000
+        XCTAssertTrue(used.looksUsed)
+        XCTAssertFalse(used.hasHistoricalRecords)
+        used.maintenanceLogs = [
+            MaintenanceLog(date: day(2025, 6, 1), mileage: 20_000, type: .pneus, createdAt: day(2026, 10, 20)),
+        ]
+        XCTAssertTrue(used.hasHistoricalRecords, "1º histórico registrado → convite some")
     }
 }

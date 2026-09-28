@@ -305,4 +305,29 @@ final class BadgeTests: XCTestCase {
         let l3 = Badge.categoria.first { $0.id == "cat_scooter_3" }?.points ?? 0
         XCTAssertTrue(l1 < l2 && l2 < l3, "pontos de categoria devem crescer com o nível")
     }
+
+    // MARK: Conquista já ganha não se perde (PLAN/registro-retroativo.md, decisão 3)
+
+    /// Award persistido mantém a medalha acesa mesmo que o dado deixe de liberar
+    /// (ex.: manutenção antiga que virou histórico); pontos seguem o conjunto.
+    func testKeepingEarnedBadges() {
+        let empty = ctx()
+        XCTAssertFalse(BadgeEvaluator.unlockedIDs(empty).contains("first_maintenance"))
+        let kept = BadgeEvaluator.unlockedIDs(empty, keeping: ["first_maintenance"])
+        XCTAssertTrue(kept.contains("first_maintenance"))
+        XCTAssertEqual(BadgeEvaluator.points(for: kept), 2)
+    }
+
+    /// Award órfão (id fora do catálogo) ou "em breve" não acende nada.
+    func testKeepingIgnoresUnknownAndComingSoon() {
+        let kept = BadgeEvaluator.unlockedIDs(ctx(), keeping: ["badge_que_nao_existe", "iron_butt"])
+        XCTAssertTrue(kept.isEmpty)
+    }
+
+    /// Sem awards, `points(for: unlockedIDs)` == `totalPoints` (mesma verdade).
+    func testPointsForMatchesTotalPoints() {
+        let c = ctx(maintenance: true, fullTanks: 3, beatsCategory: true)
+        XCTAssertEqual(BadgeEvaluator.points(for: BadgeEvaluator.unlockedIDs(c)),
+                       BadgeEvaluator.totalPoints(c))
+    }
 }

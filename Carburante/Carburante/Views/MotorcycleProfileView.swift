@@ -17,6 +17,7 @@ struct MotorcycleProfileView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var showingEdit = false
     @State private var showingFuelLog = false
+    @State private var showingHistory = false
     @State private var showDeleteConfirm = false
 
     var body: some View {
@@ -40,6 +41,16 @@ struct MotorcycleProfileView: View {
                     HStack(spacing: 12) {
                         IconTile(systemName: "fuelpump.fill")
                         Text("Novo abastecimento")
+                    }
+                }
+                // Moto usada tem passado: registrar o que foi feito antes do app
+                // (óleo, pneus, revisões) — PLAN/registro-retroativo.md.
+                Button {
+                    showingHistory = true
+                } label: {
+                    HStack(spacing: 12) {
+                        IconTile(systemName: "clock.arrow.circlepath")
+                        Text("Adicionar histórico")
                     }
                 }
             }
@@ -82,6 +93,9 @@ struct MotorcycleProfileView: View {
         }
         .sheet(isPresented: $showingFuelLog) {
             FuelLogFormView(motorcycle: motorcycle, entryPoint: "motorcycle_profile")
+        }
+        .sheet(isPresented: $showingHistory) {
+            MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true)
         }
         .confirmationDialog(
             motorcycle.deletionConfirmationText,
