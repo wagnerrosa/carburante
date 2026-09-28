@@ -27,6 +27,8 @@ struct SettingsView: View {
                         .onChange(of: analyticsEnabled) { _, on in
                             Analytics.setEnabled(on)
                         }
+                    // Exigido pela App Store (5.1.1): política acessível de dentro do app.
+                    Link("Política de privacidade", destination: Self.privacyPolicyURL)
                 } header: {
                     Text("Privacidade")
                 } footer: {
@@ -48,6 +50,9 @@ struct SettingsView: View {
             }
         }
     }
+
+    /// Mesma URL informada no App Store Connect (campo Privacy Policy URL).
+    static let privacyPolicyURL = URL(string: "https://wagnerrosa.com/carburante/privacidade/")!
 
     private var appVersion: String {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
