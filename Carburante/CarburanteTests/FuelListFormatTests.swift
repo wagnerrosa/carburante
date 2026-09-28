@@ -65,6 +65,15 @@ final class FuelListFormatTests: XCTestCase {
         XCTAssertEqual(AppFormat.weekdayDay(date(2026, 9, 28)), "Segunda-feira, 28")
     }
 
+    func testRelativeDay() {
+        let now = date(2026, 9, 28)   // segunda-feira
+        XCTAssertEqual(AppFormat.relativeDay(date(2026, 9, 28), now: now, calendar: cal), "Hoje")
+        XCTAssertEqual(AppFormat.relativeDay(date(2026, 9, 27), now: now, calendar: cal), "Ontem")
+        XCTAssertEqual(AppFormat.relativeDay(date(2026, 9, 25), now: now, calendar: cal), "Sexta-feira")
+        XCTAssertEqual(AppFormat.relativeDay(date(2026, 9, 10), now: now, calendar: cal), "10 de set.")
+        XCTAssertEqual(AppFormat.relativeDay(date(2025, 12, 3), now: now, calendar: cal), "3 de dez. de 2025")
+    }
+
     func testSentenceCased() {
         XCTAssertEqual(AppFormat.sentenceCased("março de 2026"), "Março de 2026")
         XCTAssertEqual(AppFormat.sentenceCased(""), "")

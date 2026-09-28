@@ -257,8 +257,10 @@ struct DashboardView: View {
                     metricsGrid(summary, moto: moto)
                 }
 
+                // Cards do Resumo = um template só (padrão Saúde/Tempo): o
+                // cabeçalho mora DENTRO do card (CardHeader), sem título de
+                // prateleira fora. Ver PLAN/DESIGN.md §6b.
                 if let next = statuses.first {
-                    sectionTitle("Próxima manutenção")
                     maintenanceCard(next, moto: moto)
                     // Card-herói = item mais urgente. Se ≥2 itens precisam de
                     // atenção, uma linha discreta leva ao restante (sem empilhar
@@ -269,7 +271,6 @@ struct DashboardView: View {
                     }
                 }
 
-                sectionTitle("Último abastecimento")
                 lastFuelLogCard(moto)
             }
             .padding()
@@ -344,12 +345,6 @@ struct DashboardView: View {
 
     // MARK: - Blocos
 
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text)
-            .font(.title3.weight(.bold))
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     /// Quantos segmentos um gráfico precisa para parecer "cheio" (padrão Saúde:
     /// nunca 2-3 barras tortas). Abaixo disso o card mostra só a manchete + número
     /// — o visual calmo que o usuário aprovou (sem gráfico ralo).
@@ -376,20 +371,8 @@ struct DashboardView: View {
         GroupedCard {
             VStack(alignment: .leading, spacing: 12) {
                 // Cabeçalho do card (estilo Saúde): ícone + título + chevron.
-                HStack(spacing: 6) {
-                    Image(systemName: "fuelpump.fill")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    Text("Consumo")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    Spacer()
-                    if !segments.isEmpty {
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-                }
+                CardHeader(symbol: "fuelpump.fill", title: "Consumo",
+                           showsChevron: !segments.isEmpty)
 
                 // Manchete que conta a história (padrão Saúde): frase grande em
                 // negrito, com o número km/l destacado no meio do texto.
@@ -617,8 +600,10 @@ struct DashboardView: View {
         }
     }
 
-    /// Card compacto do tipo mais urgente: status/prazo como apoio; a barra de
-    /// progresso (km ou tempo, o que estiver mais perto) é o elemento principal.
+    /// Card do tipo mais urgente. Cabeçalho na cor do TIPO (a mesma do tile na
+    /// lista de Manutenções) — liga o card ao serviço. Estado mora só no texto
+    /// e na barra: vermelho só quando vencida (1 texto + barra), barra cinza em
+    /// dia (`indicatorColor`). O status é o valor do card (padrão Saúde).
     private func maintenanceCard(_ status: MaintenanceStatus, moto: Motorcycle) -> some View {
         let color = status.indicatorColor
 
@@ -627,34 +612,23 @@ struct DashboardView: View {
         } label: {
             GroupedCard {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 7) {
-                        Image(systemName: status.type.icon)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(color)
-                        Text(status.displayName)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(color)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
+                    CardHeader(symbol: status.type.icon, title: status.displayName,
+                               tint: status.type.tint)
 
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(maintenanceStatusTitle(status))
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(status.isOverdue ? color : .primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(status.remainingShort)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(status.isOverdue ? color : .primary)
+                            .monospacedDigit()
+                        if !status.dueDescription.isEmpty {
+                            Text(status.dueDescription)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                                 .monospacedDigit()
-                            let due = maintenanceDueText(status)
-                            if !due.isEmpty {
-                                Text(due)
-                                    .font(.caption)
-                                    .foregroundStyle(status.isOverdue ? color : .secondary)
-                            }
                         }
-                        Spacer(minLength: 8)
                     }
+                    // Em acessibilidade o texto quebra em vez de truncar.
+                    .fixedSize(horizontal: false, vertical: true)
 
                     VStack(spacing: 6) {
                         GeometryReader { proxy in
@@ -680,7 +654,9 @@ struct DashboardView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(status.displayName)
-        .accessibilityValue(maintenanceAccessibilityValue(status))
+        .accessibilityValue([status.remainingShort, status.dueDescription]
+            .filter { !$0.isEmpty }
+            .joined(separator: ". "))
         .accessibilityHint("Abre o histórico de manutenções")
     }
 
@@ -699,7 +675,7 @@ struct DashboardView: View {
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Color(.tertiaryLabel))
             }
             .foregroundStyle(.orange)
             .padding(.horizontal, 4)
@@ -725,16 +701,9 @@ struct DashboardView: View {
         }
     }
 
-    private func maintenanceAccessibilityValue(_ status: MaintenanceStatus) -> String {
-        [maintenanceStatusTitle(status), maintenanceDueText(status)]
-            .filter { !$0.isEmpty }
-            .joined(separator: ". ")
-    }
-
-    /// Linha principal (negrito) e apoio: compartilhadas com a lista (`MaintenanceStatus`).
-    private func maintenanceStatusTitle(_ status: MaintenanceStatus) -> String { status.remainingShort }
-    private func maintenanceDueText(_ status: MaintenanceStatus) -> String { status.dueDescription }
-
+    /// Mesma linha da lista de Abastecimentos (`FuelLogRow`) sob o cabeçalho
+    /// padrão — o dado lê igual nas duas telas. Dia relativo ("Hoje",
+    /// "Ontem"): item isolado, fora de seção de mês.
     @ViewBuilder
     private func lastFuelLogCard(_ moto: Motorcycle) -> some View {
         if let last = moto.latestFuelLog {
@@ -742,34 +711,14 @@ struct DashboardView: View {
                 FuelLogListView(motorcycle: moto)
             } label: {
                 GroupedCard {
-                    HStack(spacing: 12) {
-                        IconTile(systemName: "fuelpump.fill", size: 38)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(AppFormat.dateTime(last.date))
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-                            if let place = last.placeLabel {
-                                Text(place)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text(AppFormat.km(last.odometer))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(AppFormat.currency(last.totalCost))
-                                .font(.headline)
-                                .monospacedDigit()
-                            Text(AppFormat.liters(last.liters))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        CardHeader(symbol: "fuelpump.fill", title: "Último abastecimento")
+                        FuelLogRow(log: last,
+                                   kmPerLiter: moto.kmPerLiterByOdometer[last.odometer],
+                                   averageKmPerLiter: moto.consumptionSummary.averageKmPerLiter,
+                                   showsFuelType: last.fuelType != moto.usualFuelType,
+                                   dateText: AppFormat.relativeDay(last.date),
+                                   accessibilityHintText: "Abre o histórico de abastecimentos")
                     }
                 }
             }
@@ -782,21 +731,12 @@ struct DashboardView: View {
                 showingFuelLog = true
             } label: {
                 GroupedCard {
-                    HStack(spacing: 12) {
-                        IconTile(systemName: "fuelpump.fill", size: 38)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Registrar primeiro abastecimento")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-                            Text("O consumo aparece após 2 abastecimentos com tanque cheio.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        CardHeader(symbol: "fuelpump.fill", title: "Registrar primeiro abastecimento")
+                        Text("O consumo aparece após 2 abastecimentos com tanque cheio.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
             }
