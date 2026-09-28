@@ -78,6 +78,26 @@ nonisolated enum AppFormat {
         sentenceCased(date.formatted(Date.FormatStyle().weekday(.wide).day().locale(locale)))
     }
 
+    /// Dia relativo (padrão Mail): "Hoje", "Ontem", dia da semana até 6 dias
+    /// atrás, "28 de set." no ano corrente, "28 de set. de 2025" nos anteriores.
+    /// Para itens isolados ("último abastecimento"), fora de seção de mês.
+    static func relativeDay(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let days = calendar.dateComponents([.day],
+                                           from: calendar.startOfDay(for: date),
+                                           to: calendar.startOfDay(for: now)).day ?? 0
+        switch days {
+        case 0: return "Hoje"
+        case 1: return "Ontem"
+        case 2...6:
+            return sentenceCased(date.formatted(Date.FormatStyle().weekday(.wide).locale(locale)))
+        default:
+            let style = calendar.isDate(date, equalTo: now, toGranularity: .year)
+                ? Date.FormatStyle().day().month(.abbreviated)
+                : Date.FormatStyle().day().month(.abbreviated).year()
+            return date.formatted(style.locale(locale))
+        }
+    }
+
     /// Header de seção de mês (padrão Fotos/Wallet): "Setembro" no ano corrente,
     /// "Setembro de 2025" nos anteriores.
     static func monthTitle(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {

@@ -139,6 +139,29 @@ extension Motorcycle {
         activeFuelLogs.max { $0.date < $1.date }
     }
 
+    /// km/l por abastecimento que FECHA um segmento full-to-full, casado por
+    /// odômetro. Logs sem medição (1º cheio, parcial) não entram. Fonte da
+    /// linha de abastecimento (lista e card do Resumo).
+    var kmPerLiterByOdometer: [Double: Double] {
+        Dictionary(
+            ConsumptionCalculator.segments(from: consumptionEntries)
+                .map { ($0.endOdometer, $0.kmPerLiter) },
+            uniquingKeysWith: { _, new in new }
+        )
+    }
+
+    /// Combustível mais usado nesta moto. A linha só nomeia o combustível
+    /// quando foge dele — repetir "Gasolina comum" em toda linha era ruído.
+    /// Empate → o do abastecimento mais recente (estável entre renders).
+    var usualFuelType: FuelType? {
+        Dictionary(grouping: activeFuelLogs, by: \.fuelType)
+            .max { a, b in
+                (a.value.count, a.value.map(\.date).max() ?? .distantPast)
+                    < (b.value.count, b.value.map(\.date).max() ?? .distantPast)
+            }?
+            .key
+    }
+
     // MARK: - Métricas do Resumo (gasto / preço por litro)
 
     /// Gasto somado por mês para a sparkline (últimos 6 meses, com zeros).

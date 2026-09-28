@@ -720,6 +720,37 @@ struct GroupedCard<Content: View>: View {
     }
 }
 
+/// Cabeçalho de card do Resumo (padrão Saúde/Tempo): símbolo + título na cor
+/// da categoria, chevron quando o card navega. TODO card do Resumo abre com
+/// ele — um template só, sem título de prateleira fora do card. `tint` nil →
+/// accent do ambiente (tema da marca); manutenção passa a cor do tipo.
+struct CardHeader: View {
+    let symbol: String
+    let title: String
+    var tint: Color? = nil
+    var showsChevron = true
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.footnote.weight(.semibold))
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(tint.map(AnyShapeStyle.init) ?? AnyShapeStyle(.tint))
+            Spacer()
+            if showsChevron {
+                // Cinza do sistema — `.tertiary` herdaria a cor do título.
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+        }
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 extension Motorcycle {
     /// Texto de confirmação de exclusão com o resumo do cascade (abastecimentos
     /// e manutenções que se perdem junto). Compartilhado entre a Garagem (swipe

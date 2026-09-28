@@ -33,31 +33,9 @@ struct FuelLogListView: View {
         }
     }
 
-    /// km/l por abastecimento que FECHA um segmento full-to-full, casado por
-    /// odômetro. Logs sem medição (1º cheio, parcial) não entram → sem pílula.
-    private var kmPerLiterByOdometer: [Double: Double] {
-        Dictionary(
-            ConsumptionCalculator.segments(from: motorcycle.consumptionEntries)
-                .map { ($0.endOdometer, $0.kmPerLiter) },
-            uniquingKeysWith: { _, new in new }
-        )
-    }
-
     /// Média global de consumo — referência para a seta de tendência.
     private var averageKmPerLiter: Double? {
         motorcycle.consumptionSummary.averageKmPerLiter
-    }
-
-    /// Combustível mais usado nesta moto. A linha só nomeia o combustível
-    /// quando foge dele — repetir "Gasolina comum" em toda linha era ruído.
-    /// Empate → o do abastecimento mais recente (estável entre renders).
-    private var usualFuelType: FuelType? {
-        Dictionary(grouping: logs, by: \.fuelType)
-            .max { a, b in
-                (a.value.count, a.value.map(\.date).max() ?? .distantPast)
-                    < (b.value.count, b.value.map(\.date).max() ?? .distantPast)
-            }?
-            .key
     }
 
     var body: some View {
@@ -77,9 +55,9 @@ struct FuelLogListView: View {
                     }
                 }
             } else {
-                let kmpl = kmPerLiterByOdometer
+                let kmpl = motorcycle.kmPerLiterByOdometer
                 let avg = averageKmPerLiter
-                let usualFuel = usualFuelType
+                let usualFuel = motorcycle.usualFuelType
                 List {
                     ForEach(monthGroups) { group in
                         Section {
@@ -178,10 +156,11 @@ struct FuelLogListView: View {
     }
 }
 
-/// Linha do histórico — 2 linhas, coluna numérica à direita (padrão Apple
+/// Linha de abastecimento — 2 linhas, coluna numérica à direita (padrão Apple
 /// Card/Fitness). Consumo é o valor primário (core do app); o resto é contexto.
 /// Hora, local e foto ficam no form (tocar a linha) — lista é pra escanear.
-private struct FuelLogRow: View {
+/// Mesma linha no histórico e no card "Último abastecimento" do Resumo.
+struct FuelLogRow: View {
     let log: FuelLog
     /// km/l deste abastecimento (nil se não fecha um segmento medível).
     var kmPerLiter: Double?
@@ -189,6 +168,10 @@ private struct FuelLogRow: View {
     var averageKmPerLiter: Double?
     /// Combustível foge do usual da moto → nomeia na linha 2.
     var showsFuelType: Bool
+    /// Título da linha. nil = "Segunda-feira, 28" (dentro de seção de mês);
+    /// o Resumo passa o dia relativo ("Hoje", "Ontem").
+    var dateText: String? = nil
+    var accessibilityHintText = "Toque para editar"
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -218,7 +201,7 @@ private struct FuelLogRow: View {
         VStack(alignment: .leading, spacing: 3) {
             lineLayout {
                 HStack(spacing: 6) {
-                    Text(AppFormat.weekdayDay(log.date))
+                    Text(dateText ?? AppFormat.weekdayDay(log.date))
                         .font(.headline)
                         .lineLimit(lineLimit)
                     // Sinais discretos: registrado depois do fato / tem foto.
@@ -233,6 +216,8 @@ private struct FuelLogRow: View {
             lineLayout {
                 Text(details)
                     .lineLimit(lineLimit)
+                    // Fora de List (card do Resumo) o texto truncava em AX.
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Text(AppFormat.currency(log.totalCost))
                     .lineLimit(lineLimit)
@@ -245,7 +230,7 @@ private struct FuelLogRow: View {
         .contentShape(.rect)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
-        .accessibilityHint("Toque para editar")
+        .accessibilityHint(accessibilityHintText)
     }
 
     /// km/l grande + unidade menor (padrão Fitness). Sem medição: "Parcial"
