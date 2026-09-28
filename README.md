@@ -8,7 +8,7 @@
 
 iOS 18+ · SwiftUI · SwiftData · Supabase
 
-**[wagnerrosa.com/carburante](https://wagnerrosa.com/carburante/)**
+**[carburante.motorcycles](https://carburante.motorcycles/)**
 
 </div>
 
