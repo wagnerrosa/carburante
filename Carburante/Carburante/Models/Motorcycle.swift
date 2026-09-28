@@ -124,6 +124,17 @@ extension Motorcycle {
         set { category = newValue?.rawValue }
     }
 
+    /// Aplica o hodômetro do form de EDIÇÃO da moto. Só regrava a leitura de
+    /// referência (`odometerBaseline`) se o usuário MUDOU o campo: o form carrega
+    /// o hodômetro efetivo, e regravar sempre fazia `baseline = currentOdometer`
+    /// a cada edição (trocar o nome/ano bastava) — zerava `distanceSinceBaseline`
+    /// e o km das medalhas de categoria (nível II/III voltavam a bloquear).
+    func applyEditedOdometer(_ entered: Double?, loaded: Double?) {
+        guard entered != loaded else { return }
+        odometerBaseline = entered ?? 0
+        reconcileOdometer()
+    }
+
     /// Reconcilia `currentOdometer` com a verdade após inserir, editar ou
     /// excluir um abastecimento: maior entre a leitura manual de cadastro
     /// (`odometerBaseline`), o maior odômetro dos abastecimentos e `latestEntry`

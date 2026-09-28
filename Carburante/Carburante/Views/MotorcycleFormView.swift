@@ -24,6 +24,9 @@ struct MotorcycleFormView: View {
     @State private var country: String = "Brasil"
     /// Opcional: nil mostra o placeholder (não um "0" a apagar). nil → 0 no save.
     @State private var currentOdometer: Double?
+    /// Hodômetro carregado ao abrir a edição — só um valor DIFERENTE regrava a
+    /// leitura de referência (`Motorcycle.applyEditedOdometer`).
+    @State private var loadedOdometer: Double?
     /// Opcional — nil = "Não informado". Pode ser completado depois.
     @State private var category: MotorcycleCategory?
     @State private var displacementCC: Int?
@@ -242,6 +245,7 @@ struct MotorcycleFormView: View {
         country = m.country
         // 0 → nil: mostra o placeholder em vez de um "0" a apagar.
         currentOdometer = m.currentOdometer > 0 ? m.currentOdometer : nil
+        loadedOdometer = currentOdometer
         category = m.categoryEnum
         displacementCC = m.displacementCC
     }
@@ -259,10 +263,10 @@ struct MotorcycleFormView: View {
             m.model = trimmedModel
             m.year = year
             m.country = trimmedCountry
-            // O hodômetro do form é a leitura manual (baseline); reconcilia o
-            // efetivo com os abastecimentos existentes (nunca abaixo deles).
-            m.odometerBaseline = currentOdometer ?? 0
-            m.reconcileOdometer()
+            // O hodômetro do form é a leitura manual (baseline) — só quando o
+            // usuário mexeu no campo; reconcilia com os abastecimentos (nunca
+            // abaixo deles). Ver `applyEditedOdometer`.
+            m.applyEditedOdometer(currentOdometer, loaded: loadedOdometer)
             m.categoryEnum = category
             m.displacementCC = displacementCC
             savedMoto = m

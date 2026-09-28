@@ -1623,4 +1623,50 @@ final class CarburanteTests: XCTestCase {
         XCTAssertTrue(FuelLogValidator.validate(odometer: 11_000, liters: 10, totalCost: 60,
                                                 lastOdometer: 10_000, nextOdometer: 12_000).isEmpty)
     }
+
+    // MARK: - Edição da moto preserva a leitura de referência
+
+    /// Editar nome/ano sem mexer no hodômetro não regrava a baseline (antes,
+    /// toda edição fazia baseline = currentOdometer e zerava o km das medalhas).
+    func testEditedOdometerUnchangedKeepsBaseline() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1500, 3000], in: ctx)
+        XCTAssertEqual(moto.distanceSinceBaseline, 2000)
+        moto.applyEditedOdometer(3000, loaded: 3000)
+        XCTAssertEqual(moto.odometerBaseline, 1000, "campo intocado → baseline intacta")
+        XCTAssertEqual(moto.distanceSinceBaseline, 2000)
+    }
+
+    /// Mudar o hodômetro no form regrava a baseline e reconcilia (nunca abaixo
+    /// dos abastecimentos).
+    func testEditedOdometerChangedUpdatesBaseline() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1500, 3000], in: ctx)
+        moto.applyEditedOdometer(800, loaded: 3000)
+        XCTAssertEqual(moto.odometerBaseline, 800)
+        XCTAssertEqual(moto.currentOdometer, 3000, "não cai abaixo do maior abastecimento")
+        moto.applyEditedOdometer(4000, loaded: 3000)
+        XCTAssertEqual(moto.currentOdometer, 4000)
+    }
+
+    /// Item desmarcado de uma Revisão vira exclusão LÓGICA: some de `children`
+    /// e do cálculo, mas a linha fica para o sync propagar o `deleted_at` (delete
+    /// físico nunca chegava ao servidor e o pull o ressuscitava).
+    func testRevisaoChildSoftDeleteLeavesRowForSync() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CB 500", year: 2022, country: "Brasil", currentOdometer: 6000)
+        ctx.insert(moto)
+        let parent = MaintenanceLog(mileage: 5000, type: .revisao, motorcycle: moto)
+        ctx.insert(parent)
+        let oil = MaintenanceLog(mileage: 5000, type: .oleo, partOfMaintenanceID: parent.id, motorcycle: moto)
+        ctx.insert(oil)
+        try ctx.save()
+        XCTAssertEqual(parent.children.count, 1)
+
+        oil.softDelete()
+        try ctx.save()
+        XCTAssertTrue(parent.children.isEmpty, "desmarcado some da revisão")
+        XCTAssertNil(moto.lastService(of: .oleo), "e não reinicia o contador do óleo")
+        XCTAssertEqual(moto.maintenanceLogs.count, 2, "a linha continua para o sync propagar")
+    }
 }
