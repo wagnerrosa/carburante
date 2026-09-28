@@ -202,11 +202,18 @@ private struct FuelLogRow: View {
                 .font(.subheadline)
                 .monospacedDigit()
 
-                if let place = log.placeLabel {
-                    Label(place, systemImage: "mappin.and.ellipse")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    if let place = log.placeLabel {
+                        Label(place, systemImage: "mappin.and.ellipse")
+                    }
+                    // Foto do hodômetro guardada — sinal discreto, sem abrir
+                    // aqui (tocar a linha já leva ao form, que mostra a foto).
+                    if log.odometerPhotoURL != nil {
+                        Image(systemName: "camera.fill")
+                    }
                 }
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 // Registrado depois do fato — informação, não alerta.
                 if log.isHistorical {
                     HistoryMarker()

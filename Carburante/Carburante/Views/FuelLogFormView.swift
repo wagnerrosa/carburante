@@ -47,6 +47,9 @@ struct FuelLogFormView: View {
     @State private var showCameraFor: PhotoTarget?
     @State private var galleryItem: PhotosPickerItem?
     @State private var galleryTarget: PhotoTarget = .receipt
+    /// Foto do hodômetro nova (ainda não salva em disco) — substitui a guardada
+    /// ao salvar. nil = mantém a que já existe.
+    @State private var odometerPhoto: UIImage?
 
     /// Qual campo a foto alimenta.
     private enum PhotoTarget: Identifiable {
@@ -112,7 +115,7 @@ struct FuelLogFormView: View {
         guard let log = fuelLog else { return false }
         return date != log.date || odometer != log.odometer || liters != log.liters
             || totalCost != log.totalCost || fuelType != log.fuelType
-            || isFullTank != log.isFullTank
+            || isFullTank != log.isFullTank || odometerPhoto != nil
     }
 
     /// Placeholder do hodômetro: último valor conhecido, deixa claro que é leitura total.
@@ -320,6 +323,11 @@ struct FuelLogFormView: View {
         HStack {
             Label(label, systemImage: icon)
             Spacer()
+            // Foto guardada (ou recém-tirada) fica na própria linha: tocar amplia.
+            if target == .odometer, odometerPhoto != nil || fuelLog?.odometerPhotoURL != nil {
+                OdometerPhotoPreview(pendingImage: odometerPhoto,
+                                     reference: fuelLog?.odometerPhotoURL)
+            }
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                 Button {
                     showCameraFor = target
@@ -347,6 +355,7 @@ struct FuelLogFormView: View {
             let recognized = try await TextRecognizer.recognize(in: cgImage)
             switch target {
             case .odometer:
+                odometerPhoto = image
                 if let odo = OCRParser.parseOdometer(recognized.lines) {
                     odometer = odo
                     ocrStatus = "Hodômetro lido: \(AppFormat.km(odo)). Confira."
@@ -425,6 +434,11 @@ struct FuelLogFormView: View {
             if ocrProcessed {
                 log.ocrProcessed = true
                 log.ocrConfidence = ocrConfidence
+            }
+            // Foto nova substitui a antiga: mesmo arquivo reescrito, referência
+            // volta a "pendente" e o próximo push sobrescreve o mesmo path.
+            if let odometerPhoto, let ref = PhotoStorage.save(odometerPhoto, for: log.id) {
+                log.odometerPhotoURL = ref
             }
             // Soft Revision: registra que a linha mudou (revision++ / updatedAt).
             // updatedAt é a base do last-write-wins no sync.
