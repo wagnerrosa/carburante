@@ -292,6 +292,7 @@ p { margin: 0; }
 .footer a { text-decoration: none; }
 .footer a:hover { color: var(--text); }
 .footer__by a { color: var(--text); }
+.footer__legal { flex-basis: 100%; margin: 4px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-2); }
 
 /* Reveal on scroll (só com JS; sem JS tudo aparece) */
 .js .reveal { opacity: 0; transform: translateY(24px); transition: opacity .8s ease, transform .8s cubic-bezier(.2, .7, .2, 1); }
