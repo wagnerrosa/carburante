@@ -204,10 +204,7 @@ struct MaintenanceListView: View {
         let id: Date
         let logs: [MaintenanceLog]
 
-        var title: String {
-            id.formatted(Date.FormatStyle().month(.wide).year().locale(AppFormat.locale))
-                .capitalized
-        }
+        var title: String { AppFormat.monthTitle(id) }
     }
 }
 

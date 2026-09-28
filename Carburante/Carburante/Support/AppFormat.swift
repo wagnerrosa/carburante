@@ -49,7 +49,12 @@ nonisolated enum AppFormat {
 
     /// Consumo, 1 casa decimal: "19,8 km/l".
     static func kmPerLiter(_ value: Double) -> String {
-        "\(value.formatted(.number.precision(.fractionLength(1)).locale(locale))) km/l"
+        "\(kmPerLiterValue(value)) km/l"
+    }
+
+    /// Consumo sem unidade: "19,8" — p/ compor número grande + unidade menor.
+    static func kmPerLiterValue(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(1)).locale(locale))
     }
 
     /// Data abreviada localizada: "18 de jun. de 2026".
@@ -65,5 +70,26 @@ nonisolated enum AppFormat {
     /// Data por extenso (estilo conquista, à la Garmin): "8 de novembro de 2025".
     static func dateLong(_ date: Date) -> String {
         date.formatted(Date.FormatStyle(date: .long, time: .omitted).locale(locale))
+    }
+
+    /// Dia dentro de uma seção de mês: "Segunda-feira, 28" (mês/ano já estão
+    /// no header — repetir era ruído).
+    static func weekdayDay(_ date: Date) -> String {
+        sentenceCased(date.formatted(Date.FormatStyle().weekday(.wide).day().locale(locale)))
+    }
+
+    /// Header de seção de mês (padrão Fotos/Wallet): "Setembro" no ano corrente,
+    /// "Setembro de 2025" nos anteriores.
+    static func monthTitle(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let style = calendar.isDate(date, equalTo: now, toGranularity: .year)
+            ? Date.FormatStyle().month(.wide)
+            : Date.FormatStyle().month(.wide).year()
+        return sentenceCased(date.formatted(style.locale(locale)))
+    }
+
+    /// Só a 1ª letra maiúscula. `.capitalized` sobe toda palavra e gerava
+    /// "Setembro De 2026" — em pt-BR preposição fica minúscula.
+    static func sentenceCased(_ text: String) -> String {
+        text.prefix(1).uppercased(with: locale) + text.dropFirst()
     }
 }

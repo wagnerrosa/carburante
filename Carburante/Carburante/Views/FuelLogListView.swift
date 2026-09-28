@@ -43,9 +43,21 @@ struct FuelLogListView: View {
         )
     }
 
-    /// Média global de consumo — referência para a cor/seta da pílula.
+    /// Média global de consumo — referência para a seta de tendência.
     private var averageKmPerLiter: Double? {
         motorcycle.consumptionSummary.averageKmPerLiter
+    }
+
+    /// Combustível mais usado nesta moto. A linha só nomeia o combustível
+    /// quando foge dele — repetir "Gasolina comum" em toda linha era ruído.
+    /// Empate → o do abastecimento mais recente (estável entre renders).
+    private var usualFuelType: FuelType? {
+        Dictionary(grouping: logs, by: \.fuelType)
+            .max { a, b in
+                (a.value.count, a.value.map(\.date).max() ?? .distantPast)
+                    < (b.value.count, b.value.map(\.date).max() ?? .distantPast)
+            }?
+            .key
     }
 
     var body: some View {
@@ -67,20 +79,24 @@ struct FuelLogListView: View {
             } else {
                 let kmpl = kmPerLiterByOdometer
                 let avg = averageKmPerLiter
+                let usualFuel = usualFuelType
                 List {
                     ForEach(monthGroups) { group in
-                        Section(group.title) {
+                        Section {
                             ForEach(group.logs) { log in
                                 Button {
                                     editingLog = log
                                 } label: {
                                     FuelLogRow(log: log,
                                                kmPerLiter: kmpl[log.odometer],
-                                               averageKmPerLiter: avg)
+                                               averageKmPerLiter: avg,
+                                               showsFuelType: log.fuelType != usualFuel)
                                 }
                                 .buttonStyle(.plain)
                             }
                             .onDelete { delete($0, in: group.logs) }
+                        } header: {
+                            MonthHeader(title: group.title, totalCost: group.totalCost)
                         }
                     }
                     // Secundário e no fim: o `+` segue sendo o caminho do dia a dia.
@@ -156,99 +172,168 @@ struct FuelLogListView: View {
         let id: Date
         let logs: [FuelLog]
 
-        var title: String {
-            id.formatted(Date.FormatStyle().month(.wide).year().locale(AppFormat.locale))
-                .capitalized
-        }
+        var title: String { AppFormat.monthTitle(id) }
+
+        var totalCost: Double { logs.reduce(0) { $0 + $1.totalCost } }
     }
 }
 
+/// Header de mês com o gasto total à direita (padrão Apple Card): responde
+/// "quanto foi de gasolina" sem tela nova. Em acessibilidade o total desce.
+private struct MonthHeader: View {
+    let title: String
+    let totalCost: Double
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout())
+        layout {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(AppFormat.currency(totalCost))
+                .monospacedDigit()
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Linha do histórico — 2 linhas, coluna numérica à direita (padrão Apple
+/// Card/Fitness). Consumo é o valor primário (core do app); o resto é contexto.
+/// Hora, local e foto ficam no form (tocar a linha) — lista é pra escanear.
 private struct FuelLogRow: View {
     let log: FuelLog
     /// km/l deste abastecimento (nil se não fecha um segmento medível).
     var kmPerLiter: Double?
-    /// Média global — referência para cor/seta da pílula.
+    /// Média global — referência para a seta de tendência.
     var averageKmPerLiter: Double?
+    /// Combustível foge do usual da moto → nomeia na linha 2.
+    var showsFuelType: Bool
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// 1 linha no tamanho normal (coluna limpa); em acessibilidade o texto
+    /// quebra em vez de truncar — ler vale mais que alinhar.
+    private var lineLimit: Int? { typeSize.isAccessibilitySize ? nil : 1 }
+
+    private var trend: ConsumptionTrend? {
+        kmPerLiter.flatMap { ConsumptionTrend.of(kmPerLiter: $0, average: averageKmPerLiter) }
+    }
+
+    /// Tamanhos de acessibilidade: a coluna da direita desce para baixo da
+    /// esquerda em vez de espremer/quebrar os números.
+    private var lineLayout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
+
+    private var details: String {
+        var parts = [AppFormat.liters(log.liters), AppFormat.km(log.odometer)]
+        if showsFuelType { parts.append(log.fuelType.shortLabel) }
+        return parts.joined(separator: " · ")
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            IconTile(systemName: "fuelpump.fill", size: 38)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    // Histórico: a hora digitada depois não diz nada — só a data.
-                    Text(log.isHistorical ? AppFormat.date(log.date) : AppFormat.dateTime(log.date))
+        VStack(alignment: .leading, spacing: 3) {
+            lineLayout {
+                HStack(spacing: 6) {
+                    Text(AppFormat.weekdayDay(log.date))
                         .font(.headline)
-                    Spacer()
-                    Text(AppFormat.km(log.odometer))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                // O combustível fica sempre nesta linha: antes a pílula de km/l
-                // ocupava o lugar dele e a informação sumia justo nos logs que
-                // fecham um segmento.
-                HStack {
-                    Text(AppFormat.liters(log.liters))
-                    Text("•")
-                    Text(AppFormat.currency(log.totalCost))
-                    Text("•")
-                    Text(log.fuelType.rawValue)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if let kmPerLiter {
-                        VariationPill(kmPerLiter: kmPerLiter, average: averageKmPerLiter)
+                        .lineLimit(lineLimit)
+                    // Sinais discretos: registrado depois do fato / tem foto.
+                    Group {
+                        if log.isHistorical {
+                            Image(systemName: "clock.arrow.circlepath")
+                        }
+                        if log.odometerPhotoURL != nil {
+                            Image(systemName: "camera.fill")
+                        }
                     }
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                 }
-                .font(.subheadline)
-                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack(spacing: 8) {
-                    if let place = log.placeLabel {
-                        Label(place, systemImage: "mappin.and.ellipse")
-                    }
-                    // Foto do hodômetro guardada — sinal discreto, sem abrir
-                    // aqui (tocar a linha já leva ao form, que mostra a foto).
-                    if log.odometerPhotoURL != nil {
-                        Image(systemName: "camera.fill")
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                // Registrado depois do fato — informação, não alerta.
-                if log.isHistorical {
-                    HistoryMarker()
-                }
+                consumption
             }
+
+            lineLayout {
+                Text(details)
+                    .lineLimit(lineLimit)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(AppFormat.currency(log.totalCost))
+                    .lineLimit(lineLimit)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .contentShape(.rect)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint("Toque para editar")
+    }
+
+    /// km/l grande + unidade menor (padrão Fitness). Sem medição: "Parcial"
+    /// (tanque não cheio) ou "—" (1º cheio / antes da 1ª leitura).
+    @ViewBuilder
+    private var consumption: some View {
+        if let kmPerLiter {
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                if let trend {
+                    Image(systemName: trend.symbolName)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+                Text(AppFormat.kmPerLiterValue(kmPerLiter))
+                    .font(.title3.weight(.semibold))
+                    .fontDesign(.rounded)
+                    .monospacedDigit()
+                Text("km/l")
+                    .font(.subheadline.weight(.semibold))
+                    .fontDesign(.rounded)
+                    .foregroundStyle(.secondary)
+            }
+            .lineLimit(lineLimit)
+            .fixedSize(horizontal: lineLimit != nil, vertical: false)
+        } else {
+            Text(log.isFullTank ? "—" : "Parcial")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .lineLimit(lineLimit)
+        }
+    }
+
+    private var accessibilityText: String {
+        var parts = [AppFormat.dateLong(log.date)]
+        if let kmPerLiter {
+            var c = "\(AppFormat.kmPerLiterValue(kmPerLiter)) quilômetros por litro"
+            if let trend { c += ", \(trend.accessibilityDescription)" }
+            parts.append(c)
+        } else if !log.isFullTank {
+            parts.append("Tanque parcial")
+        }
+        parts.append(AppFormat.currency(log.totalCost))
+        parts.append("\(AppFormat.liters(log.liters)), hodômetro \(AppFormat.km(log.odometer))")
+        if showsFuelType { parts.append(log.fuelType.rawValue) }
+        if log.isHistorical { parts.append("Histórico") }
+        if log.odometerPhotoURL != nil { parts.append("Com foto do hodômetro") }
+        return parts.joined(separator: ". ")
     }
 }
 
-/// Pílula de variação de consumo (estilo app Bolsa): km/l do abastecimento +
-/// seta ↑/↓ comparando à média. Verde ≥ média, vermelho < média. Usa seta
-/// ALÉM da cor (acessível a daltônicos). Cor semântica — não segue o tema.
-private struct VariationPill: View {
-    let kmPerLiter: Double
-    var average: Double?
-
-    var body: some View {
-        // Sem média (1 só segmento) → neutro, sem julgar acima/abaixo.
-        let above = average.map { kmPerLiter >= $0 }
-        let color: Color = above == nil ? .secondary : (above! ? .green : .red)
-        let symbol = above == nil ? nil : (above! ? "arrow.up" : "arrow.down")
-
-        HStack(spacing: 2) {
-            if let symbol {
-                Image(systemName: symbol).font(.caption2.weight(.bold))
-            }
-            Text(AppFormat.kmPerLiter(kmPerLiter))
+private extension FuelType {
+    /// Nome curto p/ a linha do histórico (cabe ao lado de L e km).
+    var shortLabel: String {
+        switch self {
+        case .gasolinaComum: "Gasolina"
+        case .gasolinaAditivada: "Aditivada"
+        case .etanol: "Etanol"
+        case .diesel: "Diesel"
+        case .gnv: "GNV"
         }
-        .font(.caption.weight(.semibold))
-        .monospacedDigit()
-        .foregroundStyle(color)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.14), in: Capsule())
     }
 }
