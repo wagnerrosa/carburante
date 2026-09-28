@@ -26,7 +26,8 @@
   <link rel="stylesheet" href="style.css?v=3">
   <script>document.documentElement.classList.add('js')</script>
 
-  <!-- Analytics: mesma propriedade GA4 + Clarity do portfólio (mesmo domínio, mesmo cookie).
+  <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
+       Clarity ainda é o projeto do portfólio (vhbu1gthme) — trocar quando houver um próprio.
        Desligado em localhost, com localStorage.dev_mode = 'true' ou ?preview=dev (vale a sessão).
        Desligado = nada carrega e window.gtag não existe; os eventos do app.js viram no-op. -->
   <script>
@@ -41,12 +42,12 @@
 
       var s = document.createElement('script');
       s.async = true;
-      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-VTCEP9QKNC';
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-JNKWNRL5KE';
       document.head.appendChild(s);
       window.dataLayer = window.dataLayer || [];
       window.gtag = function () { dataLayer.push(arguments); };
       gtag('js', new Date());
-      gtag('config', 'G-VTCEP9QKNC');
+      gtag('config', 'G-JNKWNRL5KE');
 
       (function (c, l, a, r, i, t, y) {
         c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
@@ -384,6 +385,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
