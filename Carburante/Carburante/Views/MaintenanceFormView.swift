@@ -85,7 +85,7 @@ struct MaintenanceFormView: View {
 
     private var mileagePrompt: String {
         if isHistoryEntry { return "Km na época" }
-        return motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "Hodômetro"
+        return motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "0"
     }
 
     /// Modo histórico criando: data ainda é hoje → falta escolher quando foi.
@@ -132,17 +132,16 @@ struct MaintenanceFormView: View {
                             Label(t.rawValue, systemImage: t.icon).tag(t)
                         }
                     }
-                    HStack {
+                    UnitField(label: "Hodômetro", unit: "km") {
                         TextField("Hodômetro", value: $mileage, format: .number, prompt: Text(mileagePrompt))
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
-                        Text("km").foregroundStyle(.secondary)
                     }
-                    HStack {
-                        TextField("Custo", value: $cost, format: .number, prompt: Text("Custo"))
+                    UnitField(label: "Custo", unit: "R$",
+                              leadingUnitFor: AppFormat.numberInput(cost, placeholder: "0,00")) {
+                        TextField("Custo", value: $cost, format: .number, prompt: Text("0,00"))
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
-                        Text("R$").foregroundStyle(.secondary)
                     }
                 } footer: {
                     VStack(alignment: .leading, spacing: 6) {
@@ -183,8 +182,7 @@ struct MaintenanceFormView: View {
                 // itens incluídos, não meta agendável) → sem seção de intervalo.
                 if type != .revisao {
                     Section {
-                        HStack {
-                            Text("A cada")
+                        UnitField(label: "A cada", unit: "km") {
                             TextField(
                                 "Intervalo",
                                 value: $intervalKm,
@@ -193,11 +191,8 @@ struct MaintenanceFormView: View {
                             )
                             .keyboardType(.numberPad)
                             .focused($fieldFocused)
-                            .multilineTextAlignment(.trailing)
-                            Text("km").foregroundStyle(.secondary)
                         }
-                        HStack {
-                            Text("A cada")
+                        UnitField(label: "A cada", unit: "meses") {
                             TextField(
                                 "Intervalo",
                                 value: $intervalMonths,
@@ -206,8 +201,6 @@ struct MaintenanceFormView: View {
                             )
                             .keyboardType(.numberPad)
                             .focused($fieldFocused)
-                            .multilineTextAlignment(.trailing)
-                            Text("meses").foregroundStyle(.secondary)
                         }
                     } header: {
                         Text("Próxima manutenção")
@@ -258,7 +251,8 @@ struct MaintenanceFormView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Editar Manutenção" : (isHistoryEntry ? "Manutenção Antiga" : "Nova Manutenção"))
+            // Criação = "Nova X"; edição = só o objeto (Cancelar/Salvar já dizem).
+            .navigationTitle(isEditing ? "Manutenção" : (isHistoryEntry ? "Manutenção antiga" : "Nova manutenção"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

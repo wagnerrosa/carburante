@@ -720,6 +720,47 @@ struct GroupedCard<Content: View>: View {
     }
 }
 
+/// Campo numérico de form com rótulo à esquerda e valor + unidade à direita
+/// (padrão Saúde "Adicionar Dados": "Hodômetro      27.434 km"). O rótulo fica
+/// visível com o campo preenchido — antes só havia placeholder e, preenchido,
+/// "27.434 / 4,135 / 28,49" não dizia qual era qual. Com um `Text` de rótulo,
+/// o separador da `List` alinha nele (sem isso alinhava na unidade e ficava
+/// curto). O `TextField` vem do chamador — `.focused`/teclado ficam lá.
+///
+/// Moeda vai ANTES do número ("R$ 28,49"): passe `leadingUnitFor` = o texto
+/// que o campo exibe (valor formatado ou placeholder). Ele é medido por um
+/// `Text` invisível para a unidade colar no número sem encolher o campo (a
+/// área de toque segue a linha toda).
+struct UnitField<Field: View>: View {
+    let label: String
+    let unit: String
+    var leadingUnitFor: String? = nil
+    @ViewBuilder var field: Field
+
+    var body: some View {
+        LabeledContent {
+            if let shown = leadingUnitFor {
+                ZStack(alignment: .trailing) {
+                    field.multilineTextAlignment(.trailing)
+                    HStack(spacing: 4) {
+                        Text(unit).foregroundStyle(.secondary)
+                        Text(shown).hidden()
+                    }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+            } else {
+                HStack(spacing: 4) {
+                    field.multilineTextAlignment(.trailing)
+                    Text(unit).foregroundStyle(.secondary)
+                }
+            }
+        } label: {
+            Text(label)
+        }
+    }
+}
+
 /// Cabeçalho de card do Resumo (padrão Saúde/Tempo): símbolo + título na cor
 /// da categoria, chevron quando o card navega. TODO card do Resumo abre com
 /// ele — um template só, sem título de prateleira fora do card. `tint` nil →

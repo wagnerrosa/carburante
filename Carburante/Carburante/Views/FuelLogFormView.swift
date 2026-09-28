@@ -11,6 +11,7 @@ import SwiftData
 import PhotosUI
 
 struct FuelLogFormView: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -120,7 +121,7 @@ struct FuelLogFormView: View {
 
     /// Placeholder do hodômetro: último valor conhecido, deixa claro que é leitura total.
     private var odometerPrompt: String {
-        lastOdometer > 0 ? "Último: \(AppFormat.odometer(lastOdometer)) km" : "Hodômetro atual"
+        lastOdometer > 0 ? "Último: \(AppFormat.odometer(lastOdometer))" : "0"
     }
 
     var body: some View {
@@ -147,13 +148,9 @@ struct FuelLogFormView: View {
                         } else {
                             IconTile(systemName: "motorcycle", tint: motorcycle.themeColor, size: 34)
                         }
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(motorcycle.displayName)
-                                .font(.headline)
-                            Text(isEditing ? "Editando abastecimento" : "Novo abastecimento")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        // Só a moto: o título já diz o que é.
+                        Text(motorcycle.displayName)
+                            .font(.headline)
                     }
                 }
 
@@ -165,23 +162,21 @@ struct FuelLogFormView: View {
                                in: ...max(Date(), fuelLog?.date ?? .distantPast),
                                displayedComponents: [.date, .hourAndMinute])
 
-                    HStack {
+                    UnitField(label: "Hodômetro", unit: "km") {
                         TextField("Hodômetro atual", value: $odometer, format: .number, prompt: Text(odometerPrompt))
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
-                        Text("km").foregroundStyle(.secondary)
                     }
-                    HStack {
-                        TextField("Litros", value: $liters, format: .number, prompt: Text("Litros"))
+                    UnitField(label: "Litros", unit: "L") {
+                        TextField("Litros", value: $liters, format: .number, prompt: Text("0"))
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
-                        Text("L").foregroundStyle(.secondary)
                     }
-                    HStack {
-                        TextField("Valor total", value: $totalCost, format: .number, prompt: Text("Valor total"))
+                    UnitField(label: "Valor total", unit: "R$",
+                              leadingUnitFor: AppFormat.numberInput(totalCost, placeholder: "0,00")) {
+                        TextField("Valor total", value: $totalCost, format: .number, prompt: Text("0,00"))
                             .keyboardType(.decimalPad)
                             .focused($fieldFocused)
-                        Text("R$").foregroundStyle(.secondary)
                     }
                     Picker("Combustível", selection: $fuelType) {
                         ForEach(FuelType.allCases) { type in
@@ -247,7 +242,9 @@ struct FuelLogFormView: View {
                     }
                 }
             }
-            .navigationTitle(isEditing ? "Editar" : "Abastecimento")
+            // Criação = "Novo X"; edição = só o objeto (Cancelar/Salvar já dizem;
+            // "Editar abastecimento" não cabe entre os botões).
+            .navigationTitle(isEditing ? "Abastecimento" : "Novo abastecimento")
             .navigationBarTitleDisplayMode(.inline)
             .tint(motorcycle.themeColor)
             .toolbar {
@@ -320,27 +317,34 @@ struct FuelLogFormView: View {
 
     @ViewBuilder
     private func photoControls(target: PhotoTarget, label: String, icon: String) -> some View {
-        HStack {
+        // Em acessibilidade os botões descem para baixo do rótulo (lado a lado
+        // o rótulo virava uma coluna de 1 palavra por linha).
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout())
+        layout {
             Label(label, systemImage: icon)
-            Spacer()
-            // Foto guardada (ou recém-tirada) fica na própria linha: tocar amplia.
-            if target == .odometer, odometerPhoto != nil || fuelLog?.odometerPhotoURL != nil {
-                OdometerPhotoPreview(pendingImage: odometerPhoto,
-                                     reference: fuelLog?.odometerPhotoURL)
-            }
-            if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button {
-                    showCameraFor = target
-                } label: {
-                    Image(systemName: "camera")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                // Foto guardada (ou recém-tirada) fica na própria linha: tocar amplia.
+                if target == .odometer, odometerPhoto != nil || fuelLog?.odometerPhotoURL != nil {
+                    OdometerPhotoPreview(pendingImage: odometerPhoto,
+                                         reference: fuelLog?.odometerPhotoURL)
+                }
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button {
+                        showCameraFor = target
+                    } label: {
+                        Image(systemName: "camera")
+                    }
+                    .buttonStyle(.borderless)
+                }
+                PhotosPicker(selection: $galleryItem, matching: .images) {
+                    Image(systemName: "photo")
                 }
                 .buttonStyle(.borderless)
+                .simultaneousGesture(TapGesture().onEnded { galleryTarget = target })
             }
-            PhotosPicker(selection: $galleryItem, matching: .images) {
-                Image(systemName: "photo")
-            }
-            .buttonStyle(.borderless)
-            .simultaneousGesture(TapGesture().onEnded { galleryTarget = target })
         }
         .disabled(isRecognizing)
     }

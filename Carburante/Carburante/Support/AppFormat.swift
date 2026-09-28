@@ -47,6 +47,12 @@ nonisolated enum AppFormat {
         "\(value.formatted(.number.precision(.fractionLength(0...1)).locale(locale))) L"
     }
 
+    /// Número como um `TextField(format: .number)` o exibe ("28,49", "1.200");
+    /// nil → `placeholder`. Mede a largura do campo p/ a moeda colar no número.
+    static func numberInput(_ value: Double?, placeholder: String) -> String {
+        value.map { $0.formatted(.number.locale(locale)) } ?? placeholder
+    }
+
     /// Consumo, 1 casa decimal: "19,8 km/l".
     static func kmPerLiter(_ value: Double) -> String {
         "\(kmPerLiterValue(value)) km/l"
