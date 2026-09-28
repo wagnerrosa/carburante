@@ -61,15 +61,32 @@ struct MaintenanceStatus: Equatable, Identifiable {
     // MARK: Apresentação (compartilhada entre Resumo e lista de Manutenções)
 
     /// Texto curto do que falta, pelo eixo mais próximo de vencer.
-    /// Ex.: "Faltam 1.500 km", "Faltam 12 dias", "Vencida".
+    /// Ex.: "Faltam 1.500 km", "Faltam 12 dias". Vencida diz QUANTO passou
+    /// ("1.200 km além", "87 dias em atraso") — "Vencida" sozinho escondia a
+    /// gravidade e obrigava um 2º texto vermelho no Resumo.
     var remainingShort: String {
-        if isOverdue { return "Vencida" }
+        if isOverdue { return overdueShort }
         if let km = kmRemaining { return "Faltam \(AppFormat.km(max(km, 0)))" }
         if let days = daysRemaining {
             if days <= 0 { return "Vence hoje" }
             return days == 1 ? "Falta 1 dia" : "Faltam \(days) dias"
         }
         return "Em dia"
+    }
+
+    /// Quanto passou do prazo: km além (eixo km) antes de dias (eixo tempo).
+    /// `daysRemaining` já é negativo quando atrasado (calculado no `now` do
+    /// status) — o texto não depende de relógio. Fallback "Vencida" no limite
+    /// exato (km restante = 0, sem atraso por data).
+    private var overdueShort: String {
+        if let km = kmRemaining, km < 0 {
+            return "\(AppFormat.km(abs(km))) além"
+        }
+        if dueDate != nil, let days = daysRemaining, days <= 0 {
+            if days == 0 { return "Vence hoje" }
+            return days == -1 ? "1 dia em atraso" : "\(-days) dias em atraso"
+        }
+        return "Vencida"
     }
 
     /// Texto de prazo da próxima (por data quando há eixo tempo; senão por km).

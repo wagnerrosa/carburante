@@ -617,18 +617,10 @@ struct DashboardView: View {
         }
     }
 
-    /// Cor semântica aparece apenas quando há atenção necessária. Em dia, o
-    /// indicador segue o tema da moto; perto do prazo fica laranja e, vencido,
-    /// vermelho.
-    private func maintenanceColor(_ status: MaintenanceStatus, moto: Motorcycle) -> Color {
-        if status.isOverdue { return .red }
-        return status.progress >= 0.8 ? .orange : moto.themeColor
-    }
-
     /// Card compacto do tipo mais urgente: status/prazo como apoio; a barra de
     /// progresso (km ou tempo, o que estiver mais perto) é o elemento principal.
     private func maintenanceCard(_ status: MaintenanceStatus, moto: Motorcycle) -> some View {
-        let color = maintenanceColor(status, moto: moto)
+        let color = status.indicatorColor
 
         return NavigationLink {
             MaintenanceListView(motorcycle: moto)
@@ -662,13 +654,6 @@ struct DashboardView: View {
                             }
                         }
                         Spacer(minLength: 8)
-                        let trailing = maintenanceTrailingText(status)
-                        if status.isOverdue, !trailing.isEmpty {
-                            Text(trailing)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(color)
-                                .monospacedDigit()
-                        }
                     }
 
                     VStack(spacing: 6) {
@@ -749,26 +734,6 @@ struct DashboardView: View {
     /// Linha principal (negrito) e apoio: compartilhadas com a lista (`MaintenanceStatus`).
     private func maintenanceStatusTitle(_ status: MaintenanceStatus) -> String { status.remainingShort }
     private func maintenanceDueText(_ status: MaintenanceStatus) -> String { status.dueDescription }
-
-    /// Ênfase à direita quando vencida (km além ou dias em atraso).
-    private func maintenanceTrailingText(_ status: MaintenanceStatus) -> String {
-        if let km = status.kmRemaining, km < 0 {
-            return "\(AppFormat.km(abs(km))) além"
-        }
-        if let date = status.dueDate, status.isOverdue {
-            let days = overdueDays(since: date)
-            if days == 0 { return "Prazo hoje" }
-            return days == 1 ? "1 dia em atraso" : "\(days) dias em atraso"
-        }
-        return ""
-    }
-
-    private func overdueDays(since dueDate: Date, now: Date = Date()) -> Int {
-        let calendar = Calendar.current
-        let dueDay = calendar.startOfDay(for: dueDate)
-        let today = calendar.startOfDay(for: now)
-        return max(calendar.dateComponents([.day], from: dueDay, to: today).day ?? 0, 0)
-    }
 
     @ViewBuilder
     private func lastFuelLogCard(_ moto: Motorcycle) -> some View {
