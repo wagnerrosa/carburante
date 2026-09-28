@@ -35,6 +35,8 @@ struct SettingsView: View {
 
                 Section {
                     LabeledContent("Versão", value: appVersion)
+                } footer: {
+                    Text("Nomes e logotipos de fabricantes de motos são marcas comerciais ou registradas de seus respectivos detentores e aparecem no app só para identificar a sua moto. O Carburante é independente e não tem afiliação, patrocínio ou endosso de nenhum fabricante.")
                 }
             }
             .navigationTitle("Ajustes")
