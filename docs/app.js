@@ -194,7 +194,7 @@
 
   // Analytics — cliques classificados pelo href, sem data-track no HTML: o i18n troca o
   // innerHTML dos parágrafos, e links internos a eles perderiam atributos. Parâmetros
-  // espelham o site_interaction do portfólio (mesma propriedade GA4); o pedido de beta
+  // espelham o site_interaction do portfólio (mesmo formato, propriedade GA4 própria); o pedido de beta
   // vai como generate_lead para ser marcado como key event.
   document.addEventListener('click', function (e) {
     var a = e.target.closest ? e.target.closest('a[href]') : null;
