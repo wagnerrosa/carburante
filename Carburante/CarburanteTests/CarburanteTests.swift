@@ -61,6 +61,33 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(try ctx.fetch(FetchDescriptor<Motorcycle>()).count, 0)
     }
 
+    func testSoftDeleteHidesMotorcycleAndCascadesToLogs() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CG 160", year: 2024, country: "Brasil")
+        let fuel = FuelLog(date: Date(), odometer: 100, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        let maint = MaintenanceLog(mileage: 100, cost: 50, type: .oleo)
+        ctx.insert(moto)
+        fuel.motorcycle = moto
+        maint.motorcycle = moto
+        try ctx.save()
+
+        let deletedAt = Date(timeIntervalSince1970: 1_000)
+        moto.softDelete(now: deletedAt)
+        try ctx.save()
+
+        // Linha continua no store (o sync precisa propagar), mas some da leitura.
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<Motorcycle>()).count, 1)
+        XCTAssertEqual(try ctx.fetch(FetchDescriptor<Motorcycle>(predicate: Motorcycle.activePredicate)).count, 0)
+        XCTAssertEqual(moto.deletedAt, deletedAt)
+        XCTAssertEqual(fuel.deletedAt, deletedAt)
+        XCTAssertEqual(fuel.updatedAt, deletedAt)
+        XCTAssertEqual(maint.deletedAt, deletedAt)
+
+        // Idempotente: não re-carimba.
+        moto.softDelete(now: Date(timeIntervalSince1970: 2_000))
+        XCTAssertEqual(moto.deletedAt, deletedAt)
+    }
+
     func testDisplayName() {
         let moto = Motorcycle(make: "Honda", model: "CB 500F", year: 2022, country: "Brasil")
         XCTAssertEqual(moto.displayName, "Honda CB 500F (2022)")

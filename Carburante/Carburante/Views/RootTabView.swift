@@ -12,7 +12,8 @@ import SwiftData
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Query(sort: \Motorcycle.createdAt, order: .reverse) private var motorcycles: [Motorcycle]
+    @Query(filter: Motorcycle.activePredicate, sort: \Motorcycle.createdAt, order: .reverse)
+    private var motorcycles: [Motorcycle]
     /// Mesma chave do Resumo — fonte única da moto ativa, define o tema global.
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
     /// Onboarding concluído (ou pulado) — persiste localmente. Enquanto false, o

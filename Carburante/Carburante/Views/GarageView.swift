@@ -18,7 +18,8 @@ import SwiftData
 
 struct GarageView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Motorcycle.createdAt, order: .reverse) private var motorcycles: [Motorcycle]
+    @Query(filter: Motorcycle.activePredicate, sort: \Motorcycle.createdAt, order: .reverse)
+    private var motorcycles: [Motorcycle]
     /// Mesma chave do Resumo/RootTabView — fonte única da moto ativa. Aqui é o
     /// único ponto que a SETA explicitamente (antes só caía no fallback `.first`).
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
@@ -342,7 +343,7 @@ struct GarageView: View {
         }
     }
 
-    // MARK: - Exclusão com cascade (mesma lógica do antigo MotorcycleListView)
+    // MARK: - Exclusão lógica com cascata (moto + abastecimentos + manutenções)
 
     private var deletionDialogBinding: Binding<Bool> {
         Binding(
@@ -359,8 +360,12 @@ struct GarageView: View {
         guard let moto = pendingDeletion else { return }
         let hadLogs = !moto.activeFuelLogs.isEmpty
         let count = moto.activeFuelLogs.count
-        modelContext.delete(moto)
+        // Exclusão LÓGICA (cascata p/ os logs): o push propaga o `deleted_at` e o
+        // pull não ressuscita a moto. Delete físico nunca chegava ao Supabase.
+        moto.softDelete()
         try? modelContext.save()
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
         Haptics.warning()
         Analytics.motorcycleDeleted(hadFuelLogs: hadLogs, fuelLogCount: count,
                                     remainingBikeCount: motorcycles.count)

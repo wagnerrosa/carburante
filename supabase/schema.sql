@@ -36,6 +36,8 @@ create index if not exists motorcycles_user_id_idx on public.motorcycles (user_i
 -- Migração de tabelas já criadas (rodar uma vez; no-op se já existe):
 alter table public.motorcycles add column if not exists displacement_cc integer;
 alter table public.motorcycles add column if not exists odometer_baseline double precision not null default 0;
+-- Exclusão lógica da moto (nil = viva): o delete propaga e o pull não ressuscita.
+alter table public.motorcycles add column if not exists deleted_at timestamptz;
 
 -- ---------- fuel_logs ----------
 create table if not exists public.fuel_logs (

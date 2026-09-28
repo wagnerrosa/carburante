@@ -20,6 +20,10 @@ struct MotorcycleDTO: Codable {
     let category: String?
     let displacement_cc: Int?
     let manufacturer_consumption: Double?
+    /// Exclusão lógica da moto (nil = viva). nil é omitido no JSON; o upsert em
+    /// lote do SDK manda `columns` = união das chaves, então num lote misto as
+    /// vivas vão como null e build antigo (sem o campo) nunca toca a coluna.
+    var deleted_at: Date? = nil
 }
 
 struct FuelLogDTO: Codable {

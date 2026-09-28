@@ -93,15 +93,17 @@ struct MotorcycleProfileView: View {
         }
     }
 
-    /// Mesma semântica da exclusão na Garagem (cascade físico + haptic + evento).
+    /// Mesma semântica da exclusão na Garagem (exclusão lógica em cascata + sync + haptic + evento).
     /// Excluída a ativa, o Resumo/Garagem caem no fallback natural (`.first`).
     private func deleteMotorcycle() {
         let hadLogs = !motorcycle.activeFuelLogs.isEmpty
         let count = motorcycle.activeFuelLogs.count
-        modelContext.delete(motorcycle)
+        motorcycle.softDelete()
         try? modelContext.save()
+        let ctx = modelContext
+        Task { await SyncService.shared.pushAll(from: ctx) }
         Haptics.warning()
-        let remaining = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>())) ?? 0
+        let remaining = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>(predicate: Motorcycle.activePredicate))) ?? 0
         Analytics.motorcycleDeleted(hadFuelLogs: hadLogs, fuelLogCount: count,
                                     remainingBikeCount: remaining)
         dismiss()

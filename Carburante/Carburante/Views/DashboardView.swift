@@ -13,7 +13,8 @@ import SwiftData
 import Charts
 
 struct DashboardView: View {
-    @Query(sort: \Motorcycle.createdAt, order: .reverse) private var motorcycles: [Motorcycle]
+    @Query(filter: Motorcycle.activePredicate, sort: \Motorcycle.createdAt, order: .reverse)
+    private var motorcycles: [Motorcycle]
     /// Moto ativa, persistida entre sessões (UUID estável). Fonte única que
     /// também define o tema global — ver RootTabView.
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""

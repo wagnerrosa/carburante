@@ -305,7 +305,7 @@ struct MotorcycleFormView: View {
         // no plano v1). is_first_bike calculado antes deste insert virar visível
         // na Query → contar as motos existentes que NÃO são esta.
         if !wasEditing {
-            let existingCount = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>())) ?? 1
+            let existingCount = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>(predicate: Motorcycle.activePredicate))) ?? 1
             Analytics.motorcycleCreated(
                 savedMoto,
                 isFirstBike: existingCount <= 1,
