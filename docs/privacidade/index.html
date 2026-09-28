@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de Privacidade · Carburante</title>
+  <meta name="description" content="Como o app Carburante trata os seus dados: o que é coletado, para quê, com quem, por quanto tempo e como excluir tudo.">
+  <link rel="canonical" href="https://wagnerrosa.com/carburante/privacidade/">
+  <meta name="author" content="Wagner Rosa">
+  <meta name="theme-color" content="#050505">
+  <meta name="robots" content="index,follow">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="../style.css?v=3">
+
+  <!-- Mesmo GA4 + Clarity da landing (descritos na seção "Este site" abaixo).
+       Desligado em localhost, com localStorage.dev_mode = 'true' ou ?preview=dev. -->
+  <script>
+    (function () {
+      var h = location.hostname;
+      var off = h === 'localhost' || h === '127.0.0.1' || h === '';
+      try {
+        if (/[?&]preview=dev\b/.test(location.search)) sessionStorage.setItem('dev_preview', 'true');
+        off = off || localStorage.getItem('dev_mode') === 'true' || sessionStorage.getItem('dev_preview') === 'true';
+      } catch (e) { /* storage bloqueado */ }
+      if (off) return;
+
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-VTCEP9QKNC';
+      document.head.appendChild(s);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { dataLayer.push(arguments); };
+      gtag('js', new Date());
+      gtag('config', 'G-VTCEP9QKNC');
+
+      (function (c, l, a, r, i, t, y) {
+        c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+        t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+        y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+      })(window, document, 'clarity', 'script', 'vhbu1gthme');
+    })();
+  </script>
+</head>
+<body>
+
+<a class="skip" href="#main">Pular para o conteúdo</a>
+
+<header class="nav" id="top">
+  <div class="wrap nav__inner">
+    <a class="brand" href="../" aria-label="Carburante — página inicial">
+      <img src="../assets/icon-256.png" alt="" width="30" height="30">
+      <span>Carburante</span>
+    </a>
+    <div class="nav__actions">
+      <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="legal">
+  <div class="wrap wrap--narrow">
+
+    <!-- ===================== PORTUGUÊS ===================== -->
+    <article lang="pt-BR" data-lang="pt">
+      <p class="legal__eyebrow">Carburante</p>
+      <h1>Política de Privacidade</h1>
+      <p class="legal__updated">Última atualização: 28 de setembro de 2026</p>
+
+      <div class="legal__summary">
+        <h2>Em resumo</h2>
+        <ul>
+          <li>Não há cadastro obrigatório: o app funciona com uma conta anônima.</li>
+          <li>Seus registros ficam no seu iPhone e numa cópia de segurança em servidor no Brasil.</li>
+          <li>A leitura de fotos (OCR) acontece no próprio iPhone.</li>
+          <li>Não vendemos dados, não exibimos anúncios e não rastreamos você entre apps ou sites.</li>
+          <li>Você pode desligar as estatísticas de uso e excluir a conta e todos os dados a qualquer momento, em Ajustes.</li>
+        </ul>
+      </div>
+
+      <h2>1. Quem é o responsável</h2>
+      <p>O Carburante é um app independente criado e mantido por Wagner Rosa, pessoa física, que é o controlador dos dados tratados pelo app nos termos da Lei Geral de Proteção de Dados (LGPD, Lei nº 13.709/2018). Contato para qualquer assunto de privacidade: <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
+
+      <h2>2. Dados que o app trata e para quê</h2>
+
+      <h3>Registros que você cria</h3>
+      <p>Motos (marca, modelo, ano, país, categoria, cilindrada e hodômetro), abastecimentos (data e hora, hodômetro, litros, valor pago, combustível e se o tanque foi cheio), manutenções (tipo, data, quilometragem, custo, intervalo da próxima e observações) e conquistas. Servem para o app funcionar: calcular o consumo, mostrar o histórico, lembrar a próxima manutenção e sincronizar entre os seus aparelhos.</p>
+
+      <h3>Localização</h3>
+      <p>Só com a sua permissão e só no momento em que você registra um abastecimento (permissão “durante o uso”). Guardamos a latitude e a longitude daquele abastecimento e a cidade, o estado e o país correspondentes, obtidos pelo serviço de mapas da Apple. O app não acompanha a sua localização em segundo plano nem fora desse momento. Se você negar a permissão, o app continua funcionando, sem o local do abastecimento.</p>
+
+      <h3>Fotos</h3>
+      <p>O uso da câmera e da galeria é opcional. O texto das fotos é lido no próprio iPhone (framework Vision, da Apple), sem enviar a imagem a terceiros. A foto do comprovante ou da bomba não é guardada. A foto do hodômetro é guardada como comprovante do registro: no seu iPhone e numa pasta privada no servidor, que só a sua conta consegue acessar.</p>
+
+      <h3>Conta</h3>
+      <p>Ao abrir o app, é criada uma conta anônima, identificada só por um código aleatório. Se você escolher “Entrar com a Apple”, guardamos o e-mail informado pela Apple (que pode ser um endereço privado de retransmissão da própria Apple). A Apple também pode informar o seu nome, que não é armazenado. A conta serve para recuperar os seus dados em outro aparelho.</p>
+
+      <h3>Estatísticas de uso (anônimas)</h3>
+      <p>Para entender o que funciona e o que precisa melhorar, o app envia ao PostHog eventos de uso, como “abastecimento registrado” ou “tela aberta”. Valores como custo e litros vão só em faixas (por exemplo, “entre R$ 50 e R$ 100”); localização, hodômetro e datas exatas nunca são enviados. Também seguem dados técnicos: modelo do aparelho, versão do iOS e do app, idioma e registros de falhas técnicas (por exemplo, erro de sincronização). O PostHog pode estimar país e cidade aproximados a partir do endereço IP. Essas estatísticas não são ligadas à sua conta nem ao seu e-mail. Você pode desligá-las em Ajustes → “Compartilhar dados de uso”.</p>
+
+      <h3>Notificações</h3>
+      <p>Os lembretes (troca de óleo, manutenção, tempo sem abastecer) são agendados no próprio iPhone. Nenhum dado é enviado a um servidor para isso.</p>
+
+      <h2>3. O que não fazemos</h2>
+      <ul>
+        <li>Não vendemos nem alugamos dados pessoais.</li>
+        <li>Não exibimos anúncios e não compartilhamos dados para publicidade.</li>
+        <li>Não rastreamos você entre apps e sites de outras empresas.</li>
+        <li>Não gravamos a tela nem as sessões de uso do app.</li>
+      </ul>
+
+      <h2>4. Com quem os dados são tratados</h2>
+      <p>Usamos poucos fornecedores, que tratam os dados só para prestar o serviço ao Carburante:</p>
+      <ul>
+        <li><strong>Supabase</strong>: banco de dados, contas e armazenamento das fotos do hodômetro. Servidores em São Paulo, Brasil.</li>
+        <li><strong>Apple</strong>: “Entrar com a Apple”, serviço de mapas (cidade a partir da localização) e distribuição do app.</li>
+        <li><strong>PostHog</strong>: estatísticas de uso anônimas. Servidores nos Estados Unidos. É a única transferência internacional, e envolve só dados não ligados à sua conta.</li>
+      </ul>
+      <p>Dados também podem ser compartilhados se houver obrigação legal ou ordem de autoridade competente.</p>
+
+      <h2>5. Bases legais (LGPD)</h2>
+      <p>Registros, conta, fotos e localização: execução do serviço que você solicitou (art. 7º, V). A localização e o acesso a fotos dependem ainda da sua permissão no iOS, que pode ser retirada em Ajustes do iPhone. Estatísticas de uso anônimas: legítimo interesse em manter e melhorar o app (art. 7º, IX), com opção de desligar.</p>
+
+      <h2>6. Por quanto tempo e como excluir</h2>
+      <p>Os dados ficam guardados enquanto a sua conta existir. Em Ajustes → “Excluir conta”, o app apaga de forma definitiva a conta, todos os registros, as fotos no servidor e os dados guardados no iPhone. Apagar o app remove os dados do aparelho, mas a cópia no servidor continua lá (com “Entrar com a Apple”, ela volta quando você entrar de novo). Para apagar tudo, use “Excluir conta” antes de remover o app, ou peça a exclusão por e-mail. As estatísticas de uso anônimas não identificam você e são mantidas de forma agregada.</p>
+
+      <h2>7. Segurança</h2>
+      <p>A comunicação entre o app e o servidor é criptografada (HTTPS). No banco de dados, cada conta só consegue ler e alterar os próprios registros, e as fotos ficam em armazenamento privado. Nenhum sistema é infalível, mas adotamos medidas razoáveis para proteger os seus dados.</p>
+
+      <h2>8. Seus direitos</h2>
+      <p>Pela LGPD (art. 18), você pode confirmar se tratamos seus dados, acessá-los, corrigi-los, pedir a exclusão, a portabilidade e informações sobre compartilhamento, e revogar consentimentos. A maior parte disso está no próprio app: editar e excluir registros, excluir a conta, desligar as estatísticas e gerenciar permissões nos Ajustes do iPhone. Para o resto, escreva para <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>; respondemos em até 15 dias. Você também pode recorrer à Autoridade Nacional de Proteção de Dados (ANPD).</p>
+
+      <h2>9. Crianças</h2>
+      <p>O Carburante é feito para motociclistas e não é direcionado a crianças. Não coletamos intencionalmente dados de menores de 13 anos.</p>
+
+      <h2>10. Este site</h2>
+      <p>O site do Carburante (wagnerrosa.com/carburante) usa Google Analytics 4 e Microsoft Clarity para medir visitas e entender como as páginas são usadas, com cookies e registros de interação (o Clarity mascara textos digitados). Essas ferramentas são só do site; o app não as usa. Você pode bloquear cookies nas configurações do navegador.</p>
+
+      <h2>11. Mudanças nesta política</h2>
+      <p>Quando esta política mudar, a data no topo será atualizada. Mudanças relevantes serão avisadas no app ou nesta página.</p>
+
+      <h2>12. Contato</h2>
+      <p>Dúvidas, pedidos ou reclamações sobre privacidade: <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
+    </article>
+
+    <!-- ===================== ENGLISH ===================== -->
+    <article lang="en" data-lang="en" hidden>
+      <p class="legal__eyebrow">Carburante</p>
+      <h1>Privacy Policy</h1>
+      <p class="legal__updated">Last updated: September 28, 2026</p>
+
+      <div class="legal__summary">
+        <h2>In short</h2>
+        <ul>
+          <li>No sign-up required: the app works with an anonymous account.</li>
+          <li>Your records live on your iPhone and in a backup copy on a server in Brazil.</li>
+          <li>Photo text recognition (OCR) runs on your iPhone.</li>
+          <li>We don't sell data, show ads or track you across apps or websites.</li>
+          <li>You can turn off usage statistics and delete your account and all data at any time, in Settings.</li>
+        </ul>
+      </div>
+
+      <h2>1. Who is responsible</h2>
+      <p>Carburante is an independent app created and maintained by Wagner Rosa, an individual, who is the controller of the data processed by the app under Brazil's General Data Protection Law (LGPD, Law 13,709/2018). Contact for any privacy matter: <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
+
+      <h2>2. Data the app processes and why</h2>
+
+      <h3>Records you create</h3>
+      <p>Motorcycles (make, model, year, country, category, engine size and odometer), fuel-ups (date and time, odometer, liters, amount paid, fuel type and whether the tank was filled), maintenance (type, date, mileage, cost, next interval and notes) and achievements. They make the app work: calculating fuel consumption, showing your history, reminding you of upcoming maintenance and syncing across your devices.</p>
+
+      <h3>Location</h3>
+      <p>Only with your permission and only when you log a fuel-up (“while using the app” permission). We store the latitude and longitude of that fuel-up and the matching city, state and country, obtained through Apple's map service. The app does not track your location in the background or at any other time. If you deny permission, the app keeps working, without the fuel-up location.</p>
+
+      <h3>Photos</h3>
+      <p>Using the camera and photo library is optional. Text in photos is read on your iPhone (Apple's Vision framework), without sending the image to third parties. Receipt and pump photos are not stored. The odometer photo is kept as proof of the record: on your iPhone and in a private folder on the server that only your account can access.</p>
+
+      <h3>Account</h3>
+      <p>When you open the app, an anonymous account is created, identified only by a random code. If you choose “Sign in with Apple”, we store the email Apple provides (which may be an Apple private relay address). Apple may also provide your name, which is not stored. The account lets you recover your data on another device.</p>
+
+      <h3>Usage statistics (anonymous)</h3>
+      <p>To understand what works and what needs improving, the app sends usage events to PostHog, such as “fuel-up logged” or “screen opened”. Values like cost and liters are sent only as ranges (for example, “between R$50 and R$100”); location, odometer readings and exact dates are never sent. Technical data is included too: device model, iOS and app version, language and technical error reports (for example, a sync error). PostHog may estimate your approximate country and city from your IP address. These statistics are not linked to your account or email. You can turn them off in Settings → “Share usage data”.</p>
+
+      <h3>Notifications</h3>
+      <p>Reminders (oil change, maintenance, time since your last fuel-up) are scheduled on your iPhone. No data is sent to a server for this.</p>
+
+      <h2>3. What we don't do</h2>
+      <ul>
+        <li>We don't sell or rent personal data.</li>
+        <li>We don't show ads or share data for advertising.</li>
+        <li>We don't track you across other companies' apps and websites.</li>
+        <li>We don't record the screen or usage sessions in the app.</li>
+      </ul>
+
+      <h2>4. Who processes the data</h2>
+      <p>We use few providers, who process data only to deliver the service to Carburante:</p>
+      <ul>
+        <li><strong>Supabase</strong>: database, accounts and odometer photo storage. Servers in São Paulo, Brazil.</li>
+        <li><strong>Apple</strong>: “Sign in with Apple”, map service (city from location) and app distribution.</li>
+        <li><strong>PostHog</strong>: anonymous usage statistics. Servers in the United States. This is the only international transfer, and it involves only data not linked to your account.</li>
+      </ul>
+      <p>Data may also be disclosed when required by law or by order of a competent authority.</p>
+
+      <h2>5. Legal bases (LGPD)</h2>
+      <p>Records, account, photos and location: performance of the service you requested (art. 7, V). Location and photo access also depend on your iOS permission, which you can withdraw in iPhone Settings. Anonymous usage statistics: legitimate interest in maintaining and improving the app (art. 7, IX), with an option to turn them off.</p>
+
+      <h2>6. Retention and deletion</h2>
+      <p>Data is kept for as long as your account exists. In Settings → “Delete account”, the app permanently deletes the account, all records, the photos on the server and the data stored on your iPhone. Deleting the app removes data from the device, but the server copy remains (with “Sign in with Apple”, it comes back when you sign in again). To erase everything, use “Delete account” before removing the app, or request deletion by email. Anonymous usage statistics don't identify you and are kept in aggregate form.</p>
+
+      <h2>7. Security</h2>
+      <p>Communication between the app and the server is encrypted (HTTPS). In the database, each account can only read and change its own records, and photos are kept in private storage. No system is infallible, but we take reasonable measures to protect your data.</p>
+
+      <h2>8. Your rights</h2>
+      <p>Under the LGPD (art. 18), you can confirm whether we process your data, access it, correct it, and request deletion, portability and information about sharing, as well as withdraw consent. Most of this is in the app itself: edit and delete records, delete your account, turn off statistics and manage permissions in iPhone Settings. For anything else, write to <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>; we reply within 15 days. You may also contact Brazil's National Data Protection Authority (ANPD).</p>
+
+      <h2>9. Children</h2>
+      <p>Carburante is made for motorcycle riders and is not directed at children. We do not knowingly collect data from children under 13.</p>
+
+      <h2>10. This website</h2>
+      <p>The Carburante website (wagnerrosa.com/carburante) uses Google Analytics 4 and Microsoft Clarity to measure visits and understand how pages are used, with cookies and interaction recordings (Clarity masks typed text). These tools are for the website only; the app does not use them. You can block cookies in your browser settings.</p>
+
+      <h2>11. Changes to this policy</h2>
+      <p>When this policy changes, the date at the top will be updated. Relevant changes will be announced in the app or on this page.</p>
+
+      <h2>12. Contact</h2>
+      <p>Privacy questions, requests or complaints: <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
+    </article>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <a class="brand" href="../">
+      <img src="../assets/icon-256.png" alt="" width="26" height="26" loading="lazy">
+      <span>Carburante</span>
+    </a>
+    <p class="footer__by">Wagner Rosa · 2026</p>
+    <nav class="footer__links" aria-label="Links">
+      <a href="../">Carburante</a>
+      <a href="mailto:contato@wagnerrosa.com">Email</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  // Mesma escolha de idioma da landing (chave 'carburante-lang'):
+  // ?lang=en|pt > escolha salva > idioma do navegador.
+  (function () {
+    var arts = { pt: document.querySelector('[data-lang="pt"]'), en: document.querySelector('[data-lang="en"]') };
+    var toggle = document.getElementById('lang-toggle');
+    var current = 'pt';
+    var META = {
+      pt: { html: 'pt-BR', title: 'Política de Privacidade · Carburante', toggle: 'EN', label: 'Switch to English', skip: 'Pular para o conteúdo' },
+      en: { html: 'en', title: 'Privacy Policy · Carburante', toggle: 'PT', label: 'Mudar para português', skip: 'Skip to content' }
+    };
+    function store(l) { try { localStorage.setItem('carburante-lang', l); } catch (e) { /* bloqueado */ } }
+    function stored() { try { return localStorage.getItem('carburante-lang'); } catch (e) { return null; } }
+    function apply(l) {
+      current = l;
+      arts.pt.hidden = l !== 'pt';
+      arts.en.hidden = l !== 'en';
+      var m = META[l];
+      document.documentElement.lang = m.html;
+      document.title = m.title;
+      toggle.textContent = m.toggle;
+      toggle.setAttribute('aria-label', m.label);
+      document.querySelector('.skip').textContent = m.skip;
+    }
+    toggle.addEventListener('click', function () {
+      var next = current === 'pt' ? 'en' : 'pt';
+      apply(next);
+      store(next);
+    });
+    var param = (location.search.match(/[?&]lang=(pt|en)\b/) || [])[1];
+    var saved = stored();
+    var nav = (navigator.language || 'pt').toLowerCase();
+    apply(param || (saved === 'en' || saved === 'pt' ? saved : (nav.indexOf('pt') === 0 ? 'pt' : 'en')));
+  })();
+</script>
+</body>
+</html>

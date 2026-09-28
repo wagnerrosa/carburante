@@ -115,6 +115,7 @@
     'q6.a': 'The code is public on GitHub for anyone curious about how the app is built. If you like it, leave a star, it helps a lot.',
     'ft.by': 'Made by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a> · 2026',
     'ft.portfolio': 'Portfolio',
+    'ft.privacy': 'Privacy',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
   };
 
