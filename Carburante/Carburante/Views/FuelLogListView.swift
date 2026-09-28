@@ -178,27 +178,6 @@ struct FuelLogListView: View {
     }
 }
 
-/// Header de mês com o gasto total à direita (padrão Apple Card): responde
-/// "quanto foi de gasolina" sem tela nova. Em acessibilidade o total desce.
-private struct MonthHeader: View {
-    let title: String
-    let totalCost: Double
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    var body: some View {
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
-            : AnyLayout(HStackLayout())
-        layout {
-            Text(title)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(AppFormat.currency(totalCost))
-                .monospacedDigit()
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
 /// Linha do histórico — 2 linhas, coluna numérica à direita (padrão Apple
 /// Card/Fitness). Consumo é o valor primário (core do app); o resto é contexto.
 /// Hora, local e foto ficam no form (tocar a linha) — lista é pra escanear.
@@ -243,16 +222,8 @@ private struct FuelLogRow: View {
                         .font(.headline)
                         .lineLimit(lineLimit)
                     // Sinais discretos: registrado depois do fato / tem foto.
-                    Group {
-                        if log.isHistorical {
-                            Image(systemName: "clock.arrow.circlepath")
-                        }
-                        if log.odometerPhotoURL != nil {
-                            Image(systemName: "camera.fill")
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    MetadataGlyphs(isHistorical: log.isHistorical,
+                                   hasPhoto: log.odometerPhotoURL != nil)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -282,23 +253,8 @@ private struct FuelLogRow: View {
     @ViewBuilder
     private var consumption: some View {
         if let kmPerLiter {
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                if let trend {
-                    Image(systemName: trend.symbolName)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                }
-                Text(AppFormat.kmPerLiterValue(kmPerLiter))
-                    .font(.title3.weight(.semibold))
-                    .fontDesign(.rounded)
-                    .monospacedDigit()
-                Text("km/l")
-                    .font(.subheadline.weight(.semibold))
-                    .fontDesign(.rounded)
-                    .foregroundStyle(.secondary)
-            }
-            .lineLimit(lineLimit)
-            .fixedSize(horizontal: lineLimit != nil, vertical: false)
+            RowValue(value: AppFormat.kmPerLiterValue(kmPerLiter), unit: "km/l",
+                     leadingSymbol: trend?.symbolName, lineLimit: lineLimit)
         } else {
             Text(log.isFullTank ? "—" : "Parcial")
                 .font(.subheadline)

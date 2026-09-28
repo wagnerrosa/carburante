@@ -79,7 +79,7 @@ struct MaintenanceListView: View {
                                 Button {
                                     scheduledAdd = status
                                 } label: {
-                                    ScheduledRow(status: status, themeColor: motorcycle.themeColor)
+                                    ScheduledRow(status: status)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -90,7 +90,7 @@ struct MaintenanceListView: View {
                         }
                     }
                     ForEach(monthGroups) { group in
-                        Section(group.title) {
+                        Section {
                             ForEach(group.logs) { log in
                                 Button {
                                     editingLog = log
@@ -100,6 +100,8 @@ struct MaintenanceListView: View {
                                 .buttonStyle(.plain)
                             }
                             .onDelete { delete($0, in: group.logs) }
+                        } header: {
+                            MonthHeader(title: group.title, totalCost: group.totalCost)
                         }
                     }
                     // Secundário e no fim: o `+` segue sendo o caminho do dia a dia.
@@ -205,31 +207,42 @@ struct MaintenanceListView: View {
         let logs: [MaintenanceLog]
 
         var title: String { AppFormat.monthTitle(id) }
+
+        /// Só logs de topo: o custo de uma revisão fica no pai (itens = 0).
+        var totalCost: Double { logs.reduce(0) { $0 + $1.cost } }
     }
 }
 
 /// Linha da seção "Programadas": status agendado de um tipo com barra de
-/// progresso (km ou tempo, o mais próximo). Cor semântica só quando há atenção.
+/// progresso (km ou tempo, o mais próximo). Barra cinza em dia; cor só quando
+/// há atenção (`MaintenanceStatus.indicatorColor`). O tile diz qual serviço.
 private struct ScheduledRow: View {
     let status: MaintenanceStatus
-    let themeColor: Color
 
-    private var color: Color {
-        if status.isOverdue { return .red }
-        return status.progress >= 0.8 ? .orange : themeColor
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// Em acessibilidade o prazo desce para baixo do nome (não espreme).
+    private var headerLayout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
     }
 
     var body: some View {
+        let color = status.indicatorColor
         HStack(spacing: 12) {
             IconTile(systemName: status.type.icon, tint: status.type.tint, size: 38)
             VStack(alignment: .leading, spacing: 5) {
-                HStack {
-                    Text(status.displayName).font(.headline)
-                    Spacer()
+                headerLayout {
+                    Text(status.displayName)
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     Text(status.remainingShort)
                         .font(.subheadline)
                         .foregroundStyle(status.isOverdue ? color : .secondary)
                         .monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 GeometryReader { proxy in
                     ZStack(alignment: .leading) {
@@ -257,57 +270,84 @@ private struct ScheduledRow: View {
     }
 }
 
+/// Linha do histórico — mesmo padrão de `FuelLogRow` (Apple Card/Fitness):
+/// 2 linhas, coluna numérica à direita. O tile fica porque VARIA (cor + símbolo
+/// = qual serviço). Valor primário = km do serviço (âncora do próximo
+/// intervalo); dinheiro embaixo à direita, no mesmo lugar dos abastecimentos.
+/// Notas ficam no form (tocar a linha) — lista é pra escanear.
 private struct MaintenanceRow: View {
     let log: MaintenanceLog
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// 1 linha no tamanho normal; em acessibilidade quebra em vez de truncar.
+    private var lineLimit: Int? { typeSize.isAccessibilitySize ? nil : 1 }
+
+    /// Em acessibilidade a coluna da direita desce para baixo da esquerda.
+    private var lineLayout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 8))
+    }
+
+    /// Revisão = registro composto: única linha com 3ª linha (o que incluiu).
+    private var includedItems: String? {
+        log.type == .revisao && !log.includedItemsLabel.isEmpty ? log.includedItemsLabel : nil
+    }
 
     var body: some View {
         HStack(spacing: 12) {
             IconTile(systemName: log.type.icon, tint: log.type.tint, size: 38)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(log.displayName)
-                        .font(.headline)
-                    Spacer()
-                    Text(AppFormat.km(log.mileage))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                HStack {
-                    Text(AppFormat.date(log.date))
-                    if log.cost > 0 {
-                        Text("•")
-                        Text(AppFormat.currency(log.cost))
+            VStack(alignment: .leading, spacing: 3) {
+                lineLayout {
+                    HStack(spacing: 6) {
+                        Text(log.displayName)
+                            .font(.headline)
+                            .lineLimit(lineLimit)
+                            // Sem isso a List mede a linha curta e trunca em AX.
+                            .fixedSize(horizontal: false, vertical: true)
+                        MetadataGlyphs(isHistorical: log.isHistorical)
                     }
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    RowValue(value: AppFormat.odometer(log.mileage), unit: "km",
+                             lineLimit: lineLimit)
+                }
+
+                lineLayout {
+                    Text(AppFormat.weekdayDay(log.date))
+                        .lineLimit(lineLimit)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if log.cost > 0 {
+                        Text(AppFormat.currency(log.cost))
+                            .lineLimit(lineLimit)
+                    }
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
 
-                // Revisão geral lista os itens incluídos. Filhos não aparecem no
-                // histórico (filtrados em `logs`), então não há linha "Parte da
-                // revisão geral" — só o pai, com o resumo dos itens.
-                // Registrado depois do fato — informação, não alerta. Linha
-                // própria: na linha da data espremia data e custo.
-                if log.isHistorical {
-                    HistoryMarker()
-                }
-
-                if log.type == .revisao, !log.includedItemsLabel.isEmpty {
-                    Label("Inclui: \(log.includedItemsLabel)", systemImage: "checklist")
+                if let includedItems {
+                    Text("Inclui: \(includedItems)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-
-                if !log.notes.isEmpty {
-                    Text(log.notes)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .lineLimit(lineLimit)
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
         .contentShape(.rect)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint("Toque para editar")
+    }
+
+    private var accessibilityText: String {
+        var parts = [log.displayName, AppFormat.dateLong(log.date),
+                     "Hodômetro \(AppFormat.km(log.mileage))"]
+        if log.cost > 0 { parts.append(AppFormat.currency(log.cost)) }
+        if let includedItems { parts.append("Inclui \(includedItems)") }
+        if log.isHistorical { parts.append("Histórico") }
+        return parts.joined(separator: ". ")
     }
 }

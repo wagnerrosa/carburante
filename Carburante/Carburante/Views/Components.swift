@@ -11,19 +11,82 @@
 import SwiftUI
 import Charts
 
-/// Marca discreta de registro "Histórico" (lançado dias depois do fato — ver
-/// `EventProvenance`). Informação, não alerta: caption secundária, sem cor.
-/// Mesmo símbolo do botão "Adicionar histórico".
-struct HistoryMarker: View {
+/// Sinais discretos ao lado do título de uma linha de histórico: registro
+/// "Histórico" (lançado dias depois do fato — ver `EventProvenance`) e foto
+/// anexada. Informação, não alerta: glifo `.tertiary`, sem cor, sem linha
+/// própria. Mesmo símbolo do botão "Adicionar histórico". A linha que o usa
+/// diz o significado no rótulo de acessibilidade dela.
+struct MetadataGlyphs: View {
+    var isHistorical = false
+    var hasPhoto = false
+
     var body: some View {
-        // HStack em vez de `Label`: dentro de List o Label alinha o ícone na
-        // coluna de ícones da linha e abre um vão grande até o texto.
-        HStack(spacing: 4) {
-            Image(systemName: "clock.arrow.circlepath")
-            Text("Histórico")
+        if isHistorical || hasPhoto {
+            HStack(spacing: 4) {
+                if isHistorical {
+                    Image(systemName: "clock.arrow.circlepath")
+                }
+                if hasPhoto {
+                    Image(systemName: "camera.fill")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
         }
-        .font(.caption)
-        .foregroundStyle(.secondary)
+    }
+}
+
+/// Valor primário de uma linha de histórico (padrão Fitness): número grande
+/// arredondado + unidade menor e secundária. `leadingSymbol` = seta de
+/// tendência opcional (neutra, `.secondary`). `lineLimit` nil (tamanhos de
+/// acessibilidade) deixa quebrar em vez de truncar.
+struct RowValue: View {
+    let value: String
+    let unit: String
+    var leadingSymbol: String? = nil
+    var lineLimit: Int? = 1
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            if let leadingSymbol {
+                Image(systemName: leadingSymbol)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+            }
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .fontDesign(.rounded)
+                .monospacedDigit()
+            Text(unit)
+                .font(.subheadline.weight(.semibold))
+                .fontDesign(.rounded)
+                .foregroundStyle(.secondary)
+        }
+        .lineLimit(lineLimit)
+        .fixedSize(horizontal: lineLimit != nil, vertical: false)
+    }
+}
+
+/// Header de seção de mês com o gasto total à direita (padrão Apple Card):
+/// responde "quanto foi no mês" sem tela nova. Total nil/0 some (manutenção
+/// sem custo não vira "R$ 0,00"). Em acessibilidade o total desce.
+struct MonthHeader: View {
+    let title: String
+    var totalCost: Double? = nil
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 2))
+            : AnyLayout(HStackLayout())
+        layout {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let totalCost, totalCost > 0 {
+                Text(AppFormat.currency(totalCost))
+                    .monospacedDigit()
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }
@@ -687,6 +750,18 @@ extension MaintenanceType {
         case .revisao: .purple
         case .outro: .gray
         }
+    }
+}
+
+extension MaintenanceStatus {
+    /// Cor da barra/indicador de prazo (Resumo e Programadas). Em dia = cinza
+    /// neutro (silêncio = ok): NÃO segue o tema da marca — Harley/KTM/fallback
+    /// são laranja e "em dia" ficaria idêntico a "atenção". Laranja = ≥ 80% do
+    /// intervalo; vermelho = vencida. O serviço é identificado pela cor do tipo
+    /// (`MaintenanceType.tint`), não pela barra.
+    var indicatorColor: Color {
+        if isOverdue { return .red }
+        return MaintenanceReminder.isAttention(self) ? .orange : Color(.systemGray)
     }
 }
 
