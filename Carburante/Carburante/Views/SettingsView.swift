@@ -52,7 +52,7 @@ struct SettingsView: View {
     }
 
     /// Mesma URL informada no App Store Connect (campo Privacy Policy URL).
-    static let privacyPolicyURL = URL(string: "https://wagnerrosa.com/carburante/privacidade/")!
+    static let privacyPolicyURL = URL(string: "https://carburante.motorcycles/privacidade/")!
 
     private var appVersion: String {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
