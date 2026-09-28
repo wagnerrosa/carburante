@@ -25,6 +25,36 @@
 
   <link rel="stylesheet" href="style.css?v=1">
   <script>document.documentElement.classList.add('js')</script>
+
+  <!-- Analytics: mesma propriedade GA4 + Clarity do portfólio (mesmo domínio, mesmo cookie).
+       Desligado em localhost, com localStorage.dev_mode = 'true' ou ?preview=dev (vale a sessão).
+       Desligado = nada carrega e window.gtag não existe; os eventos do app.js viram no-op. -->
+  <script>
+    (function () {
+      var h = location.hostname;
+      var off = h === 'localhost' || h === '127.0.0.1' || h === '';
+      try {
+        if (/[?&]preview=dev\b/.test(location.search)) sessionStorage.setItem('dev_preview', 'true');
+        off = off || localStorage.getItem('dev_mode') === 'true' || sessionStorage.getItem('dev_preview') === 'true';
+      } catch (e) { /* storage bloqueado */ }
+      if (off) { console.log('🚫 Analytics disabled (dev mode active)'); return; }
+
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=G-VTCEP9QKNC';
+      document.head.appendChild(s);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { dataLayer.push(arguments); };
+      gtag('js', new Date());
+      gtag('config', 'G-VTCEP9QKNC');
+
+      (function (c, l, a, r, i, t, y) {
+        c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+        t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+        y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+      })(window, document, 'clarity', 'script', 'vhbu1gthme');
+    })();
+  </script>
 </head>
 <body>
 
@@ -352,6 +382,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=1"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

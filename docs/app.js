@@ -142,6 +142,7 @@
 
   function store(lang) { try { localStorage.setItem('carburante-lang', lang); } catch (e) { /* storage bloqueado */ } }
   function stored() { try { return localStorage.getItem('carburante-lang'); } catch (e) { return null; } }
+  function track(name, params) { if (typeof window.gtag === 'function') window.gtag('event', name, params); }
 
   function apply(lang) {
     current = lang;
@@ -166,6 +167,7 @@
     var next = current === 'pt' ? 'en' : 'pt';
     apply(next);
     store(next);
+    track('site_interaction', { event_category: 'ui', event_label: 'lang_' + next, event_location: 'nav' });
   });
 
   // Prioridade: ?lang=en|pt (link compartilhável) > escolha salva > idioma do navegador.
@@ -187,6 +189,27 @@
       })
       .catch(function () {});
   }
+
+  // Analytics — cliques classificados pelo href, sem data-track no HTML: o i18n troca o
+  // innerHTML dos parágrafos, e links internos a eles perderiam atributos. Parâmetros
+  // espelham o site_interaction do portfólio (mesma propriedade GA4); o pedido de beta
+  // vai como generate_lead para ser marcado como key event.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var box = a.closest('footer') ? { id: 'footer' } : a.closest('section[id], header[id]');
+    var where = !box ? 'hero' : box.id === 'top' ? 'nav' : box.id;
+    var href = a.getAttribute('href');
+    if (a.classList.contains('js-beta')) {
+      track('generate_lead', { method: 'email', event_location: where });
+    } else if (/github\.com/.test(href)) {
+      track('site_interaction', { event_category: 'outbound', event_label: 'outbound_github', event_location: where });
+    } else if (/^https:\/\/wagnerrosa\.com\/?$/.test(href)) {
+      track('site_interaction', { event_category: 'navigation', event_label: 'internal_portfolio', event_location: where });
+    } else if (/^mailto:/.test(href)) {
+      track('site_interaction', { event_category: 'outbound', event_label: 'outbound_email', event_location: where });
+    }
+  });
 
   // Reveal on scroll.
   var items = document.querySelectorAll('.reveal');
