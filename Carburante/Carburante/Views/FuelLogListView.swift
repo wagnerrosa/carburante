@@ -14,6 +14,8 @@ struct FuelLogListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: FuelLog?
     @State private var showingAdd = false
+    /// "Adicionar histórico": abastecimento antigo (fluxo com data primeiro).
+    @State private var showingHistory = false
 
     private var logs: [FuelLog] {
         motorcycle.activeFuelLogs.sorted { $0.date > $1.date }
@@ -56,6 +58,11 @@ struct FuelLogListView: View {
                 } actions: {
                     Button("Registrar abastecimento") { showingAdd = true }
                         .buttonStyle(.borderedProminent)
+                    Button {
+                        showingHistory = true
+                    } label: {
+                        Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
+                    }
                 }
             } else {
                 let kmpl = kmPerLiterByOdometer
@@ -76,6 +83,16 @@ struct FuelLogListView: View {
                             .onDelete { delete($0, in: group.logs) }
                         }
                     }
+                    // Secundário e no fim: o `+` segue sendo o caminho do dia a dia.
+                    Section {
+                        Button {
+                            showingHistory = true
+                        } label: {
+                            Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
+                        }
+                    } footer: {
+                        Text("Abastecimentos antigos ficam no histórico da moto, fora do consumo e das conquistas.")
+                    }
                 }
             }
         }
@@ -94,6 +111,9 @@ struct FuelLogListView: View {
         }
         .sheet(isPresented: $showingAdd) {
             FuelLogFormView(motorcycle: motorcycle, entryPoint: "fuel_list")
+        }
+        .sheet(isPresented: $showingHistory) {
+            FuelLogFormView(motorcycle: motorcycle, entryPoint: "history_fuel_list", isHistoryEntry: true)
         }
         .sheet(item: $editingLog) { log in
             FuelLogFormView(motorcycle: motorcycle, fuelLog: log)

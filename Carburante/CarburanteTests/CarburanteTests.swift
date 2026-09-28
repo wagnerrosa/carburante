@@ -1550,4 +1550,77 @@ final class CarburanteTests: XCTestCase {
         ]
         XCTAssertTrue(used.hasHistoricalRecords, "1º histórico registrado → convite some")
     }
+
+    // MARK: - Abastecimento antigo — limites do hodômetro por data
+
+    private let boundsLogs: [(date: Date, odometer: Double)] = [
+        (DateComponents(calendar: .current, year: 2026, month: 3, day: 1).date!, 10_000),
+        (DateComponents(calendar: .current, year: 2026, month: 5, day: 1).date!, 12_000),
+        (DateComponents(calendar: .current, year: 2026, month: 10, day: 10).date!, 15_000),
+    ]
+
+    /// Caso de todo dia (hoje, depois do último): piso global de sempre, sem teto.
+    func testBounds_notBackdatedKeepsGlobalFloor() {
+        let b = OdometerBounds.forEntry(on: day(2026, 10, 12), logs: boundsLogs,
+                                        currentOdometer: 15_200, now: day(2026, 10, 12))
+        XCTAssertFalse(b.isBackdated)
+        XCTAssertEqual(b.floor, 15_200, "inclui a leitura do cadastro/hodômetro atual")
+        XCTAssertNil(b.ceiling)
+    }
+
+    /// Entre dois abastecimentos: piso = anterior, teto = seguinte.
+    func testBounds_betweenTwoLogs() {
+        let b = OdometerBounds.forEntry(on: day(2026, 4, 1), logs: boundsLogs,
+                                        currentOdometer: 15_200, now: day(2026, 10, 12))
+        XCTAssertTrue(b.isBackdated)
+        XCTAssertEqual(b.floor, 10_000)
+        XCTAssertEqual(b.ceiling, 12_000)
+        XCTAssertEqual(b.floorDate, boundsLogs[0].date)
+        XCTAssertEqual(b.ceilingDate, boundsLogs[1].date)
+    }
+
+    /// Antes do 1º abastecimento: sem piso, teto = 1º log.
+    func testBounds_beforeFirstLog() {
+        let b = OdometerBounds.forEntry(on: day(2025, 12, 1), logs: boundsLogs,
+                                        currentOdometer: 15_200, now: day(2026, 10, 12))
+        XCTAssertNil(b.floor)
+        XCTAssertEqual(b.ceiling, 10_000)
+    }
+
+    /// Só a leitura do cadastro (sem logs): data antiga não tem limites — a
+    /// leitura não tem data.
+    func testBounds_onlyBaselineHasNoLimits() {
+        let b = OdometerBounds.forEntry(on: day(2025, 6, 1), logs: [],
+                                        currentOdometer: 25_000, now: day(2026, 10, 12))
+        XCTAssertTrue(b.isBackdated)
+        XCTAssertNil(b.floor)
+        XCTAssertNil(b.ceiling)
+    }
+
+    /// Log do mesmo dia não entra nos limites (não dá para ordenar dentro do dia).
+    func testBounds_sameDayLogIgnored() {
+        let b = OdometerBounds.forEntry(on: day(2026, 5, 1), logs: boundsLogs,
+                                        currentOdometer: 15_200, now: day(2026, 10, 12))
+        XCTAssertEqual(b.floor, 10_000, "o log de 01/05 (12.000) não vira piso")
+        XCTAssertEqual(b.ceiling, 15_000)
+    }
+
+    /// Antes do cadastro da moto conta como retroativo mesmo sem logs posteriores.
+    func testBounds_beforeRegistrationIsBackdated() {
+        let b = OdometerBounds.forEntry(on: day(2026, 10, 8), logs: [],
+                                        currentOdometer: 25_000,
+                                        registeredAt: day(2026, 10, 10), now: day(2026, 10, 12))
+        XCTAssertTrue(b.isBackdated)
+        XCTAssertNil(b.floor, "leitura do cadastro não vale para antes do cadastro")
+    }
+
+    /// Teto bloqueia: hodômetro não anda para trás.
+    func testValidationRejectsAboveNext() {
+        let errors = FuelLogValidator.validate(odometer: 12_500, liters: 10, totalCost: 60,
+                                               lastOdometer: 10_000, nextOdometer: 12_000)
+        XCTAssertEqual(errors, [.odometerAboveNext(next: 12_000)])
+        XCTAssertEqual(errors.first?.analyticsKey, "odometer_above_next")
+        XCTAssertTrue(FuelLogValidator.validate(odometer: 11_000, liters: 10, totalCost: 60,
+                                                lastOdometer: 10_000, nextOdometer: 12_000).isEmpty)
+    }
 }

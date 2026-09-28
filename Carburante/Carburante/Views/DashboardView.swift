@@ -34,8 +34,9 @@ struct DashboardView: View {
     /// Convite "Sua moto já tem histórico?" dispensado — CSV de UUIDs, por moto
     /// (mesmo padrão do checklist).
     @AppStorage("historyInviteDismissedIDs") private var dismissedHistoryInviteIDsCSV: String = ""
-    /// Convite de histórico → form de manutenção em modo histórico.
+    /// Convite de histórico → manutenção antiga / abastecimento antigo.
     @State private var showingHistoryForm = false
+    @State private var showingFuelHistory = false
 
     private var dismissedChecklistIDs: Set<String> {
         Set(dismissedChecklistIDsCSV.split(separator: ",").map(String.init))
@@ -107,6 +108,11 @@ struct DashboardView: View {
             .sheet(isPresented: $showingHistoryForm) {
                 if let moto = motorcycle {
                     MaintenanceFormView(motorcycle: moto, isHistoryEntry: true)
+                }
+            }
+            .sheet(isPresented: $showingFuelHistory) {
+                if let moto = motorcycle {
+                    FuelLogFormView(motorcycle: moto, entryPoint: "history_invite", isHistoryEntry: true)
                 }
             }
             .onChange(of: activeMotorcycleID) { _, newID in
@@ -228,6 +234,8 @@ struct DashboardView: View {
                 } else if showsHistoryInvite(for: moto) {
                     HistoryInviteCard {
                         showingHistoryForm = true
+                    } onFuel: {
+                        showingFuelHistory = true
                     } onDismiss: {
                         withAnimation { dismissHistoryInvite(for: moto) }
                         Analytics.historyInviteDismissed()
