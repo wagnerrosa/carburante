@@ -881,7 +881,6 @@ struct FuelEntryFlowView: View {
     }
 
     private func processPhoto(_ image: UIImage) async {
-        guard let cg = image.cgImage else { return }
         isRecognizing = true
         defer { isRecognizing = false }
 
@@ -890,7 +889,7 @@ struct FuelEntryFlowView: View {
             odometerOCRStatus = nil
             odometerPhoto = image
             do {
-                let r = try await TextRecognizer.recognize(in: cg)
+                let r = try await TextRecognizer.recognize(in: image)
                 if let odo = OCRParser.parseOdometer(r.lines) {
                     odometer = odo
                     ocrProcessed = true
@@ -915,7 +914,7 @@ struct FuelEntryFlowView: View {
         case .receipt:
             receiptOCRStatus = nil
             do {
-                let r = try await TextRecognizer.recognize(in: cg)
+                let r = try await TextRecognizer.recognize(in: image)
                 let result = OCRParser.parseFuelReceipt(r.lines)
                 if let l = result.liters { liters = l }
                 if let c = result.totalCost { cost = c }
