@@ -21,6 +21,14 @@ final class PhotoReferenceTests: XCTestCase {
         XCTAssertEqual(remote, "\(userID.uuidString)/\(logID.uuidString).jpg")
     }
 
+    func testUserFolderIsLowercase() {
+        // auth.uid()::text é minúsculo; pasta maiúscula = policy nega = upload 400.
+        let id = UUID(uuidString: "04F021F1-7B92-423C-AD72-D762A90A3B14")!
+        XCTAssertEqual(PhotoReference.folder(userID: id), "04f021f1-7b92-423c-ad72-d762a90a3b14")
+        XCTAssertTrue(PhotoReference.remotePath(userID: id, logID: logID)
+            .hasPrefix("04f021f1-7b92-423c-ad72-d762a90a3b14/"))
+    }
+
     func testLocalAndRemoteShareFileName() {
         // O device que tirou a foto segue lendo do disco depois do upload.
         XCTAssertEqual((remote as NSString).lastPathComponent, local)
