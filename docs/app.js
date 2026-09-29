@@ -374,17 +374,21 @@
         }
       }, { rootMargin: '0px 0px -20% 0px', threshold: [0, 1] }).observe(wheel);
 
-      // Acelerar: playbackRate sobe/desce suave (rAF); só depois de acesa.
+      // Acelerar: playbackRate sobe/desce suave (rAF); só depois de acesa. Teto 1,9×: acima
+      // de 2× o Safari (AVFoundation) entra em avanço rápido e mostra ~4 quadros/s (medido:
+      // 2,0× = 45 q/s, 2,1× = 3,5 q/s). Degraus de 0,05 para não trocar a taxa a cada quadro.
+      var applied = 1;
       var setRate = function () {
         rate += (target - rate) * 0.14;
         if (Math.abs(target - rate) < 0.03) rate = target;
-        intro.playbackRate = loop.playbackRate = rate;
+        var step = Math.round(rate * 20) / 20;
+        if (step !== applied) { applied = step; intro.playbackRate = loop.playbackRate = step; }
         if (rate !== target) rateFrame = requestAnimationFrame(setRate);
       };
       var rev = function (on) {
         on = on && lit;
         beta.classList.toggle('is-rev', on);
-        target = on ? 2.4 : 1;
+        target = on ? 1.9 : 1;
         cancelAnimationFrame(rateFrame);
         rateFrame = requestAnimationFrame(setRate);
         if (on && !revved) {
