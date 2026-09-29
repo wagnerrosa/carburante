@@ -197,6 +197,25 @@ extension Motorcycle {
         return calendar.dateComponents([.month], from: last.date, to: now).month
     }
 
+    /// Limites do hodômetro para uma manutenção na `date` — mesma regra do
+    /// abastecimento antigo (`OdometerBounds`), com abastecimentos E manutenções
+    /// como pontos conhecidos. Fonte única da referência "Antes/Depois" do form
+    /// e do aviso de km incoerente, para os dois nunca se contradizerem. O log
+    /// em edição (e os filhos da revisão dele, mesma data/km) fica de fora — não
+    /// pode limitar a si mesmo.
+    func maintenanceOdometerBounds(on date: Date, excluding log: MaintenanceLog? = nil) -> OdometerBounds {
+        let fuel = activeFuelLogs.map { (date: $0.date, odometer: $0.odometer) }
+        let maintenance = activeMaintenanceLogs
+            .filter { log == nil || ($0.id != log?.id && $0.partOfMaintenanceID != log?.id) }
+            .map { (date: $0.date, odometer: $0.mileage) }
+        return OdometerBounds.forEntry(
+            on: date,
+            logs: fuel + maintenance,
+            currentOdometer: currentOdometer,
+            registeredAt: createdAt
+        )
+    }
+
     /// Status da próxima manutenção de um tipo (opcionalmente por posição de
     /// pneu), considerando o hodômetro atual.
     func maintenanceStatus(

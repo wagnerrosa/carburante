@@ -117,3 +117,32 @@ struct OdometerBounds: Equatable {
                               isBackdated: true)
     }
 }
+
+/// Km de uma manutenção fora da ordem do hodômetro. Só AVISO — manutenção nunca
+/// bloqueia o Salvar (o hodômetro da moto pode estar desatualizado e travaria
+/// dado verdadeiro). Pega o typo que passaria calado: 100.000 numa moto em
+/// 10.000 escondia o vencimento de pneu/relação por anos.
+enum MaintenanceOdometerIssue: Equatable {
+    /// Menor que um registro de dia anterior.
+    case belowEarlier(km: Double, date: Date)
+    /// Maior que um registro de dia posterior.
+    case aboveLater(km: Double, date: Date)
+    /// Retroativo maior que o hodômetro atual — o passado não passa do presente.
+    case aboveCurrent(km: Double)
+}
+
+extension OdometerBounds {
+    /// Checagem não bloqueante do km de uma manutenção contra estes limites.
+    /// Só vale no retroativo. Na hora não avisa nada: km acima do hodômetro é a
+    /// moto que andou desde o último abastecimento, e km abaixo é comum no mesmo
+    /// dia (troca de óleo de manhã, abastecimento à tarde) — o piso global
+    /// incluiria o abastecimento de hoje. Km menor que a última do mesmo tipo já
+    /// tem aviso próprio no form (`backfillWarning`).
+    func maintenanceIssue(km: Double, currentOdometer: Double) -> MaintenanceOdometerIssue? {
+        guard isBackdated else { return nil }
+        if let floor, let floorDate, km < floor { return .belowEarlier(km: floor, date: floorDate) }
+        if let ceiling, let ceilingDate, km > ceiling { return .aboveLater(km: ceiling, date: ceilingDate) }
+        if currentOdometer > 0, km > currentOdometer { return .aboveCurrent(km: currentOdometer) }
+        return nil
+    }
+}
