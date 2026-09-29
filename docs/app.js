@@ -322,6 +322,23 @@
     }
   }
 
+  // Recursos no celular = carrossel (scroll-snap no CSS); os pontos só acompanham a posição.
+  var track = document.querySelector('.features');
+  var dots = document.querySelectorAll('.features__dots span');
+  if (track && dots.length) {
+    var dotFrame = 0;
+    track.addEventListener('scroll', function () {
+      cancelAnimationFrame(dotFrame);
+      dotFrame = requestAnimationFrame(function () {
+        var slides = track.children;
+        var step = slides[1].offsetLeft - slides[0].offsetLeft;
+        var atEnd = track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
+        var i = atEnd ? slides.length - 1 : Math.round(track.scrollLeft / step);
+        dots.forEach(function (el, k) { el.classList.toggle('is-on', k === i); });
+      });
+    }, { passive: true });
+  }
+
   // Reveal on scroll.
   var items = document.querySelectorAll('.reveal');
   if (!('IntersectionObserver' in window)) {
