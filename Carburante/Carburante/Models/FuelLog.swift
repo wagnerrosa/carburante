@@ -13,10 +13,15 @@ import SwiftData
 /// Tipos de combustível comuns no Brasil. `.rawValue` é persistido (String),
 /// não o índice — adicionar casos no futuro não corrompe dados existentes.
 ///
-/// ⚠️ `.rawValue` é **chave congelada** (SwiftData, Supabase `fuel_type`,
-/// PostHog) — nunca exibir nem editar o texto; renomear corrompe registros
-/// antigos (o decode cai em `.gasolinaComum`). Texto de tela = `label`, que é
-/// o que se traduz. Travado por `PersistedEnumKeyTests`.
+/// ⚠️ **Regra dos enums persistidos** (vale para `FuelType`, `MaintenanceType`,
+/// `TirePosition`, `MotorcycleCategory`). O `.rawValue` é **chave congelada**
+/// gravada no SwiftData, no Supabase (`fuel_type`, `type`, …) e no PostHog:
+/// 1. **Nunca exibir** o `rawValue` — texto de tela é o `label`, e só ele se traduz.
+/// 2. **Nunca renomear** uma chave, nem para corrigir acento ou maiúscula: o
+///    registro antigo deixa de decodificar e cai no fallback em silêncio.
+/// 3. **Nunca remover** um caso que já tenha dado gravado.
+/// 4. Tipo novo (ex.: combustível de outro país) = **caso novo com chave nova**;
+///    acrescentar a chave em `PersistedEnumKeyTests`, que trava a lista.
 enum FuelType: String, CaseIterable, Codable, Identifiable {
     case gasolinaComum = "Gasolina comum"
     case gasolinaAditivada = "Gasolina aditivada"

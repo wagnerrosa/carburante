@@ -7,7 +7,8 @@
 //  categoria — sinal imediato antes do catálogo de modelo exato (Fase 2, ver
 //  PLAN/roadmap.md). Persistida por `.rawValue` (String) em `Motorcycle.category`,
 //  mesmo padrão de `FuelType`: extensível sem migração de schema, valores fora
-//  do enum não quebram (decodificação tolerante via accessor).
+//  do enum não quebram (decodificação tolerante via accessor). `rawValue` =
+//  chave congelada, texto de tela = `label` — regra completa no doc de `FuelType`.
 //
 
 import Foundation
