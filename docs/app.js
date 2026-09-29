@@ -9,7 +9,6 @@
     'nav.how': 'How it works',
     'nav.features': 'Features',
     'nav.roadmap': 'Roadmap',
-    'nav.beta': 'Beta',
     'hero.pill': 'TestFlight beta · iPhone',
     'hero.title': 'See your bike’s <span class="flame-text">real fuel economy.</span>',
     'hero.lede': 'Log the fuel-up at the pump, even with no signal. Carburante measures consumption from full tank to full tank and warns you before the next service is due.',

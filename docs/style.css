@@ -85,8 +85,8 @@ p { margin: 0; }
 @media (min-width: 720px) { .wrap { padding: 0 32px; } }
 
 .skip {
-  position: absolute; left: 16px; top: -48px; z-index: 100;
-  background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 10px;
+  position: absolute; left: 16px; top: -64px; z-index: 100;
+  background: var(--text); color: var(--bg); padding: 12px 14px; border-radius: 10px;
 }
 .skip:focus { top: 12px; }
 
@@ -131,6 +131,12 @@ p { margin: 0; }
 .star__label span { color: #ffc400; }
 .star__count { background: rgba(255, 255, 255, .14); color: #fff; border-radius: 999px; padding: 3px 8px; font-size: 12px; margin-left: -3px; }
 .star__count[hidden] { display: none; }
+/* CTA fixo no nav (.btn--nav, como o "Comprar" da Apple): o beta a um toque em qualquer ponto da
+   página. No celular ocupa o lugar da estrela do GitHub, que segue no rodapé e em Bastidores. */
+@media (max-width: 879px) { .star { display: none; } }
+/* Área de toque ≥ 44pt sem mudar o desenho: controles de 30–32px ganham uma borda invisível */
+.brand, .lang, .star, .btn--nav { position: relative; }
+.brand::after, .lang::after, .star::after, .btn--nav::after { content: ""; position: absolute; inset: -8px -3px; }
 
 /* ---------- Buttons ---------- */
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -163,8 +169,9 @@ p { margin: 0; }
   backdrop-filter: var(--glass-filter);
 }
 .lang:hover, .star:hover, .btn--ghost:hover, .btn--outline:hover { background: var(--glass-clear-hover); }
-.btn--sm { min-height: 40px; padding: 0 18px; font-size: 15px; margin-top: 16px; }
+.btn--sm { min-height: 44px; padding: 0 18px; font-size: 15px; margin-top: 16px; }
 .btn--lg { min-height: 56px; padding: 0 32px; font-size: 17px; }
+.btn--nav { min-height: 32px; padding: 0 14px; font-size: 14px; }
 
 /* ---------- Hero ---------- */
 .hero {
@@ -355,7 +362,7 @@ p { margin: 0; }
 }
 .tl--now { padding-bottom: 52px; }
 .tl__link {
-  display: inline-block; margin-top: 12px; font-weight: 600; color: var(--text);
+  display: inline-block; margin-top: 3px; padding: 9px 0; font-weight: 600; color: var(--text);
   text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px;
   text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: text-decoration-color .2s;
 }
@@ -488,6 +495,8 @@ p { margin: 0; }
   content: ""; position: absolute; z-index: -1; left: 0; right: 38%; top: 34%; bottom: -36px;
   border-radius: 36px; background: var(--flame);
 }
+/* Celular: sem folga lateral para o deslocamento, a placa vira um cartão atrás espiando embaixo */
+@media (max-width: 719px) { #beta .wrap::before { left: 36px; right: 36px; top: 50%; bottom: -16px; border-radius: 30px; } }
 .beta {
   position: relative; overflow: hidden; text-align: center;
   background: radial-gradient(700px 360px at 50% 0%, rgba(255, 120, 0, .16), transparent 70%), rgba(255, 255, 255, .68);
@@ -543,7 +552,10 @@ p { margin: 0; }
 .footer { border-top: 1px solid var(--line); padding: 40px 0 48px; font-size: 16px; color: var(--text-2); text-align: center; }
 .footer__inner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .footer__row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 40px; margin-bottom: 8px; }
-.footer__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; }
+.footer__links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 28px; }
+.footer__links a { padding: 10px 0; }
+/* Links soltos numa linha de texto: alvo de 44px sem mexer na altura da linha */
+.footer__by a, .beta__mail a { display: inline-block; padding: 12px 0; margin: -12px 0; }
 .footer a {
   color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px;
   text-decoration-color: color-mix(in srgb, currentColor 30%, transparent); transition: text-decoration-color .2s;
