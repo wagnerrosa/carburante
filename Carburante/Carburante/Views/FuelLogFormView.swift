@@ -364,13 +364,12 @@ struct FuelLogFormView: View {
     }
 
     private func process(_ image: UIImage, for target: PhotoTarget) async {
-        guard let cgImage = image.cgImage else { return }
         isRecognizing = true
         ocrStatus = nil
         defer { isRecognizing = false }
 
         do {
-            let recognized = try await TextRecognizer.recognize(in: cgImage)
+            let recognized = try await TextRecognizer.recognize(in: image)
             switch target {
             case .odometer:
                 odometerPhoto = image
