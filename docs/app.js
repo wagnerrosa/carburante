@@ -59,7 +59,7 @@
     'x4.d': 'Nudges you about the oil change and reminds you to log if you go quiet.',
     'bt.title': 'Try it at your next fuel-up.',
     'bt.d': 'For people who ride often. Open the link on your iPhone, install TestFlight and you’re in. Requires iOS 18 or later; the app is in Portuguese for now. Limited spots.',
-    'bt.mail': 'Questions or ideas? <a href="mailto:contato@wagnerrosa.com?subject=Carburante">contato@wagnerrosa.com</a>',
+    'bt.mail': 'Questions or ideas? <a href="mailto:beta@carburante.motorcycles?subject=Beta%20Carburante">beta@carburante.motorcycles</a>',
     'q.kicker': 'Questions',
     'q.title': 'Before you ask.',
     'q1.q': 'Is it free?',
