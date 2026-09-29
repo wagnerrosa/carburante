@@ -1618,7 +1618,7 @@ final class CarburanteTests: XCTestCase {
 
     private func maintenanceIssue(
         on date: Date, km: Double, logs: [(date: Date, odometer: Double)], current: Double
-    ) -> MaintenanceOdometerIssue? {
+    ) -> OdometerIssue? {
         OdometerBounds.forEntry(on: date, logs: logs, currentOdometer: current, now: day(2026, 10, 12))
             .maintenanceIssue(km: km, currentOdometer: current)
     }
