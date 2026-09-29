@@ -270,12 +270,16 @@ create trigger maintenance_logs_keep_earliest_created_at
 
 -- Foto do hodômetro (comprovante do km rodado — base da auditoria anti-burla e,
 -- no futuro, de uma checagem por IA). Bucket PRIVADO: nada de URL pública (não
--- dá para revogar); o app baixa autenticado e as policies abaixo restringem à
--- própria pasta ("{user_id}/{fuel_log_id}.jpg"). Acesso de terceiros (amigo,
--- comprador da moto, moderação) vira policy nova quando existir — não URL.
+-- dá para revogar); o app baixa autenticado.
+-- Path = "{motorcycle_id}/{fuel_log_id}.jpg" — a pasta é a MOTO, não o usuário:
+-- a foto é prova da procedência do km e segue a moto numa transferência
+-- (passaporte digital). As policies liberam a pasta para quem é dono da moto;
+-- hoje "dono" = motorcycles.user_id (mesma regra das tabelas). Na Fase 2 (RLS
+-- por ownership) esta função muda junto com as policies das tabelas — o novo
+-- dono passa a ler as fotos sem mover arquivo nenhum.
 -- `fuel_logs.odometer_photo_url` guarda o PATH no bucket, não uma URL.
 -- Exclusão de conta: o cascade do Postgres NÃO alcança o Storage — o app apaga
--- a pasta do usuário antes de chamar delete_current_user().
+-- as pastas das motos antes de chamar delete_current_user().
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('fuel-log-photos', 'fuel-log-photos', false, 5242880, array['image/jpeg'])
 on conflict (id) do update
@@ -283,34 +287,38 @@ on conflict (id) do update
         file_size_limit = excluded.file_size_limit,
         allowed_mime_types = excluded.allowed_mime_types;
 
+-- Dono da moto cuja pasta é a 1ª do path. SECURITY INVOKER: a consulta passa
+-- pelo RLS de motorcycles (só enxerga as próprias). id::text sai minúsculo — o
+-- app grava a pasta em minúsculas (PhotoReference.folder).
+create or replace function public.owns_photo_folder(object_name text)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.motorcycles m
+    where m.id::text = (storage.foldername(object_name))[1]
+      and m.user_id = (select auth.uid())
+  );
+$$;
+
 drop policy if exists "fuel_log_photos_insert_own" on storage.objects;
 create policy "fuel_log_photos_insert_own"
 on storage.objects for insert to authenticated
-with check (
-  bucket_id = 'fuel-log-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
+with check (bucket_id = 'fuel-log-photos' and public.owns_photo_folder(name));
 
 drop policy if exists "fuel_log_photos_update_own" on storage.objects;
 create policy "fuel_log_photos_update_own"
 on storage.objects for update to authenticated
-using (
-  bucket_id = 'fuel-log-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
+using (bucket_id = 'fuel-log-photos' and public.owns_photo_folder(name));
 
 drop policy if exists "fuel_log_photos_select_own" on storage.objects;
 create policy "fuel_log_photos_select_own"
 on storage.objects for select to authenticated
-using (
-  bucket_id = 'fuel-log-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
+using (bucket_id = 'fuel-log-photos' and public.owns_photo_folder(name));
 
 drop policy if exists "fuel_log_photos_delete_own" on storage.objects;
 create policy "fuel_log_photos_delete_own"
 on storage.objects for delete to authenticated
-using (
-  bucket_id = 'fuel-log-photos'
-  and (storage.foldername(name))[1] = auth.uid()::text
-);
+using (bucket_id = 'fuel-log-photos' and public.owns_photo_folder(name));

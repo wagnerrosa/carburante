@@ -177,7 +177,7 @@ final class SyncService {
         }
         do {
             // Fotos antes do usuário: depois do RPC ninguém mais consegue apagá-las.
-            try await deleteRemotePhotos(userID: uid)
+            try await deleteRemotePhotos()
             try await client.rpc("delete_current_user").execute()
         } catch {
             lastError = "Falha ao excluir a conta: \(error.localizedDescription)"
@@ -523,7 +523,7 @@ final class SyncService {
             // são o payload mais pesado) não segura linhas nem estoura o timeout
             // do launch antes delas. As que subirem agora re-sobem a linha com o
             // path remoto; as que falharem ficam locais e tentam no próximo push.
-            let uploaded = await uploadPendingPhotos(motorcycles, userID: uid)
+            let uploaded = await uploadPendingPhotos(motorcycles)
             if !uploaded.isEmpty {
                 try context.save()
                 let dtos = uploaded.compactMap { f in
@@ -561,14 +561,16 @@ final class SyncService {
     /// troca a referência pelo path remoto. Devolve os logs que mudaram. Falha
     /// por foto é engolida (best-effort): a foto segue no disco e tenta de novo
     /// no próximo push — não derruba o sync dos dados.
-    private func uploadPendingPhotos(_ motorcycles: [Motorcycle], userID: UUID) async -> [FuelLog] {
-        let pending = motorcycles.flatMap(\.fuelLogs).filter {
-            $0.deletedAt == nil && PhotoReference.isPendingUpload($0.odometerPhotoURL)
+    private func uploadPendingPhotos(_ motorcycles: [Motorcycle]) async -> [FuelLog] {
+        let pending = motorcycles.flatMap { moto in
+            moto.fuelLogs.filter {
+                $0.deletedAt == nil && PhotoReference.isPendingUpload($0.odometerPhotoURL)
+            }.map { (moto.id, $0) }
         }
         var uploaded: [FuelLog] = []
-        for log in pending {
+        for (motorcycleID, log) in pending {
             guard let data = PhotoStorage.data(for: log.odometerPhotoURL) else { continue }
-            let path = PhotoReference.remotePath(userID: userID, logID: log.id)
+            let path = PhotoReference.remotePath(motorcycleID: motorcycleID, logID: log.id)
             do {
                 // upsert: uma foto trocada na edição sobrescreve a anterior (mesmo path).
                 try await client.storage.from(PhotoReference.bucket).upload(
@@ -600,17 +602,23 @@ final class SyncService {
     /// Apaga TODAS as fotos do usuário no bucket (exclusão de conta). Precisa
     /// rodar ANTES de apagar o usuário: o cascade do Postgres não alcança o
     /// Storage, e sem o usuário as policies não deixam mais ninguém apagar.
-    private func deleteRemotePhotos(userID: UUID) async throws {
+    private func deleteRemotePhotos() async throws {
         let bucket = client.storage.from(PhotoReference.bucket)
-        let folder = PhotoReference.folder(userID: userID)
-        while true {
-            let files = try await bucket.list(path: folder, options: SearchOptions(limit: 100))
-            guard !files.isEmpty else { return }
-            let removed = try await bucket.remove(paths: files.map { "\(folder)/\($0.name)" })
-            // RLS negando o delete devolve lista vazia sem erro — sem esta guarda
-            // o loop listaria os mesmos arquivos para sempre.
-            guard !removed.isEmpty else {
-                throw URLError(.noPermissionsToReadFile)
+        // Pastas = motos do usuário NO SERVIDOR (RLS), inclusive as apagadas
+        // (soft-delete) e as que este device nunca puxou.
+        struct MotoID: Decodable { let id: UUID }
+        let motos: [MotoID] = try await client.from("motorcycles").select("id").execute().value
+        for moto in motos {
+            let folder = PhotoReference.folder(motorcycleID: moto.id)
+            while true {
+                let files = try await bucket.list(path: folder, options: SearchOptions(limit: 100))
+                guard !files.isEmpty else { break }
+                let removed = try await bucket.remove(paths: files.map { "\(folder)/\($0.name)" })
+                // RLS negando o delete devolve lista vazia sem erro — sem esta guarda
+                // o loop listaria os mesmos arquivos para sempre.
+                guard !removed.isEmpty else {
+                    throw URLError(.noPermissionsToReadFile)
+                }
             }
         }
     }
