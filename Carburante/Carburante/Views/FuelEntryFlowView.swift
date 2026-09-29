@@ -560,7 +560,7 @@ struct FuelEntryFlowView: View {
 
                 VStack(spacing: 0) {
                     Picker("Combustível", selection: $fuelType) {
-                        ForEach(FuelType.allCases) { Text($0.rawValue).tag($0) }
+                        ForEach(FuelType.allCases) { Text($0.label).tag($0) }
                     }
                     .padding(.horizontal, 16).padding(.vertical, 4)
                     Divider().padding(.leading, 16)

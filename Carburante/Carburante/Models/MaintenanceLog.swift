@@ -14,12 +14,21 @@ import SwiftData
 /// diferentes (o traseiro em geral bem antes), então cada um tem contador
 /// próprio (idade + km). "Ambos" NÃO é um caso persistido: no form é um atalho
 /// que grava dois logs (um dianteiro, um traseiro) — armazenar "ambos" quebraria
-/// os contadores independentes. `.rawValue` (String) é persistido.
+/// os contadores independentes. `.rawValue` (String) é persistido — **chave
+/// congelada**, nunca exibida; texto de tela = `label` (ver `FuelType`).
 enum TirePosition: String, CaseIterable, Codable, Identifiable {
     case dianteiro = "Dianteiro"
     case traseiro = "Traseiro"
 
     var id: String { rawValue }
+
+    /// Nome exibido. Livre para mudar/traduzir.
+    var label: String {
+        switch self {
+        case .dianteiro: return "Dianteiro"
+        case .traseiro: return "Traseiro"
+        }
+    }
 
     /// Sufixo curto p/ o rótulo do tipo ("Pneu dianteiro"). Minúsculo pois vem
     /// depois de "Pneu".
@@ -36,6 +45,8 @@ enum TirePosition: String, CaseIterable, Codable, Identifiable {
 
 /// Tipos comuns de manutenção. `.rawValue` (String) é persistido — adicionar
 /// casos no futuro não corrompe dados. "Outro" + `notes` cobre o resto.
+/// `.rawValue` é **chave congelada**, nunca exibida; texto de tela = `label`
+/// (ver `FuelType`).
 enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
     case oleo = "Troca de óleo"
     case filtros = "Filtros"
@@ -46,6 +57,20 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
     case outro = "Outro"
 
     var id: String { rawValue }
+
+    /// Nome exibido. Livre para mudar/traduzir. Com posição de pneu, usar
+    /// `displayName(_:position:)`.
+    var label: String {
+        switch self {
+        case .oleo: return "Troca de óleo"
+        case .filtros: return "Filtros"
+        case .pneus: return "Pneus"
+        case .relacao: return "Relação / corrente"
+        case .freios: return "Freios"
+        case .revisao: return "Revisão geral"
+        case .outro: return "Outro"
+        }
+    }
 
     var icon: String {
         switch self {
@@ -77,7 +102,7 @@ enum MaintenanceType: String, CaseIterable, Codable, Identifiable {
     /// Ex.: `.pneus` + `.dianteiro` → "Pneu dianteiro". Fonte única do rótulo
     /// (log, status agendado, lembrete) → sempre coerente.
     static func displayName(_ type: MaintenanceType, position: TirePosition?) -> String {
-        guard type == .pneus, let position else { return type.rawValue }
+        guard type == .pneus, let position else { return type.label }
         return "Pneu \(position.suffix)"
     }
 

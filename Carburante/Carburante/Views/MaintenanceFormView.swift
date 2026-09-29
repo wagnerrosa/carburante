@@ -129,7 +129,7 @@ struct MaintenanceFormView: View {
                                displayedComponents: [.date])
                     Picker("Tipo", selection: $type) {
                         ForEach(MaintenanceType.allCases) { t in
-                            Label(t.rawValue, systemImage: t.icon).tag(t)
+                            Label(t.label, systemImage: t.icon).tag(t)
                         }
                     }
                     UnitField(label: "Hodômetro", unit: "km") {
@@ -213,7 +213,7 @@ struct MaintenanceFormView: View {
                     Section {
                         ForEach(MaintenanceType.revisaoComboTypes) { item in
                             Toggle(isOn: revisaoBinding(for: item)) {
-                                Label(item.rawValue, systemImage: item.icon)
+                                Label(item.label, systemImage: item.icon)
                             }
                             // Pneu numa revisão pode ter sido só um eixo (ex.: só
                             // o traseiro) → escolhe a posição a reiniciar.
