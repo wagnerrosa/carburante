@@ -322,18 +322,99 @@
     }
   }
 
+  // Beta: a roda do ícone acende quando aparece inteira na tela (ignição uma vez, depois o
+  // loop) e o botão "acelera" (playbackRate + brilho). HEVC com alpha só no WebKit: o
+  // Chrome toca HEVC mas ignora o alpha (fundo preto), por isso a escolha é por motor e
+  // não pela ordem de <source>. Sem vídeo (Modo Pouca Energia, codec, "reduzir
+  // movimento"), a imagem acesa fica no lugar.
+  var beta = document.querySelector('[data-ignite]');
+  if (beta) {
+    var intro = beta.querySelectorAll('.beta__vid')[0];
+    var loop = beta.querySelectorAll('.beta__vid')[1];
+    var ext = null;
+    if (!reduceMotion && 'IntersectionObserver' in window && intro.canPlayType) {
+      if (navigator.vendor === 'Apple Computer, Inc.') ext = intro.canPlayType('video/mp4; codecs="hvc1"') ? 'mov' : null;
+      else ext = intro.canPlayType('video/webm; codecs="vp9"') ? 'webm' : null;
+    }
+    if (!ext) {
+      beta.classList.add('is-lit');
+    } else {
+      var lit = false, current = intro, rate = 1, target = 1, rateFrame = 0, revved = false;
+      intro.muted = loop.muted = true;
+      var play = function (v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); };
+      var shown = function (v) {
+        v.classList.add('is-shown');
+        beta.classList.add('is-playing');
+        if (v === loop) intro.classList.remove('is-shown'); // os dois têm alpha: o de baixo apareceria
+      };
+      intro.addEventListener('playing', function () { shown(intro); });
+      loop.addEventListener('playing', function () { shown(loop); });
+      intro.addEventListener('ended', function () { current = loop; play(loop); });
+
+      var load = function () {
+        if (intro.getAttribute('src')) return;
+        intro.preload = loop.preload = 'auto';
+        intro.src = 'assets/art/roda-intro.' + ext;
+        loop.src = 'assets/art/roda-loop.' + ext;
+      };
+      new IntersectionObserver(function (entries, obs) {
+        if (entries[0].isIntersecting) { obs.disconnect(); load(); }
+      }, { rootMargin: '800px 0px' }).observe(beta);
+
+      // Acende com a roda inteira nos 80% de cima da tela; fora dessa faixa, pausa.
+      var wheel = beta.querySelector('.beta__wheel');
+      new IntersectionObserver(function (entries) {
+        var e = entries[0];
+        if (!e.isIntersecting) { current.pause(); return; }
+        if (lit) play(current);
+        else if (e.intersectionRatio >= 0.99) {
+          lit = true;
+          load();
+          setTimeout(function () { beta.classList.add('is-lit'); play(intro); }, 250);
+        }
+      }, { rootMargin: '0px 0px -20% 0px', threshold: [0, 1] }).observe(wheel);
+
+      // Acelerar: playbackRate sobe/desce suave (rAF); só depois de acesa.
+      var setRate = function () {
+        rate += (target - rate) * 0.14;
+        if (Math.abs(target - rate) < 0.03) rate = target;
+        intro.playbackRate = loop.playbackRate = rate;
+        if (rate !== target) rateFrame = requestAnimationFrame(setRate);
+      };
+      var rev = function (on) {
+        on = on && lit;
+        beta.classList.toggle('is-rev', on);
+        target = on ? 2.4 : 1;
+        cancelAnimationFrame(rateFrame);
+        rateFrame = requestAnimationFrame(setRate);
+        if (on && !revved) {
+          revved = true;
+          track('site_interaction', { event_category: 'ui', event_label: 'beta_rev', event_location: 'beta' });
+        }
+      };
+      var cta = beta.querySelector('.btn--flame');
+      [cta, wheel].forEach(function (el) {
+        el.addEventListener('pointerenter', function () { rev(true); });
+        el.addEventListener('pointerleave', function () { rev(false); });
+      });
+      cta.addEventListener('focus', function () { rev(true); });
+      cta.addEventListener('blur', function () { rev(false); });
+    }
+  }
+
   // Recursos no celular = carrossel (scroll-snap no CSS); os pontos só acompanham a posição.
-  var track = document.querySelector('.features');
+  // (não chamar de "track": o var sobrescreveria a função de analytics do mesmo escopo)
+  var rail = document.querySelector('.features');
   var dots = document.querySelectorAll('.features__dots span');
-  if (track && dots.length) {
+  if (rail && dots.length) {
     var dotFrame = 0;
-    track.addEventListener('scroll', function () {
+    rail.addEventListener('scroll', function () {
       cancelAnimationFrame(dotFrame);
       dotFrame = requestAnimationFrame(function () {
-        var slides = track.children;
+        var slides = rail.children;
         var step = slides[1].offsetLeft - slides[0].offsetLeft;
-        var atEnd = track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
-        var i = atEnd ? slides.length - 1 : Math.round(track.scrollLeft / step);
+        var atEnd = rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 2;
+        var i = atEnd ? slides.length - 1 : Math.round(rail.scrollLeft / step);
         dots.forEach(function (el, k) { el.classList.toggle('is-on', k === i); });
       });
     }, { passive: true });

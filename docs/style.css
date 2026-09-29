@@ -548,7 +548,31 @@ p { margin: 0; }
   content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .09; mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-.beta__icon { width: 104px; margin: 0 auto 28px; border-radius: 24px; box-shadow: 0 20px 50px -10px rgba(255, 90, 0, .45); }
+/* Ignição: sem JS (ou com "reduzir movimento") a roda já nasce acesa. Com JS, fica apagada
+   (sem cor) até o card entrar na tela; .is-lit acende a roda, o brilho e a placa da chama
+   (varre da esquerda, como o fogo); .is-rev = acelerando (hover no botão ou na roda).
+   O JS só troca as classes e toca os vídeos: ignição uma vez, depois o loop. */
+#beta .wrap::before { clip-path: inset(0); transition: clip-path 1.3s cubic-bezier(.32, .72, 0, 1) .15s, filter .5s ease; }
+.js #beta:not(.is-lit) .wrap::before { clip-path: inset(0 100% 0 0); }
+#beta.is-rev .wrap::before { filter: saturate(1.3) brightness(1.08); } /* sombra seria cortada pelo clip-path */
+.beta__wheel { position: relative; isolation: isolate; width: 168px; aspect-ratio: 1; margin: -16px auto 20px; transition: scale .5s cubic-bezier(.34, 1.4, .5, 1); }
+@media (max-width: 719px) { .beta__wheel { width: 144px; margin-top: -24px; } }
+.beta__wheel::before {
+  content: ""; position: absolute; z-index: -1; inset: 6%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 130, 0, .6), rgba(255, 60, 0, .2) 60%, transparent);
+  filter: blur(22px); opacity: .85; transition: opacity 1s ease, scale 1s cubic-bezier(.32, .72, 0, 1);
+}
+.beta__body { position: absolute; inset: 0; filter: saturate(1) brightness(1) drop-shadow(0 18px 22px rgba(150, 45, 0, .32)); transition: filter 1.1s ease; }
+.beta__poster, .beta__vid { position: absolute; inset: 0; width: 100%; height: 100%; }
+.beta__vid { opacity: 0; }
+.beta__vid.is-shown { opacity: 1; }
+#beta.is-playing .beta__poster { visibility: hidden; }
+.js #beta:not(.is-lit) .beta__body { filter: saturate(0) brightness(.82) drop-shadow(0 14px 18px rgba(0, 0, 0, .18)); }
+.js #beta:not(.is-lit) .beta__wheel::before { opacity: 0; scale: .5; }
+#beta.is-rev .beta__wheel { scale: 1.07; }
+#beta.is-rev .beta__wheel::before { opacity: 1; scale: 1.35; }
+#beta.is-rev .beta__body { animation: rev-rumble .1s linear infinite; }
+@keyframes rev-rumble { 0%, 100% { translate: 0 0; } 25% { translate: .7px -.6px; } 50% { translate: -.6px .5px; } 75% { translate: .5px .7px; } }
 .beta h2 { font-size: clamp(30px, 5vw, 48px); max-width: 16em; margin: 0 auto 16px; }
 .beta p { color: rgba(29, 29, 31, .8); max-width: 34em; margin: 0 auto 32px; font-size: 18px; }
 .beta .beta__mail { margin: 16px auto 0; font-size: 14px; color: rgba(29, 29, 31, .62); }
@@ -619,6 +643,8 @@ p { margin: 0; }
   .float, .pill__dot, .tl--now .tl__node { animation: none; }
   .story__stage, .story__rider, .story__visual .float, .tl__art img, .footer__moto { transition: none; }
   .story__flash { display: none; }
+  #beta .wrap::before, .beta__wheel, .beta__wheel::before, .beta__body { transition: none; }
+  #beta.is-rev .beta__body { animation: none; }
 }
 
 /* ---------- Página legal (privacidade) ---------- */

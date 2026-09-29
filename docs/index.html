@@ -23,7 +23,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=2">
 
-  <link rel="stylesheet" href="style.css?v=14">
+  <link rel="stylesheet" href="style.css?v=15">
   <script>document.documentElement.classList.add('js')</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
@@ -358,10 +358,18 @@
   </section>
 
   <!-- BETA -->
-  <section class="section" id="beta">
+  <section class="section" id="beta" data-ignite>
     <div class="wrap">
       <div class="beta reveal">
-        <img class="beta__icon" src="assets/icon-256.png" alt="" width="120" height="120" loading="lazy">
+        <!-- Roda do ícone: acende ao entrar na tela (ignição → loop); hover no botão acelera.
+             O JS escolhe HEVC com alpha (WebKit) ou WebM VP9 com alpha (demais); sem vídeo, fica a imagem. -->
+        <div class="beta__wheel" aria-hidden="true">
+          <div class="beta__body">
+            <img class="beta__poster" src="assets/art/roda.webp" alt="" width="480" height="480" loading="lazy">
+            <video class="beta__vid" muted playsinline preload="none" disablepictureinpicture></video>
+            <video class="beta__vid" muted playsinline loop preload="none" disablepictureinpicture></video>
+          </div>
+        </div>
         <h2 data-i18n="bt.title">Teste no seu próximo abastecimento.</h2>
         <p data-i18n="bt.d">Para quem usa a moto com frequência. Abra o link no iPhone, instale o TestFlight e pronto. Precisa de iOS 18 ou mais recente. Vagas limitadas.</p>
         <a class="btn btn--flame btn--lg js-beta" href="https://testflight.apple.com/join/8mcXygWe" target="_blank" rel="noopener" data-i18n="cta.beta">Entrar no beta</a>
@@ -432,6 +440,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
