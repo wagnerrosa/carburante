@@ -59,10 +59,7 @@
     'x4.t': 'Gentle reminders',
     'x4.d': 'Nudges you about the oil change and reminds you to log if you go quiet.',
     'bt.title': 'Try it at your next fuel-up.',
-    'bt.d': 'The beta is for people who ride often and will fill up in the coming weeks. Every real fuel-up shows what works and what’s still missing.',
-    'bs1': 'Send me your Apple Account email, the one on your iPhone.',
-    'bs2': 'I’ll send you a TestFlight invite, Apple’s official app for beta versions.',
-    'bs3': 'Open the invite on your iPhone (iOS 18 or later) and install. Free during the beta. The app is in Portuguese for now.',
+    'bt.d': 'For people who ride often. Send me your Apple Account email and I’ll send you a TestFlight invite. Requires an iPhone on iOS 18 or later; the app is in Portuguese for now.',
     'q.kicker': 'Questions',
     'q.title': 'Before you ask.',
     'q1.q': 'Is it free?',
@@ -111,8 +108,9 @@
     'r6.t': 'Beyond the pump',
     'r6.d': 'Real consumption vs. factory figures, weather at each fuel-up, a ride diary and trips, long-distance challenges like the Iron Butt and, someday, community.',
     's.kicker': 'Behind the scenes',
-    's.title': 'A product project, from problem to TestFlight.',
-    's.lede': 'Carburante is a personal project by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, Senior Product Designer. Research, product definition, interface design and the native Swift app, end to end.',
+    's.title': 'Made by someone who rides, too.',
+    's.lede': 'I’m <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer and rider for over two decades. I built Carburante for a simple reason: logging a fuel-up has to fit in a gas-station stop.',
+    'alt.wagner': 'Wagner Rosa riding on a mountain road',
     's.portfolio': 'View portfolio',
     's.code': 'Read the code',
     'ft.by': 'Made by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a> · 2026',
@@ -216,6 +214,43 @@
       track('site_interaction', { event_category: 'outbound', event_label: 'outbound_email', event_location: where });
     }
   });
+
+  // FAQ: o <details> nativo abre seco e o Safari não anima height: auto em CSS.
+  // Anima a altura (Web Animations) e a resposta entra com fade. Sem suporte ou
+  // com "reduzir movimento", fica o abre/fecha nativo.
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduceMotion && Element.prototype.animate) {
+    var EASE = 'cubic-bezier(.32, .72, 0, 1)';
+    document.querySelectorAll('.faq details').forEach(function (d) {
+      var summary = d.querySelector('summary');
+      var answer = d.querySelector('p');
+      var anim = null, fade = null;
+      summary.addEventListener('click', function (e) {
+        e.preventDefault();
+        var opening = !d.open || d.classList.contains('is-closing');
+        var start = d.offsetHeight; // altura atual, mesmo no meio de outra animação
+        if (anim) anim.cancel();
+        if (fade) fade.cancel();
+        d.classList.remove('is-closing');
+        d.style.overflow = 'hidden';
+        if (opening) {
+          d.open = true;
+          anim = d.animate({ height: [start + 'px', d.offsetHeight + 'px'] }, { duration: 380, easing: EASE });
+          if (answer) fade = answer.animate({ opacity: [0, 1], transform: ['translateY(-6px)', 'none'] }, { duration: 380, easing: EASE });
+        } else {
+          d.classList.add('is-closing');
+          anim = d.animate({ height: [start + 'px', summary.offsetHeight + 'px'] }, { duration: 260, easing: EASE });
+          if (answer) fade = answer.animate({ opacity: [1, 0] }, { duration: 180, easing: 'ease-out', fill: 'forwards' });
+        }
+        anim.onfinish = function () {
+          if (d.classList.contains('is-closing')) { d.open = false; d.classList.remove('is-closing'); }
+          if (fade) { fade.cancel(); fade = null; }
+          d.style.overflow = '';
+          anim = null;
+        };
+      });
+    });
+  }
 
   // Reveal on scroll.
   var items = document.querySelectorAll('.reveal');
