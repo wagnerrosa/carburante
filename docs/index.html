@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Carburante · O diário de bordo da sua moto</title>
-  <meta name="description" content="Registre abastecimentos em segundos, descubra o consumo real da sua moto e nunca mais esqueça uma manutenção. App nativo para iPhone, em beta aberto.">
+  <title>Carburante · Quanto sua moto faz de verdade</title>
+  <meta name="description" content="Registre o abastecimento na parada do posto, veja o consumo real da sua moto, de tanque cheio a tanque cheio, e receba aviso antes da manutenção. App para iPhone em beta.">
   <link rel="canonical" href="https://carburante.motorcycles/">
   <meta name="author" content="Wagner Rosa">
   <meta name="publish_date" property="og:publish_date" content="2026-09-27T00:00:00-03:00">
@@ -14,8 +14,8 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Carburante">
-  <meta property="og:title" content="Carburante · O diário de bordo da sua moto">
-  <meta property="og:description" content="Abastecimentos em segundos, consumo real e manutenção em dia. App nativo para iPhone, em beta aberto.">
+  <meta property="og:title" content="Carburante · Quanto sua moto faz de verdade">
+  <meta property="og:description" content="Consumo real, de tanque cheio a tanque cheio, e manutenção em dia. App para iPhone em beta no TestFlight.">
   <meta property="og:url" content="https://carburante.motorcycles/">
   <meta property="og:image" content="https://carburante.motorcycles/assets/og.png">
   <meta property="og:image:width" content="1200">
@@ -23,7 +23,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png">
 
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script>document.documentElement.classList.add('js')</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
@@ -68,9 +68,9 @@
       <span>Carburante</span>
     </a>
     <nav class="nav__links" aria-label="Seções">
+      <a href="#consumo" data-i18n="nav.how">Como funciona</a>
       <a href="#recursos" data-i18n="nav.features">Recursos</a>
       <a href="#roadmap" data-i18n="nav.roadmap">Roadmap</a>
-      <a href="#bastidores" data-i18n="nav.story">Bastidores</a>
       <a href="#beta" data-i18n="nav.beta">Beta</a>
     </nav>
     <div class="nav__actions">
@@ -90,12 +90,12 @@
   <section class="hero">
     <div class="wrap hero__grid">
       <div class="hero__copy">
-        <p class="pill"><span class="pill__dot"></span><span data-i18n="hero.pill">Beta aberto · iPhone</span></p>
-        <h1 data-i18n="hero.title">O diário de bordo <span class="flame-text">da sua moto.</span></h1>
-        <p class="hero__lede" data-i18n="hero.lede">Registre abastecimentos em segundos, descubra quanto sua moto faz de verdade e nunca mais esqueça uma troca de óleo. Nativo de iPhone, funciona até sem sinal.</p>
+        <p class="pill"><span class="pill__dot"></span><span data-i18n="hero.pill">Beta no TestFlight · iPhone</span></p>
+        <h1 data-i18n="hero.title">Saiba quanto sua moto faz <span class="flame-text">de&nbsp;verdade.</span></h1>
+        <p class="hero__lede" data-i18n="hero.lede">Registre o abastecimento na parada do posto, até sem sinal. O Carburante mede o consumo de tanque cheio a tanque cheio e avisa antes da próxima manutenção.</p>
         <div class="cta-row">
-          <a class="btn btn--flame js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.beta">Quero testar o beta</a>
-          <a class="btn btn--ghost" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener" data-i18n="cta.github">Ver no GitHub</a>
+          <a class="btn btn--flame js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.beta">Pedir convite para o beta</a>
+          <a class="btn btn--ghost" href="#consumo" data-i18n="cta.how">Como funciona</a>
         </div>
         <p class="hero__meta" data-i18n="hero.meta">Grátis durante o beta · iOS 18+ · Em português</p>
       </div>
@@ -119,7 +119,7 @@
         <article class="card promise__card reveal">
           <img src="assets/art/fuel.webp" alt="" width="560" height="560">
           <h3 data-i18n="p1.t">Abasteça em segundos</h3>
-          <p data-i18n="p1.d">Hodômetro, valor e litros. Data e local entram sozinhos. Cabe na parada do posto.</p>
+          <p data-i18n="p1.d">Hodômetro, valor e litros. A data entra sozinha; o local também, se você liberar a localização. Cabe na parada do posto.</p>
         </article>
         <article class="card promise__card reveal">
           <img src="assets/art/gas-station.webp" alt="" width="560" height="560">
@@ -132,6 +132,34 @@
           <p data-i18n="p3.d">Óleo, pneus, relação e freios. O app avisa antes de vencer, por quilômetro ou por data.</p>
         </article>
       </div>
+    </div>
+  </section>
+
+  <!-- COMO MEDIMOS -->
+  <section class="section" id="consumo">
+    <div class="wrap">
+      <header class="section__head reveal">
+        <p class="kicker" data-i18n="m.kicker">Como medimos</p>
+        <h2 data-i18n="m.title">Tanque cheio a tanque cheio. O jeito que não mente.</h2>
+      </header>
+      <div class="promise__grid">
+        <article class="card decision reveal">
+          <span class="decision__n">01</span>
+          <h3 data-i18n="m1.t">Encha o tanque</h3>
+          <p data-i18n="m1.d">O primeiro tanque cheio é o ponto de partida. Ainda não tem média, e o app mostra quantos abastecimentos faltam.</p>
+        </article>
+        <article class="card decision reveal">
+          <span class="decision__n">02</span>
+          <h3 data-i18n="m2.t">Rode como sempre</h3>
+          <p data-i18n="m2.d">Colocou só um pouco? Desligue “Tanque cheio”. Esses litros entram na conta do trecho.</p>
+        </article>
+        <article class="card decision reveal">
+          <span class="decision__n">03</span>
+          <h3 data-i18n="m3.t">Encha de novo</h3>
+          <p data-i18n="m3.d">Km rodados ÷ litros colocados no trecho. Com o tanque cheio nas duas pontas, a conta fecha.</p>
+        </article>
+      </div>
+      <p class="section__lede method__note reveal" data-i18n="m.note">Dividir cada abastecimento pelo anterior parece mais simples, mas erra toda vez que o tanque não enche. É daí que vem a média inflada.</p>
     </div>
   </section>
 
@@ -148,7 +176,7 @@
         <div class="feature__copy">
           <p class="kicker" data-i18n="f1.k">Registro</p>
           <h3 data-i18n="f1.t">Três passos. Nenhum campo à toa.</h3>
-          <p data-i18n="f1.d">O app lembra o último combustível, calcula o preço do litro na hora e mostra o consumo daquele tanque antes de salvar. Tem o cupom? Toque em Escanear: a foto é lida no próprio iPhone e nunca sai dele.</p>
+          <p data-i18n="f1.d">O app lembra o último combustível, calcula o preço do litro na hora e mostra o consumo daquele tanque antes de salvar. Tem o cupom? Toque em Escanear: a leitura acontece no próprio iPhone e a foto do cupom não é guardada.</p>
         </div>
       </div>
 
@@ -156,8 +184,8 @@
         <div class="feature__media"><div class="phone"><img src="assets/screens/consumo.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.consumption" alt="Gráfico de consumo por tanque com média de 28,8 km/l e comparação com a categoria"></div></div>
         <div class="feature__copy">
           <p class="kicker" data-i18n="f2.k">Consumo</p>
-          <h3 data-i18n="f2.t">Conheça sua moto como ela é.</h3>
-          <p data-i18n="f2.d">Gráfico tanque a tanque, média do período e comparação com motos da mesma categoria. Descubra se a viagem de serra rendeu mais que o trânsito da semana.</p>
+          <h3 data-i18n="f2.t">Serra ou trânsito? O gráfico mostra.</h3>
+          <p data-i18n="f2.d">Gráfico tanque a tanque, média do período e uma referência estimada para a categoria e a cilindrada da sua moto, se você informar as duas.</p>
         </div>
       </div>
 
@@ -166,16 +194,16 @@
         <div class="feature__copy">
           <p class="kicker" data-i18n="f3.k">Manutenção</p>
           <h3 data-i18n="f3.t">Cada peça no seu tempo.</h3>
-          <p data-i18n="f3.d">Defina intervalos por km e por meses. A barra mostra quanto falta e uma notificação chega antes de vencer. O histórico fica guardado, pronto para mostrar a quem for comprar sua moto.</p>
+          <p data-i18n="f3.d">Defina intervalos por km e por meses. A barra mostra quanto falta e uma notificação chega antes de vencer. O histórico fica guardado, com data, km e valor de cada serviço.</p>
         </div>
       </div>
 
-      <div class="feature feature--flip reveal">
-        <div class="feature__media"><div class="phone"><img src="assets/screens/conquistas.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.garage" alt="Garagem com nível 4 e grade de medalhas conquistadas"></div></div>
+      <div class="feature feature--flip feature--compact reveal">
+        <div class="feature__media"><div class="phone"><img src="assets/screens/conquistas.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.garage" alt="Garagem com consumo e custo médio e o nível de conquistas"></div></div>
         <div class="feature__copy">
           <p class="kicker" data-i18n="f4.k">Garagem</p>
-          <h3 data-i18n="f4.t">Todas as suas motos, cada uma com a sua cor.</h3>
-          <p data-i18n="f4.d">O app veste a cor da marca da moto ativa. Recordes, totais de toda a vida e um nível que sobe conforme você roda.</p>
+          <h3 data-i18n="f4.t">Sua garagem, sem misturar uma moto com a outra.</h3>
+          <p data-i18n="f4.d">Acompanhe consumo e manutenção de cada moto separadamente. Recordes e totais somam a garagem inteira.</p>
         </div>
       </div>
 
@@ -186,11 +214,11 @@
         </li>
         <li>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-          <strong data-i18n="x2.t">Privado por padrão</strong><span data-i18n="x2.d">A foto do cupom é lida no iPhone. Seus dados não viram anúncio.</span>
+          <strong data-i18n="x2.t">Privado por padrão</strong><span data-i18n="x2.d">A leitura das fotos acontece no iPhone. Sem anúncios e sem venda de dados.</span>
         </li>
         <li>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
-          <strong data-i18n="x3.t">Sem cadastro</strong><span data-i18n="x3.d">Abriu, usou. Login com Apple só se quiser levar os dados para outro aparelho.</span>
+          <strong data-i18n="x3.t">Sem cadastro</strong><span data-i18n="x3.d">Abriu, usou. Sem criar conta e sem senha.</span>
         </li>
         <li>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10.3 20a2 2 0 0 0 3.4 0"/></svg>
@@ -200,131 +228,19 @@
     </div>
   </section>
 
-  <!-- CONQUISTAS -->
-  <section class="section badges" id="conquistas">
-    <div class="wrap">
-      <header class="section__head reveal">
-        <p class="kicker" data-i18n="b.kicker">Conquistas</p>
-        <h2 data-i18n="b.title">Rodar também é colecionar.</h2>
-        <p class="section__lede" data-i18n="b.lede">25 medalhas com pontos por dificuldade e níveis que sobem de verdade. É só reconhecimento: nenhuma função fica trancada atrás de medalha.</p>
-      </header>
-      <ul class="badge-grid reveal">
-        <li><img src="assets/badges/firstFuel.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.fuel">1º abastecimento</span></li>
-        <li><img src="assets/badges/firstMaintenance.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.maint">1ª manutenção</span></li>
-        <li><img src="assets/badges/bestConsumption.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.best">Acima da média</span></li>
-        <li><img src="assets/badges/piston.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.cc">Clube 500cc</span></li>
-        <li><img src="assets/badges/touring.webp" alt="" width="240" height="240" loading="lazy"><span>Estradeiro</span></li>
-        <li><img src="assets/badges/trail.webp" alt="" width="240" height="240" loading="lazy"><span>Adventure Rider</span></li>
-        <li><img src="assets/badges/custom.webp" alt="" width="240" height="240" loading="lazy"><span>Highway Rider</span></li>
-        <li><img src="assets/badges/sport.webp" alt="" width="240" height="240" loading="lazy"><span>Speed Demon</span></li>
-        <li><img src="assets/badges/street.webp" alt="" width="240" height="240" loading="lazy"><span>Street Fighter</span></li>
-        <li><img src="assets/badges/scooter.webp" alt="" width="240" height="240" loading="lazy"><span>Urban Rider</span></li>
-        <li><img src="assets/badges/offroad.webp" alt="" width="240" height="240" loading="lazy"><span>Off-road</span></li>
-        <li class="is-soon"><img src="assets/badges/ironButt.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.iron">Iron Butt · em breve</span></li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- ROADMAP -->
-  <section class="section" id="roadmap">
-    <div class="wrap wrap--narrow">
-      <header class="section__head reveal">
-        <p class="kicker" data-i18n="r.kicker">Roadmap</p>
-        <h2 data-i18n="r.title">Hoje, o diário de bordo. Amanhã, o passaporte da sua moto.</h2>
-        <blockquote class="quote" data-i18n="r.quote">“A moto leva seus eventos. Você mantém sua história.”</blockquote>
-        <p class="section__lede" data-i18n="r.lede">O plano é que o histórico pertença à moto, não ao dono. Quando ela for vendida, manutenções, quilometragem e consumo vão junto, e um histórico confiável vale dinheiro no mercado de usados.</p>
-      </header>
-
-      <ol class="timeline">
-        <li class="tl tl--done reveal">
-          <span class="tl__status" data-i18n="st.done">Entregue</span>
-          <h3 data-i18n="r1.t">Diário de bordo</h3>
-          <p data-i18n="r1.d">Abastecimento rápido, consumo real, leitura do cupom, manutenção programada, garagem com várias motos, medalhas e sincronização com a sua conta Apple.</p>
-        </li>
-        <li class="tl tl--now reveal">
-          <span class="tl__status" data-i18n="st.now">Agora</span>
-          <h3 data-i18n="r2.t">Beta aberto</h3>
-          <p data-i18n="r2.d">Motociclistas de verdade usando no dia a dia pelo TestFlight. É aqui que você entra: cada abastecimento registrado ajuda a decidir o próximo passo.</p>
-          <a class="btn btn--flame btn--sm js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.join">Entrar no beta</a>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.next">Próximo</span>
-          <h3 data-i18n="r3.t">Passaporte digital</h3>
-          <p data-i18n="r3.d">O histórico passa a pertencer à moto. Cada registro guarda quem o fez, para sempre.</p>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.next">Próximo</span>
-          <h3 data-i18n="r4.t">Transferência por QR code</h3>
-          <p data-i18n="r4.d">Vendeu a moto? Um código passa a posse e o comprador recebe o histórico completo.</p>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.planned">Planejado</span>
-          <h3 data-i18n="r5.t">Perfil que fica com você</h3>
-          <p data-i18n="r5.d">Seus quilômetros e conquistas continuam seus depois da venda. Documentos da moto (nota, recibos, certificados) ligados a ela. E prova de que o histórico não foi adulterado.</p>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.later">Futuro</span>
-          <h3 data-i18n="r6.t">Além do posto</h3>
-          <p data-i18n="r6.d">Consumo real comparado ao de fábrica, clima em cada abastecimento, diário e viagens, desafios de longa distância como o Iron Butt e, um dia, comunidade.</p>
-        </li>
-      </ol>
-    </div>
-  </section>
-
-  <!-- BASTIDORES -->
-  <section class="section story" id="bastidores">
-    <div class="wrap">
-      <header class="section__head reveal">
-        <p class="kicker" data-i18n="s.kicker">Bastidores</p>
-        <h2 data-i18n="s.title">Um projeto de produto, do problema ao TestFlight.</h2>
-        <p class="section__lede" data-i18n="s.lede">O Carburante é um projeto pessoal de <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, Senior Product Designer. Pesquisa, definição de produto, design de interface e o app em Swift nativo, de ponta a ponta.</p>
-      </header>
-
-      <dl class="stats reveal">
-        <div><dt data-i18n="s.st1">pull requests revisados</dt><dd>47</dd></div>
-        <div><dt data-i18n="s.st2">testes automatizados</dt><dd>170+</dd></div>
-        <div><dt data-i18n="s.st3">bibliotecas de UI de terceiros</dt><dd>0</dd></div>
-        <div><dt data-i18n="s.st4">funcional sem internet</dt><dd>100%</dd></div>
-      </dl>
-
-      <div class="decisions">
-        <article class="card decision reveal">
-          <span class="decision__n">01</span>
-          <h3 data-i18n="d1.t">Menos toques, não mais telas</h3>
-          <p data-i18n="d1.d">Registrar um abastecimento precisa caber na parada do posto. Cada campo novo teve que justificar a própria existência.</p>
-        </article>
-        <article class="card decision reveal">
-          <span class="decision__n">02</span>
-          <h3 data-i18n="d2.t">Offline primeiro</h3>
-          <p data-i18n="d2.d">Posto de estrada não tem sinal. Tudo é salvo no aparelho e sincroniza quando der, sem perder uma edição.</p>
-        </article>
-        <article class="card decision reveal">
-          <span class="decision__n">03</span>
-          <h3 data-i18n="d3.t">Não prometer o impossível</h3>
-          <p data-i18n="d3.d">Testei ler o display da bomba por foto: não é confiável. O app lê o cupom impresso, onde funciona, e deixa o resto para uma revisão rápida.</p>
-        </article>
-        <article class="card decision reveal">
-          <span class="decision__n">04</span>
-          <h3 data-i18n="d4.t">Métrica antes de feature</h3>
-          <p data-i18n="d4.d">Sucesso do MVP é o motociclista voltar e registrar mais de três abastecimentos. Social, ranking e o passaporte esperam essa resposta.</p>
-        </article>
-      </div>
-
-      <div class="cta-row cta-row--center reveal">
-        <a class="btn btn--solid" href="https://wagnerrosa.com" target="_blank" rel="noopener" data-i18n="s.portfolio">Ver portfólio</a>
-        <a class="btn btn--outline" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener" data-i18n="s.code">Ler o código</a>
-      </div>
-    </div>
-  </section>
-
   <!-- BETA -->
   <section class="section" id="beta">
     <div class="wrap">
       <div class="beta reveal">
         <img class="beta__icon" src="assets/icon-256.png" alt="" width="120" height="120" loading="lazy">
-        <h2 data-i18n="bt.title">Teste o Carburante antes de todo mundo.</h2>
-        <p data-i18n="bt.d">Você precisa de um iPhone com iOS 18 ou mais recente. Mande um email e eu envio o convite do TestFlight, o app oficial da Apple para versões beta.</p>
-        <a class="btn btn--flame btn--lg js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="bt.cta">Pedir convite por email</a>
+        <h2 data-i18n="bt.title">Teste no seu próximo abastecimento.</h2>
+        <p data-i18n="bt.d">O beta é para quem usa a moto com frequência e vai abastecer nas próximas semanas. Cada abastecimento real mostra o que funciona e o que ainda falta.</p>
+        <ol class="beta__steps">
+          <li data-i18n="bs1">Mande o email da sua Conta Apple, o mesmo do iPhone.</li>
+          <li data-i18n="bs2">Eu envio o convite do TestFlight, o app oficial da Apple para versões beta.</li>
+          <li data-i18n="bs3">Abra o convite no iPhone (iOS 18 ou mais recente) e instale. Grátis durante o beta.</li>
+        </ol>
+        <a class="btn btn--flame btn--lg js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.beta">Pedir convite para o beta</a>
         <p class="beta__mail">contato@wagnerrosa.com</p>
       </div>
     </div>
@@ -348,20 +264,115 @@
         </details>
         <details>
           <summary data-i18n="q3.q">Preciso criar conta?</summary>
-          <p data-i18n="q3.a">Não. Abriu, usou. Se quiser levar seus dados para outro aparelho, entre com a sua conta Apple, e o que você já registrou continua lá.</p>
+          <p data-i18n="q3.a">Não. Abriu, usou: o app funciona sem criar conta e sem senha.</p>
         </details>
         <details>
           <summary data-i18n="q4.q">Onde ficam meus dados?</summary>
-          <p data-i18n="q4.a">Primeiro no seu iPhone. Uma cópia fica na nuvem, isolada na sua conta, para você não perder nada. A foto do cupom é lida no aparelho e não é enviada. As estatísticas de uso são anônimas e dá para desligar nos Ajustes.</p>
+          <p data-i18n="q4.a">Primeiro no seu iPhone, com uma cópia na nuvem isolada na sua conta. As estatísticas de uso são anônimas e dá para desligar nos Ajustes. Detalhes na <a href="privacidade/">política de privacidade</a>.</p>
+        </details>
+        <details>
+          <summary data-i18n="q7.q">O que acontece com as fotos?</summary>
+          <p data-i18n="q7.a">A leitura acontece no próprio iPhone. A foto do cupom não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem.</p>
         </details>
         <details>
           <summary data-i18n="q5.q">Por que o consumo não aparece no primeiro abastecimento?</summary>
           <p data-i18n="q5.a">Porque consumo honesto se mede entre dois tanques cheios: o primeiro é o ponto de partida. O app mostra quantos abastecimentos faltam para a primeira média aparecer.</p>
         </details>
         <details>
+          <summary data-i18n="q8.q">Lê o display da bomba?</summary>
+          <p data-i18n="q8.a">Não. Testei, e foto do display da bomba não é lida com confiança. O app lê o cupom impresso, onde funciona, e você confere os valores antes de salvar.</p>
+        </details>
+        <details>
           <summary data-i18n="q6.q">O código é aberto?</summary>
           <p data-i18n="q6.a">O código está público no GitHub para quem quiser conhecer como o app é feito. Se gostar, deixe uma estrela, isso ajuda muito.</p>
         </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONQUISTAS -->
+  <section class="section badges" id="conquistas">
+    <div class="wrap">
+      <header class="section__head reveal">
+        <p class="kicker" data-i18n="b.kicker">Conquistas</p>
+        <h2 data-i18n="b.title">Rodar também é colecionar.</h2>
+        <p class="section__lede" data-i18n="b.lede">25 medalhas com pontos por dificuldade e níveis que sobem de verdade. É só reconhecimento: nenhuma função fica trancada atrás de medalha.</p>
+      </header>
+      <ul class="badge-grid reveal">
+        <li><img src="assets/badges/firstFuel.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.fuel">1º abastecimento</span></li>
+        <li><img src="assets/badges/firstMaintenance.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.maint">1ª manutenção</span></li>
+        <li><img src="assets/badges/bestConsumption.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.best">Acima da média</span></li>
+        <li><img src="assets/badges/piston.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.cc">Clube 500cc</span></li>
+        <li><img src="assets/badges/touring.webp" alt="" width="240" height="240" loading="lazy"><span>Estradeiro</span></li>
+        <li><img src="assets/badges/trail.webp" alt="" width="240" height="240" loading="lazy"><span>Adventure Rider</span></li>
+        <li><img src="assets/badges/custom.webp" alt="" width="240" height="240" loading="lazy"><span>Highway Rider</span></li>
+        <li><img src="assets/badges/sport.webp" alt="" width="240" height="240" loading="lazy"><span>Speed Demon</span></li>
+        <li><img src="assets/badges/street.webp" alt="" width="240" height="240" loading="lazy"><span>Street Fighter</span></li>
+        <li><img src="assets/badges/scooter.webp" alt="" width="240" height="240" loading="lazy"><span>Urban Rider</span></li>
+        <li><img src="assets/badges/offroad.webp" alt="" width="240" height="240" loading="lazy"><span>Off-road</span></li>
+        <li class="is-soon"><img src="assets/badges/ironButt.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.iron">Iron Butt · futuro</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section class="section" id="roadmap">
+    <div class="wrap wrap--narrow">
+      <header class="section__head reveal">
+        <p class="kicker" data-i18n="r.kicker">Roadmap</p>
+        <h2 data-i18n="r.title">Hoje, o diário de bordo. No horizonte, o passaporte da sua moto.</h2>
+        <blockquote class="quote" data-i18n="r.quote">“A moto leva seus eventos. Você mantém sua história.”</blockquote>
+        <p class="section__lede" data-i18n="r.lede">A ideia é que o histórico pertença à moto, não ao dono: numa venda, manutenções, quilometragem e consumo iriam junto. Nada disso tem data. O que vem depois depende do que o beta mostrar.</p>
+      </header>
+
+      <ol class="timeline">
+        <li class="tl tl--done reveal">
+          <span class="tl__status" data-i18n="st.done">Entregue</span>
+          <h3 data-i18n="r1.t">Diário de bordo</h3>
+          <p data-i18n="r1.d">Abastecimento rápido, consumo real, leitura do cupom, manutenção programada, garagem com várias motos, medalhas e cópia dos seus registros na nuvem.</p>
+        </li>
+        <li class="tl tl--now reveal">
+          <span class="tl__status" data-i18n="st.now">Agora</span>
+          <h3 data-i18n="r2.t">Beta no TestFlight</h3>
+          <p data-i18n="r2.d">Motociclistas de verdade usando no dia a dia pelo TestFlight. É aqui que você entra: cada abastecimento registrado ajuda a decidir o próximo passo.</p>
+          <a class="btn btn--flame btn--sm js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.beta">Pedir convite para o beta</a>
+        </li>
+        <li class="tl reveal">
+          <span class="tl__status" data-i18n="st.planned">Planejado</span>
+          <h3 data-i18n="r3.t">Passaporte digital</h3>
+          <p data-i18n="r3.d">O histórico passa a pertencer à moto, com o autor de cada registro guardado.</p>
+        </li>
+        <li class="tl reveal">
+          <span class="tl__status" data-i18n="st.planned">Planejado</span>
+          <h3 data-i18n="r4.t">Transferência por QR code</h3>
+          <p data-i18n="r4.d">Vendeu a moto? Um código passaria a posse e o histórico para o comprador.</p>
+        </li>
+        <li class="tl reveal">
+          <span class="tl__status" data-i18n="st.vision">Visão</span>
+          <h3 data-i18n="r5.t">Perfil que fica com você</h3>
+          <p data-i18n="r5.d">Seus quilômetros e conquistas continuariam seus depois da venda, documentos da moto (nota, recibos, certificados) ligados a ela e um jeito de verificar que o histórico não foi alterado.</p>
+        </li>
+        <li class="tl reveal">
+          <span class="tl__status" data-i18n="st.ideas">Ideias</span>
+          <h3 data-i18n="r6.t">Além do posto</h3>
+          <p data-i18n="r6.d">Consumo real comparado ao de fábrica, clima em cada abastecimento, diário e viagens, desafios de longa distância como o Iron Butt e, um dia, comunidade.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- BASTIDORES -->
+  <section class="section story" id="bastidores">
+    <div class="wrap">
+      <header class="section__head reveal">
+        <p class="kicker" data-i18n="s.kicker">Bastidores</p>
+        <h2 data-i18n="s.title">Um projeto de produto, do problema ao TestFlight.</h2>
+        <p class="section__lede" data-i18n="s.lede">O Carburante é um projeto pessoal de <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, Senior Product Designer. Pesquisa, definição de produto, design de interface e o app em Swift nativo, de ponta a ponta.</p>
+      </header>
+
+      <div class="cta-row cta-row--center reveal">
+        <a class="btn btn--solid" href="https://wagnerrosa.com" target="_blank" rel="noopener" data-i18n="s.portfolio">Ver portfólio</a>
+        <a class="btn btn--outline" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener" data-i18n="s.code">Ler o código</a>
       </div>
     </div>
   </section>
@@ -385,6 +396,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
