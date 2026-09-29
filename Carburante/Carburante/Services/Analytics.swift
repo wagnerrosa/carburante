@@ -107,9 +107,14 @@ enum Analytics {
     /// `isHistorical`: registrado dias depois do fato (`EventProvenance`) — filtre
     /// insights de hábito/retenção por `is_historical = false` (histórico infla
     /// `log_number`/`unlocks_consumption` sem ser uso recorrente).
+    ///
+    /// `gapWarning` (`none`/`jump`/`kml`): aviso de lacuna que o fluxo mostrou;
+    /// com `missed_previous` calibra os limites de `FuelGap` (quantos avisos
+    /// viraram marcação vs. correção do km). Sem km, só o tipo do sinal.
     static func fuelCreated(fuelType: FuelType, isFullTank: Bool, ocrOutcome: OCROutcome,
                             hasLocation: Bool, logNumber: Int, liters: Double, cost: Double,
-                            unlocksConsumption: Bool, currency: String, isHistorical: Bool) {
+                            unlocksConsumption: Bool, currency: String, isHistorical: Bool,
+                            missedPrevious: Bool = false, gapWarning: String = "none") {
         capture("fuel_created", [
             "fuel_type": fuelType.rawValue,
             "is_full_tank": isFullTank,
@@ -121,6 +126,8 @@ enum Analytics {
             "currency": currency,
             "unlocks_consumption": unlocksConsumption,
             "is_historical": isHistorical,
+            "missed_previous": missedPrevious,
+            "gap_warning": gapWarning,
         ])
     }
 

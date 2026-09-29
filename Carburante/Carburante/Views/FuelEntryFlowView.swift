@@ -52,6 +52,9 @@ struct FuelEntryFlowView: View {
     @State private var liters: Double?
     @State private var fuelType: FuelType = .gasolinaComum
     @State private var isFullTank: Bool = true
+    /// Lacuna: houve abastecimentos não registrados antes deste. O app só
+    /// sugere (salto de km / km/l alto); quem marca é o usuário.
+    @State private var missedPrevious: Bool = false
 
     // Local editável na revisão (pré-preenchido pela captura automática).
     @State private var editedCity: String = ""
@@ -166,7 +169,7 @@ struct FuelEntryFlowView: View {
 
     private var estimatedKmPerLiter: Double? {
         // Histórico não entra no consumo → não promete um km/l.
-        guard !historyMode, !willBeHistorical,
+        guard !historyMode, !willBeHistorical, !missedPrevious,
               isFullTank, let odo = odometer, let l = liters, l > 0,
               lastOdometer > 0, odo > lastOdometer else { return nil }
         return (odo - lastOdometer) / l
@@ -175,6 +178,40 @@ struct FuelEntryFlowView: View {
     private var odometerDelta: Double? {
         guard let odo = odometer, odo > 0, lastOdometer > 0 else { return nil }
         return odo - lastOdometer
+    }
+
+    /// Salto de km grande demais para o histórico da moto (erro de digitação
+    /// ou OCR, ou abastecimentos não registrados). Só no registro de todo dia —
+    /// o registro antigo já tem piso/teto pela data.
+    private var isSuspiciousJump: Bool {
+        guard !historyMode, let delta = odometerDelta, delta > 0 else { return false }
+        let logs = motorcycle.activeFuelLogs
+        let lastDate = logs.max { $0.odometer < $1.odometer }?.date ?? motorcycle.createdAt
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: lastDate),
+                                           to: calendar.startOfDay(for: date)).day
+        return FuelGap.isSuspiciousJump(delta: delta,
+                                        deltas: FuelGap.deltas(from: logs.map(\.asFuelEntry)),
+                                        daysSinceLast: days)
+    }
+
+    /// Este registro fecharia um trecho com km/l alto demais (abastecimento
+    /// esquecido no meio, mesmo com salto de km pequeno). Histórico fica fora do
+    /// consumo → nada a avisar. Independe da marcação (o analytics precisa
+    /// saber que o sinal apareceu mesmo depois de o usuário marcar).
+    private var isImplausibleKmPerLiter: Bool {
+        guard !historyMode, !willBeHistorical,
+              let odo = odometer, let l = liters, l > 0 else { return false }
+        let entry = FuelEntry(odometer: odo, liters: l, totalCost: cost ?? 0,
+                              isFullTank: isFullTank, date: date)
+        return FuelGap.isImplausibleKmPerLiter(adding: entry, to: motorcycle.consumptionEntries)
+    }
+
+    /// Qual aviso de lacuna o usuário viu (analytics — calibra os limites).
+    private var gapWarning: FuelGap.Warning? {
+        if isSuspiciousJump { return .jump }
+        if isImplausibleKmPerLiter { return .kmPerLiter }
+        return nil
     }
 
     private var canSave: Bool {
@@ -422,9 +459,33 @@ struct FuelEntryFlowView: View {
         } else if let info = odometerUpdateInfo {
             feedbackLabel(info, icon: "info.circle", color: .secondary)
         } else if !historyMode, let delta = odometerDelta, delta > 0 {
-            feedbackLabel("+\(AppFormat.km(delta)) desde o último",
-                          icon: "checkmark.circle.fill", color: .secondary)
+            if missedPrevious {
+                VStack(alignment: .leading, spacing: 8) {
+                    feedbackLabel("+\(AppFormat.km(delta)) — abasteceu sem registrar. O consumo recomeça neste abastecimento.",
+                                  icon: "arrow.uturn.forward.circle.fill", color: .secondary)
+                    Button("Desfazer") { setMissedPrevious(false) }
+                        .font(.footnote.weight(.semibold))
+                }
+            } else if isSuspiciousJump {
+                // Salto grande: km errado (digitação/OCR) ou abastecimentos
+                // esquecidos. Pergunta — nunca bloqueia, nunca marca sozinho.
+                VStack(alignment: .leading, spacing: 8) {
+                    feedbackLabel("+\(AppFormat.km(delta)) desde o último — confira o km",
+                                  icon: "exclamationmark.triangle.fill", color: .orange)
+                    Button("Abasteci sem registrar") { setMissedPrevious(true) }
+                        .font(.footnote.weight(.semibold))
+                }
+            } else {
+                feedbackLabel("+\(AppFormat.km(delta)) desde o último",
+                              icon: "checkmark.circle.fill", color: .secondary)
+            }
         }
+    }
+
+    private func setMissedPrevious(_ value: Bool) {
+        Haptics.selection()
+        withAnimation { missedPrevious = value }
+        fillFocus = nil
     }
 
     /// Registro antigo: o km da moto nos abastecimentos vizinhos da data — a
@@ -544,6 +605,13 @@ struct FuelEntryFlowView: View {
                     fullToFullExplainer
                 }
 
+                // km/l que este registro fecharia é alto demais → provável
+                // abastecimento esquecido (ou km/litros errados). Só sugere.
+                if isImplausibleKmPerLiter, !missedPrevious {
+                    feedbackLabel("Consumo alto demais para esta moto. Confira o km e os litros — ou marque abaixo se abasteceu sem registrar.",
+                                  icon: "exclamationmark.triangle.fill", color: .orange)
+                }
+
                 VStack(spacing: 0) {
                     reviewRow("Hodômetro", value: odometer.map(AppFormat.km) ?? "—") { goTo(.odometer) }
                     Divider().padding(.leading, 16)
@@ -564,6 +632,13 @@ struct FuelEntryFlowView: View {
                     Divider().padding(.leading, 16)
                     Toggle("Tanque cheio", isOn: $isFullTank)
                         .padding(.horizontal, 16).padding(.vertical, 8)
+                    // Só aparece quando há sinal (ou já marcado) — no dia a dia
+                    // a revisão continua com os mesmos 2 controles.
+                    if missedPrevious || gapWarning != nil {
+                        Divider().padding(.leading, 16)
+                        Toggle("Abasteci sem registrar antes", isOn: $missedPrevious)
+                            .padding(.horizontal, 16).padding(.vertical, 8)
+                    }
                 }
                 .background(Color(.secondarySystemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -602,8 +677,9 @@ struct FuelEntryFlowView: View {
         // Quantos cheios salvos já existem, mais este se for cheio.
         let savedFullTanks = motorcycle.activeFuelLogs.filter(\.isFullTank).count
         let afterThisSave = savedFullTanks + (isFullTank ? 1 : 0)
-        // Faltam quantos para 2? (máximo 2, mínimo 0).
-        let remaining = max(2 - afterThisSave, 0)
+        // Faltam quantos para 2? (máximo 2, mínimo 0). Lacuna recomeça a
+        // medição: este cheio é a nova âncora (falta 1); parcial, faltam 2.
+        let remaining = missedPrevious ? (isFullTank ? 1 : 2) : max(2 - afterThisSave, 0)
 
         VStack(spacing: 6) {
             Image(systemName: "fuelpump.circle.fill")
@@ -622,6 +698,9 @@ struct FuelEntryFlowView: View {
     }
 
     private func explainerTitle(remaining: Int) -> String {
+        if missedPrevious {
+            return "A medição recomeça aqui"
+        }
         if !isFullTank {
             return "Abastecimento parcial"
         }
@@ -633,6 +712,11 @@ struct FuelEntryFlowView: View {
     }
 
     private func explainerSubtitle(remaining: Int) -> String {
+        if missedPrevious {
+            return remaining == 1
+                ? "Os abastecimentos sem registro ficam fora do consumo. No próximo tanque cheio, o km/l volta."
+                : "Os abastecimentos sem registro ficam fora do consumo. O km/l volta depois de 2 tanques cheios."
+        }
         if !isFullTank {
             return "O consumo só é medido entre dois tanques cheios. Marque \"Tanque cheio\" quando completar o tanque."
         }
@@ -881,6 +965,7 @@ struct FuelEntryFlowView: View {
             fuelType: fuelType, isFullTank: isFullTank,
             motorcycle: motorcycle, ocrProcessed: ocrProcessed
         )
+        log.missedPrevious = missedPrevious
         log.ocrConfidence = ocrConfidence
         // Coordenadas GPS são a verdade (não editáveis); cidade/estado são o
         // rótulo, que o usuário pode corrigir na revisão.
@@ -921,9 +1006,11 @@ struct FuelEntryFlowView: View {
             liters: lit,
             cost: c,
             // Este registro destrava a 1ª leitura de consumo se fecha o 2º cheio.
-            unlocksConsumption: isFullTank && fullTanks == 2,
+            unlocksConsumption: isFullTank && !missedPrevious && fullTanks == 2,
             currency: "BRL",
-            isHistorical: log.isHistorical
+            isHistorical: log.isHistorical,
+            missedPrevious: missedPrevious,
+            gapWarning: gapWarning?.rawValue ?? "none"
         )
         // 1º OCR aceito = adoção da feature OCR (1 vez por usuário).
         if ocrProcessed, ocrOutcome != .notUsed, AdoptionTracker.markAndCheck(.ocr) {
