@@ -17,13 +17,13 @@
   <meta property="og:title" content="Carburante · Quanto sua moto faz de verdade">
   <meta property="og:description" content="Consumo real, de tanque cheio a tanque cheio, e manutenção em dia. App para iPhone em beta no TestFlight.">
   <meta property="og:url" content="https://carburante.motorcycles/">
-  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png">
+  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=2">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png">
+  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=2">
 
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
   <script>document.documentElement.classList.add('js')</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
@@ -168,7 +168,7 @@
     <div class="wrap">
       <header class="section__head reveal">
         <p class="kicker" data-i18n="f.kicker">Recursos</p>
-        <h2 data-i18n="f.title">Feito para quem anda, não para quem digita.</h2>
+        <h2 data-i18n="f.title">Feito para quem roda, não para quem digita.</h2>
       </header>
 
       <div class="feature reveal">
@@ -320,39 +320,64 @@
         <p class="section__lede" data-i18n="r.lede">A ideia é que o histórico pertença à moto, não ao dono: numa venda, manutenções, quilometragem e consumo iriam junto. Nada disso tem data. O que vem depois depende do que o beta mostrar.</p>
       </header>
 
-      <ol class="timeline">
-        <li class="tl tl--done reveal">
-          <span class="tl__status" data-i18n="st.done">Entregue</span>
-          <h3 data-i18n="r1.t">Diário de bordo</h3>
-          <p data-i18n="r1.d">Abastecimento rápido, consumo real, leitura do cupom, manutenção programada, garagem com várias motos, medalhas e cópia dos seus registros na nuvem.</p>
-        </li>
-        <li class="tl tl--now reveal">
-          <span class="tl__status" data-i18n="st.now">Agora</span>
-          <h3 data-i18n="r2.t">Beta no TestFlight</h3>
-          <p data-i18n="r2.d">Motociclistas de verdade usando no dia a dia pelo TestFlight. É aqui que você entra: cada abastecimento registrado ajuda a decidir o próximo passo.</p>
-          <a class="btn btn--flame btn--sm js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.beta">Pedir convite para o beta</a>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.planned">Planejado</span>
-          <h3 data-i18n="r3.t">Passaporte digital</h3>
-          <p data-i18n="r3.d">O histórico passa a pertencer à moto, com o autor de cada registro guardado.</p>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.planned">Planejado</span>
-          <h3 data-i18n="r4.t">Transferência por QR code</h3>
-          <p data-i18n="r4.d">Vendeu a moto? Um código passaria a posse e o histórico para o comprador.</p>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.vision">Visão</span>
-          <h3 data-i18n="r5.t">Perfil que fica com você</h3>
-          <p data-i18n="r5.d">Seus quilômetros e conquistas continuariam seus depois da venda, documentos da moto (nota, recibos, certificados) ligados a ela e um jeito de verificar que o histórico não foi alterado.</p>
-        </li>
-        <li class="tl reveal">
-          <span class="tl__status" data-i18n="st.ideas">Ideias</span>
-          <h3 data-i18n="r6.t">Além do posto</h3>
-          <p data-i18n="r6.d">Consumo real comparado ao de fábrica, clima em cada abastecimento, diário e viagens, desafios de longa distância como o Iron Butt e, um dia, comunidade.</p>
-        </li>
-      </ol>
+      <!-- Linha contínua = entregue; tracejada = ainda não existe. O último item sai num ramo. -->
+      <div class="card roadmap__card">
+        <ol class="timeline">
+          <li class="tl tl--done reveal">
+            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+            <div class="tl__head">
+              <h3 data-i18n="r1.t">Diário de bordo</h3>
+              <span class="tl__status" data-i18n="st.done">Entregue</span>
+              <span class="tl__tag">v1.0</span>
+            </div>
+            <p data-i18n="r1.d">Abastecimento rápido, consumo real, leitura do cupom, manutenção programada, garagem com várias motos, medalhas e cópia dos seus registros na nuvem.</p>
+            <a class="tl__link" href="#recursos" data-i18n="r1.link">Ver os recursos</a>
+          </li>
+          <li class="tl tl--now reveal">
+            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 2v7.5a2 2 0 0 1-.2.9l-5.1 10.1a1 1 0 0 0 .9 1.5h12.8a1 1 0 0 0 .9-1.5l-5.1-10.1a2 2 0 0 1-.2-.9V2M8.5 2h7M7 16h10"/></svg></span>
+            <div class="tl__head">
+              <h3 data-i18n="r2.t">Beta no TestFlight</h3>
+              <span class="tl__status" data-i18n="st.now">Agora</span>
+            </div>
+            <p data-i18n="r2.d">Motociclistas de verdade usando no dia a dia pelo TestFlight. É aqui que você entra: cada abastecimento registrado ajuda a decidir o próximo passo.</p>
+            <a class="btn btn--flame btn--sm js-beta" href="mailto:contato@wagnerrosa.com?subject=Beta%20Carburante" data-i18n="cta.beta">Pedir convite para o beta</a>
+          </li>
+          <li class="tl reveal">
+            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-5H20M15 13a3 3 0 1 0-6 0"/><circle cx="12" cy="8" r="2"/></svg></span>
+            <div class="tl__head">
+              <h3 data-i18n="r3.t">Passaporte digital</h3>
+              <span class="tl__status" data-i18n="st.planned">Planejado</span>
+            </div>
+            <p data-i18n="r3.d">O histórico passa a pertencer à moto, com o autor de cada registro guardado.</p>
+          </li>
+          <li class="tl reveal">
+            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M21 15h-3a2 2 0 0 0-2 2v4M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1M21 12v.01M12 21v-1"/></svg></span>
+            <div class="tl__head">
+              <h3 data-i18n="r4.t">Transferência por QR code</h3>
+              <span class="tl__status" data-i18n="st.planned">Planejado</span>
+            </div>
+            <p data-i18n="r4.d">Vendeu a moto? Um código passaria a posse e o histórico para o comprador.</p>
+          </li>
+          <li class="tl reveal">
+            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="m15.5 12.9 1.5 8.5a.5.5 0 0 1-.8.5l-3.6-2.7a1 1 0 0 0-1.2 0l-3.6 2.7a.5.5 0 0 1-.8-.5l1.5-8.5"/></svg></span>
+            <div class="tl__head">
+              <h3 data-i18n="r5.t">Perfil que fica com você</h3>
+              <span class="tl__status" data-i18n="st.vision">Visão</span>
+            </div>
+            <p data-i18n="r5.d">Seus quilômetros e conquistas continuariam seus depois da venda, documentos da moto (nota, recibos, certificados) ligados a ela e um jeito de verificar que o histórico não foi alterado.</p>
+          </li>
+          <li class="tl tl--branch reveal">
+            <span class="tl__art" aria-hidden="true"><img src="assets/art/motorcycle.webp" alt="" width="320" height="320" loading="lazy"></span>
+            <div>
+              <div class="tl__head">
+                <h3 data-i18n="r6.t">Além do posto</h3>
+                <span class="tl__status" data-i18n="st.ideas">Ideias</span>
+              </div>
+              <p data-i18n="r6.d">Consumo real comparado ao de fábrica, clima em cada abastecimento, diário e viagens, desafios de longa distância como o Iron Butt e, um dia, comunidade.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
     </div>
   </section>
 
@@ -382,21 +407,20 @@
 
 <footer class="footer">
   <div class="wrap footer__inner">
-    <a class="brand" href="#top">
-      <img src="assets/icon-256.png" alt="" width="26" height="26" loading="lazy">
-      <span>Carburante</span>
-    </a>
-    <p class="footer__by" data-i18n="ft.by">Feito por <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a> · 2026</p>
-    <nav class="footer__links" aria-label="Links">
-      <a href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://wagnerrosa.com" target="_blank" rel="noopener" data-i18n="ft.portfolio">Portfólio</a>
-      <a href="mailto:contato@wagnerrosa.com">Email</a>
-      <a href="privacidade/" data-i18n="ft.privacy">Privacidade</a>
-    </nav>
+    <div class="footer__row">
+      <p class="footer__by" data-i18n="ft.by">Feito com <span class="footer__moto" role="img" aria-label="scooter">🛵</span> por <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a></p>
+      <nav class="footer__links" aria-label="Links">
+        <a href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://wagnerrosa.com" target="_blank" rel="noopener" data-i18n="ft.portfolio">Portfólio</a>
+        <a href="mailto:contato@wagnerrosa.com">Email</a>
+        <a href="privacidade/" data-i18n="ft.privacy">Privacidade</a>
+      </nav>
+    </div>
+    <p class="footer__copy" data-i18n="ft.copy">© 2026 Carburante. Todos os direitos reservados.</p>
     <p class="footer__legal" data-i18n="ft.legal">Nomes e logotipos de fabricantes de motos exibidos nas telas são marcas comerciais ou registradas de seus respectivos detentores, usados só para identificar a moto cadastrada. O Carburante é independente, sem afiliação, patrocínio ou endosso de qualquer fabricante.</p>
   </div>
 </footer>
 
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
