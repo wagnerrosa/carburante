@@ -19,6 +19,8 @@ struct FuelEntry {
     let totalCost: Double
     let isFullTank: Bool
     let date: Date
+    /// Lacuna antes deste registro (ver `FuelLog.missedPrevious`).
+    var missedPrevious: Bool = false
 }
 
 /// Consumo de um segmento entre dois tanques cheios consecutivos.
@@ -80,7 +82,8 @@ struct GarageRecords: Equatable {
 
 extension FuelLog {
     var asFuelEntry: FuelEntry {
-        FuelEntry(odometer: odometer, liters: liters, totalCost: totalCost, isFullTank: isFullTank, date: date)
+        FuelEntry(odometer: odometer, liters: liters, totalCost: totalCost, isFullTank: isFullTank,
+                  date: date, missedPrevious: missedPrevious)
     }
 }
 
@@ -320,6 +323,15 @@ enum ConsumptionCalculator {
         var costSinceAnchor = 0.0
 
         for entry in ordered {
+            // Lacuna: houve abastecimentos não registrados antes deste. O trecho
+            // aberto é descartado (não fecha) e a medição recomeça aqui — cheio
+            // vira âncora nova; parcial não ancora (faltam 2 cheios).
+            if entry.missedPrevious {
+                anchor = entry.isFullTank ? entry : nil
+                litersSinceAnchor = 0
+                costSinceAnchor = 0
+                continue
+            }
             if let start = anchor {
                 // Tudo que entra depois da âncora conta para o segmento atual.
                 litersSinceAnchor += entry.liters
@@ -514,11 +526,16 @@ enum ConsumptionCalculator {
     /// contagem olha só os cheios, e cai para o `segments()` para detectar o
     /// caso de odômetro que não avançou. Mesma fonte de verdade do gráfico, para
     /// a mensagem nunca divergir do que está desenhado.
+    ///
+    /// Lacuna (`missedPrevious`) recomeça a contagem: só contam os cheios a
+    /// partir da última lacuna (inclusive ela, se cheia).
     static func fullTanksUntilFirstReading(from entries: [FuelEntry]) -> Int {
         // Já existe consumo medido → nada falta.
         if !segments(from: entries).isEmpty { return 0 }
 
-        let fullTanks = entries.filter(\.isFullTank).count
+        let ordered = entries.sorted { $0.odometer < $1.odometer }
+        let sinceGap = ordered.lastIndex(where: \.missedPrevious).map { ordered[$0...] } ?? ordered[...]
+        let fullTanks = sinceGap.filter(\.isFullTank).count
         // 0 cheios → faltam 2; 1+ cheios sem segmento ainda → falta 1.
         return fullTanks == 0 ? 2 : 1
     }

@@ -59,6 +59,9 @@ struct FuelLogDTO: Codable {
     /// união das chaves, e nil viraria NULL numa coluna NOT NULL. O servidor só
     /// aceita valor MENOR (trigger `keep_earliest_created_at`).
     let created_at: Date
+    /// Lacuna antes deste registro (PLAN/lacuna-abastecimento.md). Build antigo
+    /// não manda a chave → o upsert não toca a coluna (flag nunca é zerada).
+    var missed_previous: Bool = false
 }
 
 struct MaintenanceLogDTO: Codable {

@@ -31,6 +31,7 @@ struct FuelLogFormView: View {
     @State private var totalCost: Double?
     @State private var fuelType: FuelType = .gasolinaComum
     @State private var isFullTank: Bool = true
+    @State private var missedPrevious: Bool = false
     @State private var validationMessage: String?
     /// Confirmação de descarte (Cancelar/swipe-down com alterações).
     @State private var showDiscardConfirm = false
@@ -96,7 +97,7 @@ struct FuelLogFormView: View {
     /// Consumo estimado deste tanque: km desde o último registro ÷ litros.
     /// Só faz sentido em tanque cheio (modelo full-to-full).
     private var liveKmPerLiter: Double? {
-        guard isFullTank, let odo = odometer, let l = liters, l > 0,
+        guard isFullTank, !missedPrevious, let odo = odometer, let l = liters, l > 0,
               lastOdometer > 0, odo > lastOdometer else { return nil }
         return (odo - lastOdometer) / l
     }
@@ -116,7 +117,8 @@ struct FuelLogFormView: View {
         guard let log = fuelLog else { return false }
         return date != log.date || odometer != log.odometer || liters != log.liters
             || totalCost != log.totalCost || fuelType != log.fuelType
-            || isFullTank != log.isFullTank || odometerPhoto != nil
+            || isFullTank != log.isFullTank || missedPrevious != log.missedPrevious
+            || odometerPhoto != nil
     }
 
     /// Placeholder do hodômetro: último valor conhecido, deixa claro que é leitura total.
@@ -191,6 +193,18 @@ struct FuelLogFormView: View {
                         Text("Encha o tanque neste primeiro registro para começar a medir o consumo.")
                     } else {
                         Text("Desligue se você não encheu o tanque. Abastecimentos parciais são somados e o consumo é fechado no próximo tanque cheio.")
+                    }
+                }
+
+                // Lacuna: abasteceu antes sem registrar → o trecho não vira
+                // consumo (senão o km/l sai absurdo). PLAN/lacuna-abastecimento.md.
+                if !isFirstFuelUp {
+                    Section {
+                        Toggle("Abasteci sem registrar antes", isOn: $missedPrevious)
+                    } footer: {
+                        Text(missedPrevious
+                             ? "O consumo recomeça a ser medido a partir deste abastecimento. Os km continuam contando."
+                             : "Ligue se houve abastecimentos antes deste que você não registrou. Evita um consumo irreal.")
                     }
                 }
 
@@ -394,6 +408,7 @@ struct FuelLogFormView: View {
             totalCost = log.totalCost
             fuelType = log.fuelType
             isFullTank = log.isFullTank
+            missedPrevious = log.missedPrevious
         } else if let last = motorcycle.latestFuelLog {
             // Novo registro: pré-seleciona o último combustível usado.
             fuelType = last.fuelType
@@ -426,6 +441,7 @@ struct FuelLogFormView: View {
             if log.fuelType != fuelType { changed.append("fuel_type") }
             if log.date != date { changed.append("date") }
             if log.isFullTank != isFullTank { changed.append("full_tank") }
+            if log.missedPrevious != missedPrevious { changed.append("missed_previous") }
             let timeSinceCreate = Date().timeIntervalSince(log.createdAt)
             let wasOcr = log.ocrProcessed
 
@@ -437,6 +453,7 @@ struct FuelLogFormView: View {
             // o fallback no form, e regravar trocaria a chave real por ele.
             if log.fuelType != fuelType { log.fuelType = fuelType }
             log.isFullTank = isFullTank
+            log.missedPrevious = missedPrevious
             if ocrProcessed {
                 log.ocrProcessed = true
                 log.ocrConfidence = ocrConfidence

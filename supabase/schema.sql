@@ -84,6 +84,9 @@ alter table public.fuel_logs add column if not exists location_was_edited boolea
 alter table public.fuel_logs add column if not exists updated_at timestamptz not null default now();
 alter table public.fuel_logs add column if not exists revision integer not null default 0;
 alter table public.fuel_logs add column if not exists deleted_at timestamptz;
+-- Lacuna: abastecimentos não registrados antes deste → quebra a medição de
+-- consumo (ver PLAN/lacuna-abastecimento.md). Marcado pelo usuário.
+alter table public.fuel_logs add column if not exists missed_previous boolean not null default false;
 -- Backfill: linhas antigas nunca foram "atualizadas" → updated_at = created_at
 -- (o default now() da migração colocaria a data da migração, não a real).
 update public.fuel_logs set updated_at = created_at where updated_at > created_at;
