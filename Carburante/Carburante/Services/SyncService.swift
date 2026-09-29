@@ -272,7 +272,7 @@ final class SyncService {
                     // edição/exclusão da mesma linha em dois devices). Empate ou
                     // local mais novo → mantém local (o push envia o local depois).
                     if dto.updated_at > existing.updatedAt {
-                        applyFuel(dto, to: existing)
+                        Self.applyFuel(dto, to: existing)
                     }
                     healCreatedAt(&existing.createdAt, remote: dto.created_at)
                     // Foto fora do LWW: o upload muda a referência sem mexer em
@@ -293,7 +293,7 @@ final class SyncService {
                 )
                 log.id = dto.id
                 log.motorcycle = moto
-                applyFuel(dto, to: log)
+                Self.applyFuel(dto, to: log)
                 context.insert(log)
             }
 
@@ -306,7 +306,7 @@ final class SyncService {
                 if let existing = maintByID[dto.id] {
                     // Last-write-wins por `updated_at` (idem abastecimentos).
                     if dto.updated_at > existing.updatedAt {
-                        applyMaint(dto, to: existing)
+                        Self.applyMaint(dto, to: existing)
                     }
                     healCreatedAt(&existing.createdAt, remote: dto.created_at)
                     continue
@@ -323,7 +323,7 @@ final class SyncService {
                     createdAt: dto.created_at
                 )
                 log.id = dto.id
-                applyMaint(dto, to: log)
+                Self.applyMaint(dto, to: log)
                 context.insert(log)
             }
 
@@ -374,12 +374,18 @@ final class SyncService {
     /// Aplica os campos de um `FuelLogDTO` a um `FuelLog` (novo ou já existente).
     /// Usado no pull tanto para inserir quanto para o last-write-wins (sobrescrita
     /// da linha local quando a remota é mais nova). Não mexe em `id`/`motorcycle`.
-    private func applyFuel(_ dto: FuelLogDTO, to log: FuelLog) {
+    ///
+    /// Enums vêm como **chave crua**, nunca via `FuelType(rawValue:) ?? fallback`:
+    /// um build novo pode gravar um tipo que este não conhece (ex.: combustível de
+    /// outro país), e converter para o fallback aqui faria o push seguinte
+    /// sobrescrever o dado certo no Supabase. A tela usa o fallback; o dado fica
+    /// intacto. Estático e interno só para os testes (`SyncEnumPassthroughTests`).
+    static func applyFuel(_ dto: FuelLogDTO, to log: FuelLog) {
         log.date = dto.date
         log.odometer = dto.odometer
         log.liters = dto.liters
         log.totalCost = dto.total_cost
-        log.fuelType = FuelType(rawValue: dto.fuel_type) ?? .gasolinaComum
+        log.fuelTypeRaw = dto.fuel_type
         log.isFullTank = dto.is_full_tank
         log.latitude = dto.latitude; log.longitude = dto.longitude
         log.city = dto.city; log.state = dto.state; log.country = dto.country
@@ -397,14 +403,15 @@ final class SyncService {
         log.deletedAt = dto.deleted_at
     }
 
-    /// Aplica os campos de um `MaintenanceLogDTO` a um `MaintenanceLog`.
-    private func applyMaint(_ dto: MaintenanceLogDTO, to log: MaintenanceLog) {
+    /// Aplica os campos de um `MaintenanceLogDTO` a um `MaintenanceLog`. Enums
+    /// como chave crua — mesmo motivo de `applyFuel`.
+    static func applyMaint(_ dto: MaintenanceLogDTO, to log: MaintenanceLog) {
         log.date = dto.date
         log.mileage = dto.mileage
         log.cost = dto.cost
         log.notes = dto.notes
-        log.type = MaintenanceType(rawValue: dto.type) ?? .outro
-        log.tirePosition = dto.tire_position.flatMap(TirePosition.init(rawValue:))
+        log.typeRaw = dto.type
+        log.tirePositionRaw = dto.tire_position
         log.intervalKm = dto.interval_km
         log.intervalMonths = dto.interval_months
         log.partOfMaintenanceID = dto.part_of_maintenance_id
