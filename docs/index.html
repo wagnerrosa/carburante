@@ -23,7 +23,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=2">
 
-  <link rel="stylesheet" href="style.css?v=12">
+  <link rel="stylesheet" href="style.css?v=13">
   <script>document.documentElement.classList.add('js')</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
@@ -71,7 +71,6 @@
       <a href="#consumo" data-i18n="nav.how">Como funciona</a>
       <a href="#recursos" data-i18n="nav.features">Recursos</a>
       <a href="#roadmap" data-i18n="nav.roadmap">Roadmap</a>
-      <a href="#beta" data-i18n="nav.beta">Beta</a>
     </nav>
     <div class="nav__actions">
       <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
@@ -80,6 +79,7 @@
         <span class="star__label"><span aria-hidden="true">★</span> Star</span>
         <span class="star__count" id="star-count" hidden></span>
       </a>
+      <a class="btn btn--flame btn--nav js-beta" href="https://testflight.apple.com/join/8mcXygWe" target="_blank" rel="noopener" data-i18n="cta.beta">Entrar no beta</a>
     </div>
   </div>
 </header>
@@ -228,63 +228,6 @@
     </div>
   </section>
 
-  <!-- BETA -->
-  <section class="section" id="beta">
-    <div class="wrap">
-      <div class="beta reveal">
-        <img class="beta__icon" src="assets/icon-256.png" alt="" width="120" height="120" loading="lazy">
-        <h2 data-i18n="bt.title">Teste no seu próximo abastecimento.</h2>
-        <p data-i18n="bt.d">Para quem usa a moto com frequência. Abra o link no iPhone, instale o TestFlight e pronto. Precisa de iOS 18 ou mais recente. Vagas limitadas.</p>
-        <a class="btn btn--flame btn--lg js-beta" href="https://testflight.apple.com/join/8mcXygWe" target="_blank" rel="noopener" data-i18n="cta.beta">Entrar no beta</a>
-        <p class="beta__mail" data-i18n="bt.mail">Dúvidas ou sugestões? <a href="mailto:contato@wagnerrosa.com?subject=Carburante">contato@wagnerrosa.com</a></p>
-      </div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section class="section faq" id="faq">
-    <div class="wrap wrap--narrow">
-      <header class="section__head reveal">
-        <p class="kicker" data-i18n="q.kicker">Perguntas</p>
-        <h2 data-i18n="q.title">Antes de você perguntar.</h2>
-      </header>
-      <div class="faq__list reveal">
-        <details>
-          <summary data-i18n="q1.q">É grátis?</summary>
-          <p data-i18n="q1.a">Sim, durante todo o beta. O modelo para a versão da App Store ainda está sendo definido, e quem testou agora vai saber primeiro.</p>
-        </details>
-        <details>
-          <summary data-i18n="q2.q">Tem para Android?</summary>
-          <p data-i18n="q2.a">Não por enquanto. O Carburante é nativo de iPhone de propósito: rápido, leve e com a cara do sistema.</p>
-        </details>
-        <details>
-          <summary data-i18n="q3.q">Preciso criar conta?</summary>
-          <p data-i18n="q3.a">Não. Abriu, usou: o app funciona sem criar conta e sem senha.</p>
-        </details>
-        <details>
-          <summary data-i18n="q4.q">Onde ficam meus dados?</summary>
-          <p data-i18n="q4.a">Primeiro no seu iPhone, com uma cópia na nuvem isolada na sua conta. As estatísticas de uso são anônimas e dá para desligar nos Ajustes. Detalhes na <a href="privacidade/">política de privacidade</a>.</p>
-        </details>
-        <details>
-          <summary data-i18n="q7.q">O que acontece com as fotos?</summary>
-          <p data-i18n="q7.a">A leitura acontece no próprio iPhone. A foto do cupom não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem.</p>
-        </details>
-        <details>
-          <summary data-i18n="q5.q">Por que o consumo não aparece no primeiro abastecimento?</summary>
-          <p data-i18n="q5.a">Porque consumo honesto se mede entre dois tanques cheios: o primeiro é o ponto de partida. O app mostra quantos abastecimentos faltam para a primeira média aparecer.</p>
-        </details>
-        <details>
-          <summary data-i18n="q8.q">Lê o display da bomba?</summary>
-          <p data-i18n="q8.a">Não. Testei, e foto do display da bomba não é lida com confiança. O app lê o cupom impresso, onde funciona, e você confere os valores antes de salvar.</p>
-        </details>
-        <details>
-          <summary data-i18n="q6.q">O código é aberto?</summary>
-          <p data-i18n="q6.a">O código está público no GitHub para quem quiser conhecer como o app é feito. Se gostar, deixe uma estrela, isso ajuda muito.</p>
-        </details>
-      </div>
-    </div>
-  </section>
-
   <!-- CONQUISTAS -->
   <section class="section badges" id="conquistas">
     <div class="wrap">
@@ -410,6 +353,63 @@
     </div>
   </section>
 
+  <!-- BETA -->
+  <section class="section" id="beta">
+    <div class="wrap">
+      <div class="beta reveal">
+        <img class="beta__icon" src="assets/icon-256.png" alt="" width="120" height="120" loading="lazy">
+        <h2 data-i18n="bt.title">Teste no seu próximo abastecimento.</h2>
+        <p data-i18n="bt.d">Para quem usa a moto com frequência. Abra o link no iPhone, instale o TestFlight e pronto. Precisa de iOS 18 ou mais recente. Vagas limitadas.</p>
+        <a class="btn btn--flame btn--lg js-beta" href="https://testflight.apple.com/join/8mcXygWe" target="_blank" rel="noopener" data-i18n="cta.beta">Entrar no beta</a>
+        <p class="beta__mail" data-i18n="bt.mail">Dúvidas ou sugestões? <a href="mailto:contato@wagnerrosa.com?subject=Carburante">contato@wagnerrosa.com</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section faq" id="faq">
+    <div class="wrap wrap--narrow">
+      <header class="section__head reveal">
+        <p class="kicker" data-i18n="q.kicker">Perguntas</p>
+        <h2 data-i18n="q.title">Antes de você perguntar.</h2>
+      </header>
+      <div class="faq__list reveal">
+        <details>
+          <summary data-i18n="q1.q">É grátis?</summary>
+          <p data-i18n="q1.a">Sim, durante todo o beta. O modelo para a versão da App Store ainda está sendo definido, e quem testou agora vai saber primeiro.</p>
+        </details>
+        <details>
+          <summary data-i18n="q2.q">Tem para Android?</summary>
+          <p data-i18n="q2.a">Não por enquanto. O Carburante é nativo de iPhone de propósito: rápido, leve e com a cara do sistema.</p>
+        </details>
+        <details>
+          <summary data-i18n="q3.q">Preciso criar conta?</summary>
+          <p data-i18n="q3.a">Não. Abriu, usou: o app funciona sem criar conta e sem senha.</p>
+        </details>
+        <details>
+          <summary data-i18n="q4.q">Onde ficam meus dados?</summary>
+          <p data-i18n="q4.a">Primeiro no seu iPhone, com uma cópia na nuvem isolada na sua conta. As estatísticas de uso são anônimas e dá para desligar nos Ajustes. Detalhes na <a href="privacidade/">política de privacidade</a>.</p>
+        </details>
+        <details>
+          <summary data-i18n="q7.q">O que acontece com as fotos?</summary>
+          <p data-i18n="q7.a">A leitura acontece no próprio iPhone. A foto do cupom não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem.</p>
+        </details>
+        <details>
+          <summary data-i18n="q5.q">Por que o consumo não aparece no primeiro abastecimento?</summary>
+          <p data-i18n="q5.a">Porque consumo honesto se mede entre dois tanques cheios: o primeiro é o ponto de partida. O app mostra quantos abastecimentos faltam para a primeira média aparecer.</p>
+        </details>
+        <details>
+          <summary data-i18n="q8.q">Lê o display da bomba?</summary>
+          <p data-i18n="q8.a">Não. Testei, e foto do display da bomba não é lida com confiança. O app lê o cupom impresso, onde funciona, e você confere os valores antes de salvar.</p>
+        </details>
+        <details>
+          <summary data-i18n="q6.q">O código é aberto?</summary>
+          <p data-i18n="q6.a">O código está público no GitHub para quem quiser conhecer como o app é feito. Se gostar, deixe uma estrela, isso ajuda muito.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="footer">
@@ -428,6 +428,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
