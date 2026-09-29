@@ -180,7 +180,7 @@ struct FuelLogFormView: View {
                     }
                     Picker("Combustível", selection: $fuelType) {
                         ForEach(FuelType.allCases) { type in
-                            Text(type.rawValue).tag(type)
+                            Text(type.label).tag(type)
                         }
                     }
                     Toggle("Tanque cheio", isOn: $isFullTank)

@@ -259,7 +259,7 @@ struct FuelLogRow: View {
         }
         parts.append(AppFormat.currency(log.totalCost))
         parts.append("\(AppFormat.liters(log.liters)), hodômetro \(AppFormat.km(log.odometer))")
-        if showsFuelType { parts.append(log.fuelType.rawValue) }
+        if showsFuelType { parts.append(log.fuelType.label) }
         if log.isHistorical { parts.append("Histórico") }
         if log.odometerPhotoURL != nil { parts.append("Com foto do hodômetro") }
         return parts.joined(separator: ". ")

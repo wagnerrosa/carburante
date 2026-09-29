@@ -12,6 +12,11 @@ import SwiftData
 
 /// Tipos de combustível comuns no Brasil. `.rawValue` é persistido (String),
 /// não o índice — adicionar casos no futuro não corrompe dados existentes.
+///
+/// ⚠️ `.rawValue` é **chave congelada** (SwiftData, Supabase `fuel_type`,
+/// PostHog) — nunca exibir nem editar o texto; renomear corrompe registros
+/// antigos (o decode cai em `.gasolinaComum`). Texto de tela = `label`, que é
+/// o que se traduz. Travado por `PersistedEnumKeyTests`.
 enum FuelType: String, CaseIterable, Codable, Identifiable {
     case gasolinaComum = "Gasolina comum"
     case gasolinaAditivada = "Gasolina aditivada"
@@ -20,6 +25,17 @@ enum FuelType: String, CaseIterable, Codable, Identifiable {
     case gnv = "GNV"
 
     var id: String { rawValue }
+
+    /// Nome exibido (Picker, acessibilidade). Livre para mudar/traduzir.
+    var label: String {
+        switch self {
+        case .gasolinaComum: return "Gasolina comum"
+        case .gasolinaAditivada: return "Gasolina aditivada"
+        case .etanol: return "Etanol"
+        case .diesel: return "Diesel"
+        case .gnv: return "GNV"
+        }
+    }
 }
 
 @Model
