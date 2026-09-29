@@ -1614,6 +1614,47 @@ final class CarburanteTests: XCTestCase {
         XCTAssertNil(b.floor, "leitura do cadastro não vale para antes do cadastro")
     }
 
+    // MARK: - Manutenção antiga — aviso de km incoerente (não bloqueia)
+
+    private func maintenanceIssue(
+        on date: Date, km: Double, logs: [(date: Date, odometer: Double)], current: Double
+    ) -> MaintenanceOdometerIssue? {
+        OdometerBounds.forEntry(on: date, logs: logs, currentOdometer: current, now: day(2026, 10, 12))
+            .maintenanceIssue(km: km, currentOdometer: current)
+    }
+
+    /// Caso da dúvida: troca antiga a 1.000 numa moto em 10.000 é coerente — o
+    /// vencimento conta os 9.000 rodados, sem aviso.
+    func testMaintenanceIssue_oldLowKmIsFine() {
+        XCTAssertNil(maintenanceIssue(on: day(2024, 6, 1), km: 1_000, logs: [], current: 10_000))
+    }
+
+    /// Typo: 100.000 numa moto em 10.000 → passado maior que o presente.
+    func testMaintenanceIssue_aboveCurrent() {
+        XCTAssertEqual(maintenanceIssue(on: day(2024, 6, 1), km: 100_000, logs: [], current: 10_000),
+                       .aboveCurrent(km: 10_000))
+    }
+
+    /// Menor que um abastecimento de data anterior.
+    func testMaintenanceIssue_belowEarlierLog() {
+        XCTAssertEqual(maintenanceIssue(on: day(2026, 4, 1), km: 1_000, logs: boundsLogs, current: 15_200),
+                       .belowEarlier(km: 10_000, date: boundsLogs[0].date))
+    }
+
+    /// Maior que um abastecimento de data posterior.
+    func testMaintenanceIssue_aboveLaterLog() {
+        XCTAssertEqual(maintenanceIssue(on: day(2026, 4, 1), km: 13_000, logs: boundsLogs, current: 15_200),
+                       .aboveLater(km: 12_000, date: boundsLogs[1].date))
+        XCTAssertNil(maintenanceIssue(on: day(2026, 4, 1), km: 11_000, logs: boundsLogs, current: 15_200),
+                     "entre os vizinhos = coerente")
+    }
+
+    /// Na hora não avisa: acima = a moto andou; abaixo = mesmo dia do abastecimento.
+    func testMaintenanceIssue_notBackdatedNeverWarns() {
+        XCTAssertNil(maintenanceIssue(on: day(2026, 10, 12), km: 16_000, logs: boundsLogs, current: 15_200))
+        XCTAssertNil(maintenanceIssue(on: day(2026, 10, 12), km: 15_100, logs: boundsLogs, current: 15_200))
+    }
+
     /// Teto bloqueia: hodômetro não anda para trás.
     func testValidationRejectsAboveNext() {
         let errors = FuelLogValidator.validate(odometer: 12_500, liters: 10, totalCost: 60,
