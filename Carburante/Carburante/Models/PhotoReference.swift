@@ -23,7 +23,14 @@ enum PhotoReference {
     /// Path no bucket. A 1ª pasta é o `user_id` — é o que as policies de RLS
     /// do Storage checam (`storage.foldername(name)[1] = auth.uid()`).
     static func remotePath(userID: UUID, logID: UUID) -> String {
-        "\(userID.uuidString)/\(fileName(logID: logID))"
+        "\(folder(userID: userID))/\(fileName(logID: logID))"
+    }
+
+    /// Pasta do usuário no bucket. **Minúsculas:** `auth.uid()::text` do Postgres
+    /// sai em minúsculas e `UUID.uuidString` do Swift em maiúsculas — com a
+    /// pasta em maiúsculas a policy nunca bate e todo upload volta 400.
+    static func folder(userID: UUID) -> String {
+        userID.uuidString.lowercased()
     }
 
     static func fileName(logID: UUID) -> String {

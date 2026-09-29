@@ -602,7 +602,7 @@ final class SyncService {
     /// Storage, e sem o usuário as policies não deixam mais ninguém apagar.
     private func deleteRemotePhotos(userID: UUID) async throws {
         let bucket = client.storage.from(PhotoReference.bucket)
-        let folder = userID.uuidString
+        let folder = PhotoReference.folder(userID: userID)
         while true {
             let files = try await bucket.list(path: folder, options: SearchOptions(limit: 100))
             guard !files.isEmpty else { return }
