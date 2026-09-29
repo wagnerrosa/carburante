@@ -250,6 +250,79 @@
     });
   }
 
+  // Bastidores: a foto vira a versão 3D a partir do farol (efeito todo no CSS).
+  // Mouse: hover revela e o cartão inclina com o cursor; parado na tela, o farol
+  // pisca de tempos em tempos mostrando uma fresta do 3D. Toque (sem hover): revela
+  // sozinho quando o cartão chega ao meio da tela; tocar alterna.
+  var rider = document.querySelector('[data-rider]');
+  if (rider) {
+    var stage = rider.querySelector('.story__stage');
+    var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var riderOn = false, riderSeen = false, peekTimer = null, peeks = 0, tilt = 0;
+
+    var setRider = function (on) {
+      if (on === riderOn) return;
+      riderOn = on;
+      rider.classList.remove('is-peek');
+      rider.classList.toggle('is-on', on);
+      if (on && !riderSeen) {
+        riderSeen = true;
+        track('site_interaction', { event_category: 'ui', event_label: 'story_3d', event_location: 'bastidores' });
+      }
+    };
+    var stopPeeks = function () { clearTimeout(peekTimer); peekTimer = null; };
+    var peek = function () {
+      if (riderOn || peeks >= 4) return stopPeeks();
+      peeks++;
+      rider.classList.remove('is-peek');
+      void rider.offsetWidth; // reinicia a animação
+      rider.classList.add('is-peek');
+      peekTimer = setTimeout(peek, 6500);
+    };
+    rider.addEventListener('animationend', function (e) {
+      if (e.animationName === 'rider-peek') rider.classList.remove('is-peek');
+    });
+
+    if (fine) {
+      rider.addEventListener('pointerenter', function () { stopPeeks(); setRider(true); });
+      rider.addEventListener('pointerleave', function () {
+        cancelAnimationFrame(tilt);
+        stage.style.removeProperty('--tx');
+        stage.style.removeProperty('--ty');
+        setRider(false);
+      });
+      if (!reduceMotion) {
+        rider.addEventListener('pointermove', function (e) {
+          cancelAnimationFrame(tilt);
+          tilt = requestAnimationFrame(function () {
+            var b = rider.getBoundingClientRect();
+            stage.style.setProperty('--tx', ((e.clientX - b.left) / b.width * 2 - 1).toFixed(3));
+            stage.style.setProperty('--ty', ((e.clientY - b.top) / b.height * 2 - 1).toFixed(3));
+          });
+        });
+      }
+    } else {
+      rider.addEventListener('click', function () { setRider(!riderOn); });
+    }
+
+    if (!reduceMotion && 'IntersectionObserver' in window) {
+      var autoTimer = null, visible = false;
+      new IntersectionObserver(function (entries) {
+        var r = entries[0].intersectionRatio;
+        if (fine) {
+          // Fresta: primeira piscada logo depois de entrar na tela, no máximo 4 por visita.
+          if (r >= 0.5 && !visible) { peeks = 0; stopPeeks(); peekTimer = setTimeout(peek, 1200); }
+          else if (r < 0.5) stopPeeks();
+          visible = r >= 0.5;
+        } else {
+          clearTimeout(autoTimer);
+          if (r >= 0.7) autoTimer = setTimeout(function () { setRider(true); }, 700);
+          else if (r < 0.3) setRider(false);
+        }
+      }, { threshold: [0, 0.3, 0.5, 0.7] }).observe(rider);
+    }
+  }
+
   // Reveal on scroll.
   var items = document.querySelectorAll('.reveal');
   if (!('IntersectionObserver' in window)) {

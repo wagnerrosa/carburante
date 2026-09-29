@@ -396,21 +396,79 @@ p { margin: 0; }
 .story__grid { display: grid; gap: 40px; align-items: center; }
 @media (min-width: 880px) { .story__grid { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 72px; } }
 /* Foto como cartão (estilo Apple Invites): levemente girada, brilho da chama atrás, objetos 3D em volta */
-.story__visual { position: relative; isolation: isolate; width: 100%; max-width: 440px; margin: 0 auto; padding: 0 24px; }
+.story__visual { position: relative; isolation: isolate; container-type: inline-size; width: 100%; max-width: 440px; margin: 0 auto; padding: 0 24px; }
 @media (min-width: 880px) { .story__visual { padding: 0; } }
 .story__visual::before {
   content: ""; position: absolute; z-index: -1; inset: 6% 4%; pointer-events: none; opacity: var(--ambient);
   background: radial-gradient(closest-side, rgba(255, 110, 0, .38), transparent); filter: blur(40px);
 }
-.story__photo {
-  width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 32px;
-  transform: rotate(-3deg); transition: transform .7s cubic-bezier(.32, .72, 0, 1);
+/* Foto → versão 3D, com o farol como origem. --r é o raio da luz que abre a partir dele:
+   mascara o "estúdio" (esconde a foto) e o piloto 3D. Parado na tela, o farol pisca duas
+   vezes (cumprimento de motociclista) e mostra uma fresta; revelado, a luz toma o cartão e o
+   3D sai do quadro. O JS só liga .is-peek / .is-on e passa a inclinação (--tx/--ty). */
+@property --r { syntax: '<length>'; inherits: true; initial-value: 0px; }
+.story {
+  --lamp-x: 80.6%; --lamp-y: 48.9%; /* farol na foto */
+  --studio: #e7e3dd; --studio-glow: rgba(255, 140, 40, .3);
+}
+@media (prefers-color-scheme: dark) { .story { --studio: #1c1c1f; --studio-glow: rgba(255, 110, 0, .38); } }
+.story__stage {
+  position: relative; --r: 0px; rotate: -3deg; /* cqi = largura da figure (o container) */
+  transform: perspective(1100px) rotateX(calc(var(--ty, 0) * -5deg)) rotateY(calc(var(--tx, 0) * 7deg));
+  transition: --r .9s cubic-bezier(.32, .72, 0, 1), rotate .7s cubic-bezier(.32, .72, 0, 1), transform .35s ease-out;
+}
+.story__card {
+  position: relative; overflow: hidden; aspect-ratio: 4 / 5; border-radius: 32px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 36px 70px -30px rgba(0, 0, 0, .45);
 }
 @media (prefers-color-scheme: dark) {
-  .story__photo { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 40px 80px -30px rgba(0, 0, 0, .85); }
+  .story__card { box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 40px 80px -30px rgba(0, 0, 0, .85); }
 }
-.story__visual:hover .story__photo { transform: rotate(-1.5deg) scale(1.01); }
+.story__photo { display: block; width: 100%; height: 100%; object-fit: cover; }
+.story__studio, .story__rider {
+  -webkit-mask-image: radial-gradient(circle at var(--mx) var(--my), #000 calc(var(--r) - 28px), transparent var(--r));
+  mask-image: radial-gradient(circle at var(--mx) var(--my), #000 calc(var(--r) - 28px), transparent var(--r));
+}
+.story__studio {
+  position: absolute; inset: 0; --mx: var(--lamp-x); --my: var(--lamp-y);
+  background:
+    radial-gradient(circle at var(--lamp-x) var(--lamp-y), rgba(255, 214, 160, .35), transparent 34%),
+    radial-gradient(80% 55% at 50% 100%, var(--studio-glow), transparent 70%),
+    var(--studio);
+}
+/* Frente de luz: anel que acompanha a borda da máscara */
+.story__card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(circle at var(--lamp-x) var(--lamp-y), transparent calc(var(--r) - 34px), rgba(255, 214, 160, .6) calc(var(--r) - 8px), transparent var(--r));
+}
+.story__rider {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+  --mx: 82.9%; --my: 46.7%; /* farol no 3D */
+  transform-origin: 30% 30%;
+  transform: translate(-2.3%, 2.2%); /* alinha o farol do 3D com o da foto */
+  translate: calc(var(--tx, 0) * 14px) calc(var(--ty, 0) * 10px);
+  filter: drop-shadow(0 28px 22px rgba(0, 0, 0, .38));
+  transition: transform .8s cubic-bezier(.34, 1.4, .5, 1) .12s, translate .35s ease-out;
+}
+.story__flash {
+  position: absolute; left: var(--lamp-x); top: var(--lamp-y); width: 60cqi; aspect-ratio: 1; translate: -50% -50%;
+  border-radius: 50%; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(closest-side, rgba(255, 250, 235, .95), rgba(255, 196, 120, .5) 28%, rgba(255, 140, 40, .14) 60%, transparent);
+}
+.story__visual.is-peek:not(.is-on) .story__stage { animation: rider-peek 1.7s cubic-bezier(.4, 0, .2, 1); }
+.story__visual.is-peek:not(.is-on) .story__flash { animation: rider-flash 1.7s ease-in-out; }
+.story__visual.is-on .story__stage { --r: 160cqi; rotate: -1.5deg; }
+.story__visual.is-on .story__rider { transform: translate(-.5%, 4%) scale(1.12); }
+.story__visual.is-on .story__flash { animation: rider-burst 1s ease-out; }
+@keyframes rider-peek { 0% { --r: 0px; } 14% { --r: 16cqi; } 27% { --r: 4cqi; } 44% { --r: 25cqi; } 70% { --r: 25cqi; } 100% { --r: 0px; } }
+@keyframes rider-flash { 0%, 100% { opacity: 0; } 12% { opacity: .9; } 25% { opacity: .15; } 40% { opacity: 1; } 70% { opacity: .35; } }
+@keyframes rider-burst { 0%, 100% { opacity: 0; } 16% { opacity: 1; } }
+.story__visual .float { transition: translate .8s cubic-bezier(.32, .72, 0, 1); }
+.story__visual.is-on .float--s1 { translate: 16px -14px; }
+.story__visual.is-on .float--s2 { translate: -16px -10px; }
+.story__visual.is-on .float--s3 { translate: -18px 6px; }
+.story__visual.is-on .float--s4 { translate: 30px 26px; }
+@media (max-width: 520px) { .story__visual.is-on .float { translate: none; } } /* sem folga lateral no celular */
 .float--s1 { top: -6%; right: -8%; width: 120px; animation-delay: -2s; }
 .float--s2 { top: -2%; left: -11%; width: 112px; animation-delay: -5s; }
 .float--s3 { bottom: 14%; left: -9%; width: 84px; animation-delay: -3s; }
@@ -516,7 +574,8 @@ p { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .js .reveal { opacity: 1; transform: none; transition: none; }
   .float, .pill__dot, .tl--now .tl__node { animation: none; }
-  .story__photo, .tl__art img, .footer__moto { transition: none; }
+  .story__stage, .story__rider, .story__visual .float, .tl__art img, .footer__moto { transition: none; }
+  .story__flash { display: none; }
 }
 
 /* ---------- Página legal (privacidade) ---------- */
