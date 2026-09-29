@@ -112,11 +112,9 @@
     's.title': 'Made by someone who rides, too.',
     's.lede': 'I’m <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer and rider for over two decades. I built Carburante for a simple reason: logging a fuel-up has to fit in a gas-station stop.',
     'alt.wagner': 'Wagner Rosa riding on a mountain road',
-    's.portfolio': 'View portfolio',
     's.code': 'Read the code',
     'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="scooter">🛵</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
     'ft.copy': '© 2026 Carburante. All rights reserved.',
-    'ft.portfolio': 'Portfolio',
     'ft.privacy': 'Privacy',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
   };
@@ -322,61 +320,46 @@
     }
   }
 
-  // Beta: a roda do ícone acende quando aparece inteira na tela (ignição uma vez, depois o
-  // loop) e o botão "acelera" (playbackRate + brilho). HEVC com alpha só no WebKit: o
-  // Chrome toca HEVC mas ignora o alpha (fundo preto), por isso a escolha é por motor e
-  // não pela ordem de <source>. Sem vídeo (Modo Pouca Energia, codec, "reduzir
-  // movimento"), a imagem acesa fica no lugar.
-  var beta = document.querySelector('[data-ignite]');
-  if (beta) {
-    var intro = beta.querySelectorAll('.beta__vid')[0];
-    var loop = beta.querySelectorAll('.beta__vid')[1];
+  // Hero: a roda viva dentro do ícone. Ignição uma vez ao carregar, depois o loop; hover no
+  // ícone ou no botão do beta "acelera" (playbackRate + brilho). Fora da tela, pausa. HEVC com
+  // alpha só no WebKit: o Chrome toca HEVC mas ignora o alpha (fundo preto), por isso a escolha
+  // é por motor e não pela ordem de <source>. Sem vídeo (Modo Pouca Energia, codec, "reduzir
+  // movimento"), a imagem fica no lugar.
+  var icon = document.querySelector('[data-icon]');
+  if (icon) {
+    var intro = icon.querySelectorAll('.hero__vid')[0];
+    var loop = icon.querySelectorAll('.hero__vid')[1];
     var ext = null;
     if (!reduceMotion && 'IntersectionObserver' in window && intro.canPlayType) {
       if (navigator.vendor === 'Apple Computer, Inc.') ext = intro.canPlayType('video/mp4; codecs="hvc1"') ? 'mov' : null;
       else ext = intro.canPlayType('video/webm; codecs="vp9"') ? 'webm' : null;
     }
-    if (!ext) {
-      beta.classList.add('is-lit');
-    } else {
-      var lit = false, current = intro, rate = 1, target = 1, rateFrame = 0, revved = false;
+    if (ext) {
+      var vidNow = intro, started = false, rate = 1, target = 1, rateFrame = 0, revved = false;
       intro.muted = loop.muted = true;
       var play = function (v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); };
       var shown = function (v) {
         v.classList.add('is-shown');
-        beta.classList.add('is-playing');
+        icon.classList.add('is-playing');
         if (v === loop) intro.classList.remove('is-shown'); // os dois têm alpha: o de baixo apareceria
       };
       intro.addEventListener('playing', function () { shown(intro); });
       loop.addEventListener('playing', function () { shown(loop); });
-      intro.addEventListener('ended', function () { current = loop; play(loop); });
+      intro.addEventListener('ended', function () { vidNow = loop; play(loop); });
+      intro.preload = loop.preload = 'auto';
+      intro.src = 'assets/art/roda-intro.' + ext;
+      loop.src = 'assets/art/roda-loop.' + ext;
 
-      var load = function () {
-        if (intro.getAttribute('src')) return;
-        intro.preload = loop.preload = 'auto';
-        intro.src = 'assets/art/roda-intro.' + ext;
-        loop.src = 'assets/art/roda-loop.' + ext;
-      };
-      new IntersectionObserver(function (entries, obs) {
-        if (entries[0].isIntersecting) { obs.disconnect(); load(); }
-      }, { rootMargin: '800px 0px' }).observe(beta);
-
-      // Acende com a roda inteira nos 80% de cima da tela; fora dessa faixa, pausa.
-      var wheel = beta.querySelector('.beta__wheel');
       new IntersectionObserver(function (entries) {
-        var e = entries[0];
-        if (!e.isIntersecting) { current.pause(); return; }
-        if (lit) play(current);
-        else if (e.intersectionRatio >= 0.99) {
-          lit = true;
-          load();
-          setTimeout(function () { beta.classList.add('is-lit'); play(intro); }, 250);
-        }
-      }, { rootMargin: '0px 0px -20% 0px', threshold: [0, 1] }).observe(wheel);
+        if (!entries[0].isIntersecting) { vidNow.pause(); return; }
+        if (started) { play(vidNow); return; }
+        started = true;
+        setTimeout(function () { play(intro); }, 400);
+      }).observe(icon);
 
-      // Acelerar: playbackRate sobe/desce suave (rAF); só depois de acesa. Teto 1,9×: acima
-      // de 2× o Safari (AVFoundation) entra em avanço rápido e mostra ~4 quadros/s (medido:
-      // 2,0× = 45 q/s, 2,1× = 3,5 q/s). Degraus de 0,05 para não trocar a taxa a cada quadro.
+      // Acelerar: playbackRate sobe/desce suave (rAF). Teto 1,9×: acima de 2× o Safari
+      // (AVFoundation) entra em avanço rápido e mostra ~4 quadros/s (medido: 2,0× = 45 q/s,
+      // 2,1× = 3,5 q/s). Degraus de 0,05 para não trocar a taxa a cada quadro.
       var applied = 1;
       var setRate = function () {
         rate += (target - rate) * 0.14;
@@ -386,24 +369,97 @@
         if (rate !== target) rateFrame = requestAnimationFrame(setRate);
       };
       var rev = function (on) {
-        on = on && lit;
-        beta.classList.toggle('is-rev', on);
+        icon.classList.toggle('is-rev', on);
         target = on ? 1.9 : 1;
         cancelAnimationFrame(rateFrame);
         rateFrame = requestAnimationFrame(setRate);
         if (on && !revved) {
           revved = true;
-          track('site_interaction', { event_category: 'ui', event_label: 'beta_rev', event_location: 'beta' });
+          track('site_interaction', { event_category: 'ui', event_label: 'icon_rev', event_location: 'hero' });
         }
       };
-      var cta = beta.querySelector('.btn--flame');
-      [cta, wheel].forEach(function (el) {
+      var heroCta = document.querySelector('.hero .btn--flame');
+      [icon, heroCta].forEach(function (el) {
+        if (!el) return;
         el.addEventListener('pointerenter', function () { rev(true); });
         el.addEventListener('pointerleave', function () { rev(false); });
       });
-      cta.addEventListener('focus', function () { rev(true); });
-      cta.addEventListener('blur', function () { rev(false); });
+      if (heroCta) {
+        heroCta.addEventListener('focus', function () { rev(true); });
+        heroCta.addEventListener('blur', function () { rev(false); });
+      }
     }
+  }
+
+  // Beta: a placa da chama atrás do card varre da esquerda quando o card aparece; hover no
+  // botão esquenta a placa. Sem JS ou com "reduzir movimento", já nasce acesa.
+  var beta = document.querySelector('[data-ignite]');
+  if (beta) {
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      beta.classList.add('is-lit');
+    } else {
+      new IntersectionObserver(function (entries, obs) {
+        if (entries[0].isIntersecting) { obs.disconnect(); beta.classList.add('is-lit'); }
+      }, { rootMargin: '0px 0px -25% 0px' }).observe(beta.querySelector('.beta'));
+    }
+    var betaCta = beta.querySelector('.btn--flame');
+    betaCta.addEventListener('pointerenter', function () { beta.classList.add('is-rev'); });
+    betaCta.addEventListener('pointerleave', function () { beta.classList.remove('is-rev'); });
+  }
+
+  // Recursos no desktop (≥880px): celular fixo + lista. O rótulo de cada recurso vira botão
+  // (padrão acordeão) só nesse modo; no celular segue texto e o carrossel de baixo assume.
+  var feats = Array.prototype.slice.call(document.querySelectorAll('.feature'));
+  var featRail = document.querySelector('.features');
+  if (feats.length && featRail && window.matchMedia) {
+    var wide = window.matchMedia('(min-width: 880px)');
+    var active = 0, featTracked = false;
+    var tabs = feats.map(function (f, i) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'feature__tab';
+      b.setAttribute('aria-controls', 'fd' + (i + 1));
+      b.addEventListener('click', function () { select(i, false); });
+      b.addEventListener('keydown', function (e) {
+        var k = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+        if (!k) return;
+        e.preventDefault();
+        select((i + k + feats.length) % feats.length, true);
+      });
+      return b;
+    });
+    var select = function (i, focus) {
+      if (i !== active && !featTracked) {
+        featTracked = true;
+        track('site_interaction', { event_category: 'ui', event_label: 'feature_' + (i + 1), event_location: 'recursos' });
+      }
+      active = i;
+      feats.forEach(function (f, k) {
+        f.classList.toggle('is-active', k === i);
+        tabs[k].setAttribute('aria-expanded', k === i ? 'true' : 'false');
+      });
+      if (focus) tabs[i].focus();
+    };
+    // Envolve/desembrulha o <span data-i18n> — o i18n guarda a referência do span, então
+    // trocar de idioma continua funcionando nos dois modos.
+    var mode = function () {
+      feats.forEach(function (f, i) {
+        var label = f.querySelector('.kicker');
+        var tab = tabs[i];
+        if (wide.matches && tab.parentNode !== label) {
+          var span = label.firstElementChild;
+          label.replaceChild(tab, span);
+          tab.appendChild(span);
+        } else if (!wide.matches && tab.parentNode === label) {
+          label.replaceChild(tab.firstElementChild, tab);
+        }
+      });
+      featRail.classList.toggle('features--list', wide.matches);
+      select(active, false);
+    };
+    mode();
+    if (wide.addEventListener) wide.addEventListener('change', mode);
+    else if (wide.addListener) wide.addListener(mode);
   }
 
   // Recursos no celular = carrossel (scroll-snap no CSS); os pontos só acompanham a posição.

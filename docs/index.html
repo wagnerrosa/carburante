@@ -23,7 +23,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=2">
 
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
   <script>document.documentElement.classList.add('js')</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
@@ -90,6 +90,15 @@
   <section class="hero">
     <div class="wrap hero__grid">
       <div class="hero__copy">
+        <!-- Ícone do app com a roda viva: ignição ao carregar, depois o loop; hover acelera.
+             O JS escolhe HEVC com alpha (WebKit) ou WebM VP9 com alpha (demais); sem vídeo, fica a imagem. -->
+        <div class="hero__icon" data-icon aria-hidden="true">
+          <div class="hero__icon-body">
+            <img class="hero__poster" src="assets/art/roda.webp" alt="" width="480" height="480">
+            <video class="hero__vid" muted playsinline preload="none" disablepictureinpicture></video>
+            <video class="hero__vid" muted playsinline loop preload="none" disablepictureinpicture></video>
+          </div>
+        </div>
         <p class="pill"><span class="pill__dot"></span><span data-i18n="hero.pill">Beta no TestFlight · iPhone</span></p>
         <h1 data-i18n="hero.title">Saiba quanto sua moto faz <span class="flame-text">de&nbsp;verdade.</span></h1>
         <p class="hero__lede" data-i18n="hero.lede">Registre o abastecimento na parada do posto, até sem sinal. O Carburante mede o consumo de tanque cheio a tanque cheio e avisa antes da próxima manutenção.</p>
@@ -171,41 +180,50 @@
         <h2 data-i18n="f.title">Feito para quem roda, não para quem digita.</h2>
       </header>
 
-      <!-- Celular: carrossel com scroll-snap (como as capturas na App Store); desktop: blocos alternados -->
+      <!-- Celular: carrossel com scroll-snap (como as capturas na App Store). Desktop: celular fixo à
+           esquerda + lista à direita; o item ativo troca a tela (JS). Sem JS: blocos alternados. -->
       <div class="features">
-        <div class="feature reveal">
+        <div class="feature is-active reveal">
           <div class="feature__media"><div class="phone"><img src="assets/screens/abastecer.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.fuel" alt="Tela de revisão do abastecimento mostrando 29,6 km/l neste tanque"></div></div>
           <div class="feature__copy">
-            <p class="kicker" data-i18n="f1.k">Registro</p>
-            <h3 data-i18n="f1.t">Três passos. Nenhum campo à toa.</h3>
-            <p data-i18n="f1.d">O app lembra o último combustível, calcula o preço do litro na hora e mostra o consumo daquele tanque antes de salvar. Tem o cupom? Toque em Escanear: a leitura acontece no próprio iPhone e a foto do cupom não é guardada.</p>
+            <p class="kicker"><span data-i18n="f1.k">Registro</span></p>
+            <div class="feature__detail" id="fd1"><div>
+              <h3 data-i18n="f1.t">Três passos. Nenhum campo à toa.</h3>
+              <p data-i18n="f1.d">O app lembra o último combustível, calcula o preço do litro na hora e mostra o consumo daquele tanque antes de salvar. Tem o cupom? Toque em Escanear: a leitura acontece no próprio iPhone e a foto do cupom não é guardada.</p>
+            </div></div>
           </div>
         </div>
 
         <div class="feature feature--flip reveal">
           <div class="feature__media"><div class="phone"><img src="assets/screens/consumo.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.consumption" alt="Gráfico de consumo por tanque com média de 28,8 km/l e comparação com a categoria"></div></div>
           <div class="feature__copy">
-            <p class="kicker" data-i18n="f2.k">Consumo</p>
-            <h3 data-i18n="f2.t">Serra ou trânsito? O gráfico mostra.</h3>
-            <p data-i18n="f2.d">Gráfico tanque a tanque, média do período e uma referência estimada para a categoria e a cilindrada da sua moto, se você informar as duas.</p>
+            <p class="kicker"><span data-i18n="f2.k">Consumo</span></p>
+            <div class="feature__detail" id="fd2"><div>
+              <h3 data-i18n="f2.t">Serra ou trânsito? O gráfico mostra.</h3>
+              <p data-i18n="f2.d">Gráfico tanque a tanque, média do período e uma referência estimada para a categoria e a cilindrada da sua moto, se você informar as duas.</p>
+            </div></div>
           </div>
         </div>
 
         <div class="feature reveal">
           <div class="feature__media"><div class="phone"><img src="assets/screens/manutencao.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.maintenance" alt="Lista de manutenções programadas com quanto falta para cada uma"></div></div>
           <div class="feature__copy">
-            <p class="kicker" data-i18n="f3.k">Manutenção</p>
-            <h3 data-i18n="f3.t">Cada peça no seu tempo.</h3>
-            <p data-i18n="f3.d">Defina intervalos por km e por meses. A barra mostra quanto falta e uma notificação chega antes de vencer. O histórico fica guardado, com data, km e valor de cada serviço.</p>
+            <p class="kicker"><span data-i18n="f3.k">Manutenção</span></p>
+            <div class="feature__detail" id="fd3"><div>
+              <h3 data-i18n="f3.t">Cada peça no seu tempo.</h3>
+              <p data-i18n="f3.d">Defina intervalos por km e por meses. A barra mostra quanto falta e uma notificação chega antes de vencer. O histórico fica guardado, com data, km e valor de cada serviço.</p>
+            </div></div>
           </div>
         </div>
 
         <div class="feature feature--flip feature--compact reveal">
           <div class="feature__media"><div class="phone"><img src="assets/screens/conquistas.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.garage" alt="Garagem com consumo e custo médio e o nível de conquistas"></div></div>
           <div class="feature__copy">
-            <p class="kicker" data-i18n="f4.k">Garagem</p>
-            <h3 data-i18n="f4.t">Sua garagem, sem misturar uma moto com a outra.</h3>
-            <p data-i18n="f4.d">Acompanhe consumo e manutenção de cada moto separadamente. Recordes e totais somam a garagem inteira.</p>
+            <p class="kicker"><span data-i18n="f4.k">Garagem</span></p>
+            <div class="feature__detail" id="fd4"><div>
+              <h3 data-i18n="f4.t">Sua garagem, sem misturar uma moto com a outra.</h3>
+              <p data-i18n="f4.d">Acompanhe consumo e manutenção de cada moto separadamente. Recordes e totais somam a garagem inteira.</p>
+            </div></div>
           </div>
         </div>
       </div>
@@ -350,30 +368,8 @@
         <h2 data-i18n="s.title">Feito por quem também roda.</h2>
         <p class="section__lede" data-i18n="s.lede">Sou <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer e motociclista há mais de duas décadas. Fiz o Carburante por um motivo simples: registrar um abastecimento precisa caber na parada do posto.</p>
         <div class="cta-row">
-          <a class="btn btn--solid" href="https://wagnerrosa.com" target="_blank" rel="noopener" data-i18n="s.portfolio">Ver portfólio</a>
-          <a class="btn btn--outline" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener" data-i18n="s.code">Ler o código</a>
+          <a class="btn btn--solid" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener" data-i18n="s.code">Ler o código</a>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- BETA -->
-  <section class="section" id="beta" data-ignite>
-    <div class="wrap">
-      <div class="beta reveal">
-        <!-- Roda do ícone: acende ao entrar na tela (ignição → loop); hover no botão acelera.
-             O JS escolhe HEVC com alpha (WebKit) ou WebM VP9 com alpha (demais); sem vídeo, fica a imagem. -->
-        <div class="beta__wheel" aria-hidden="true">
-          <div class="beta__body">
-            <img class="beta__poster" src="assets/art/roda.webp" alt="" width="480" height="480" loading="lazy">
-            <video class="beta__vid" muted playsinline preload="none" disablepictureinpicture></video>
-            <video class="beta__vid" muted playsinline loop preload="none" disablepictureinpicture></video>
-          </div>
-        </div>
-        <h2 data-i18n="bt.title">Teste no seu próximo abastecimento.</h2>
-        <p data-i18n="bt.d">Para quem usa a moto com frequência. Abra o link no iPhone, instale o TestFlight e pronto. Precisa de iOS 18 ou mais recente. Vagas limitadas.</p>
-        <a class="btn btn--flame btn--lg js-beta" href="https://testflight.apple.com/join/8mcXygWe" target="_blank" rel="noopener" data-i18n="cta.beta">Entrar no beta</a>
-        <p class="beta__mail" data-i18n="bt.mail">Dúvidas ou sugestões? <a href="mailto:beta@carburante.motorcycles?subject=Beta%20Carburante">beta@carburante.motorcycles</a></p>
       </div>
     </div>
   </section>
@@ -422,6 +418,19 @@
     </div>
   </section>
 
+  <!-- BETA -->
+  <section class="section" id="beta" data-ignite>
+    <div class="wrap">
+      <div class="beta reveal">
+        <!-- Placa da chama atrás do card: acende (varre da esquerda) quando o card aparece. -->
+        <h2 data-i18n="bt.title">Teste no seu próximo abastecimento.</h2>
+        <p data-i18n="bt.d">Para quem usa a moto com frequência. Abra o link no iPhone, instale o TestFlight e pronto. Precisa de iOS 18 ou mais recente. Vagas limitadas.</p>
+        <a class="btn btn--flame btn--lg js-beta" href="https://testflight.apple.com/join/8mcXygWe" target="_blank" rel="noopener" data-i18n="cta.beta">Entrar no beta</a>
+        <p class="beta__mail" data-i18n="bt.mail">Dúvidas ou sugestões? <a href="mailto:beta@carburante.motorcycles?subject=Beta%20Carburante">beta@carburante.motorcycles</a></p>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <footer class="footer">
@@ -430,7 +439,6 @@
       <p class="footer__by" data-i18n="ft.by">Feito com <span class="footer__moto" role="img" aria-label="scooter">🛵</span> por <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a></p>
       <nav class="footer__links" aria-label="Links">
         <a href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://wagnerrosa.com" target="_blank" rel="noopener" data-i18n="ft.portfolio">Portfólio</a>
         <a href="mailto:contato@wagnerrosa.com">Email</a>
         <a href="privacidade/" data-i18n="ft.privacy">Privacidade</a>
       </nav>
@@ -440,6 +448,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
