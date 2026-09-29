@@ -13,7 +13,7 @@
     'hero.pill': 'TestFlight beta · iPhone',
     'hero.title': 'See your bike’s <span class="flame-text">real fuel economy.</span>',
     'hero.lede': 'Log the fuel-up at the pump, even with no signal. Carburante measures consumption from full tank to full tank and warns you before the next service is due.',
-    'cta.beta': 'Request a beta invite',
+    'cta.beta': 'Join the beta',
     'cta.how': 'How it works',
     'hero.meta': 'Free during beta · iOS 18+ · Portuguese UI for now',
     'alt.hero': 'Carburante Summary screen: 28.8 km/l average, cost per km and monthly spend',
@@ -59,7 +59,8 @@
     'x4.t': 'Gentle reminders',
     'x4.d': 'Nudges you about the oil change and reminds you to log if you go quiet.',
     'bt.title': 'Try it at your next fuel-up.',
-    'bt.d': 'For people who ride often. Send me your Apple Account email and I’ll send you a TestFlight invite. Requires an iPhone on iOS 18 or later; the app is in Portuguese for now.',
+    'bt.d': 'For people who ride often. Open the link on your iPhone, install TestFlight and you’re in. Requires iOS 18 or later; the app is in Portuguese for now. Limited spots.',
+    'bt.mail': 'Questions or ideas? <a href="mailto:contato@wagnerrosa.com?subject=Carburante">contato@wagnerrosa.com</a>',
     'q.kicker': 'Questions',
     'q.title': 'Before you ask.',
     'q1.q': 'Is it free?',
@@ -124,14 +125,10 @@
   var META = {
     pt: {
       title: document.title,
-      mail: 'mailto:contato@wagnerrosa.com?subject=Beta%20Carburante&body=' +
-        encodeURIComponent('Oi Wagner! Quero testar o Carburante.\n\nEmail da minha conta Apple (para o TestFlight): \nModelo do iPhone: \nMinha moto: \nQuantas vezes abasteço por mês (opcional): '),
       toggle: 'EN', toggleLabel: 'Switch to English', html: 'pt-BR'
     },
     en: {
       title: 'Carburante · Your bike’s real fuel economy',
-      mail: 'mailto:contato@wagnerrosa.com?subject=Carburante%20beta&body=' +
-        encodeURIComponent('Hi Wagner! I’d like to try Carburante.\n\nMy Apple account email (for TestFlight): \niPhone model: \nMy bike: \nHow often I fill up per month (optional): '),
       toggle: 'PT', toggleLabel: 'Mudar para português', html: 'en'
     }
   };
@@ -164,7 +161,6 @@
     document.title = m.title;
     toggle.textContent = m.toggle;
     toggle.setAttribute('aria-label', m.toggleLabel);
-    document.querySelectorAll('.js-beta').forEach(function (a) { a.href = m.mail; });
   }
 
   toggle.addEventListener('click', function () {
@@ -205,7 +201,7 @@
     var where = !box ? 'hero' : box.id === 'top' ? 'nav' : box.id;
     var href = a.getAttribute('href');
     if (a.classList.contains('js-beta')) {
-      track('generate_lead', { method: 'email', event_location: where });
+      track('generate_lead', { method: 'testflight', event_location: where });
     } else if (href === '#consumo') {
       track('site_interaction', { event_category: 'navigation', event_label: 'anchor_how', event_location: where });
     } else if (/github\.com/.test(href)) {
