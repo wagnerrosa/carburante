@@ -199,7 +199,7 @@ extension Motorcycle {
 
     /// Limites do hodômetro para uma manutenção na `date` — mesma regra do
     /// abastecimento antigo (`OdometerBounds`), com abastecimentos E manutenções
-    /// como pontos conhecidos. Fonte única da referência "Antes/Depois" do form
+    /// como pontos conhecidos. Fonte única da frase de contexto do km no form
     /// e do aviso de km incoerente, para os dois nunca se contradizerem. O log
     /// em edição (e os filhos da revisão dele, mesma data/km) fica de fora — não
     /// pode limitar a si mesmo.

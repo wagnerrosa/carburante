@@ -142,17 +142,21 @@ struct FuelEntryFlowView: View {
     /// validador — texto para o usuário, sem precisar descobrir no Salvar.
     private var odometerBoundsMessage: String? {
         guard let odo = odometer, odo > 0 else { return nil }
-        if let floor = odometerFloor, odo < floor {
-            if let d = bounds.floorDate {
-                return "Menor que o abastecimento de \(AppFormat.date(d)) (\(AppFormat.km(floor)))"
-            }
-            return "Menor que o último (\(AppFormat.km(floor)))"
-        }
-        if let ceiling = bounds.ceiling, odo > ceiling {
-            let when = bounds.ceilingDate.map { " de \(AppFormat.date($0))" } ?? ""
-            return "Maior que o abastecimento\(when) (\(AppFormat.km(ceiling)))"
-        }
-        return nil
+        return bounds.fuelIssue(km: odo)?.message()
+    }
+
+    /// Registro antigo: faixa em que o km deve cair ("19.958 a 20.310").
+    private var odometerPrompt: String {
+        guard historyMode else { return "0" }
+        return bounds.rangePlaceholder(currentOdometer: motorcycle.currentOdometer, capAtCurrent: false) ?? "0"
+    }
+
+    /// Retroativo sem abastecimento posterior acima do hodômetro atual: vale,
+    /// mas mexe no hodômetro da moto — deixa isso explícito.
+    private var odometerUpdateInfo: String? {
+        guard bounds.isBackdated, bounds.ceiling == nil, let odo = odometer,
+              motorcycle.currentOdometer > 0, odo > motorcycle.currentOdometer else { return nil }
+        return "Isto vai atualizar o hodômetro de \(AppFormat.km(motorcycle.currentOdometer)) para \(AppFormat.km(odo))"
     }
 
     private var pricePerLiter: Double? {
@@ -367,7 +371,7 @@ struct FuelEntryFlowView: View {
                     Text("Hodômetro").foregroundStyle(.secondary)
                     Spacer()
                     TextField("Hodômetro", value: $odometer, format: .number,
-                              prompt: Text("0"))
+                              prompt: Text(odometerPrompt))
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.trailing)
                         .focused($fillFocus, equals: .odometer)
@@ -415,32 +419,26 @@ struct FuelEntryFlowView: View {
                         .font(.footnote.weight(.semibold))
                 }
             }
-        } else if bounds.isBackdated, bounds.ceiling == nil, let odo = odometer,
-                  motorcycle.currentOdometer > 0, odo > motorcycle.currentOdometer {
-            // Retroativo sem abastecimento posterior acima do hodômetro atual:
-            // vale, mas mexe no hodômetro da moto — deixa isso explícito.
-            feedbackLabel("Isto vai atualizar o hodômetro de \(AppFormat.km(motorcycle.currentOdometer)) para \(AppFormat.km(odo))",
-                          icon: "info.circle", color: .secondary)
+        } else if let info = odometerUpdateInfo {
+            feedbackLabel(info, icon: "info.circle", color: .secondary)
         } else if !historyMode, let delta = odometerDelta, delta > 0 {
             feedbackLabel("+\(AppFormat.km(delta)) desde o último",
                           icon: "checkmark.circle.fill", color: .secondary)
         }
     }
 
-    /// Registro antigo: entre quais abastecimentos o km tem de caber.
+    /// Registro antigo: o km da moto nos abastecimentos vizinhos da data — a
+    /// mesma frase da manutenção antiga (`OdometerBounds.contextSentence`).
+    /// Some quando há feedback: uma linha por vez, o aviso ocupa o lugar dela.
     @ViewBuilder
     private var boundsHint: some View {
-        let b = bounds
-        VStack(alignment: .leading, spacing: 2) {
-            if let floor = b.floor, let d = b.floorDate {
-                Text("Antes deste dia: \(AppFormat.km(floor)) em \(AppFormat.date(d))")
-            }
-            if let ceiling = b.ceiling, let d = b.ceilingDate {
-                Text("Depois deste dia: \(AppFormat.km(ceiling)) em \(AppFormat.date(d))")
-            }
+        if !needsPastDate, odometerBoundsMessage == nil, odometerUpdateInfo == nil,
+           let sentence = bounds.contextSentence(currentOdometer: motorcycle.currentOdometer,
+                                                 capAtCurrent: false) {
+            Text(sentence)
+                .font(.caption).foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .font(.caption).foregroundStyle(.tertiary)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Atalho "Foi em outro dia?": vira registro antigo. O local capturado

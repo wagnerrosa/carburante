@@ -97,11 +97,17 @@ nonisolated enum AppFormat {
         case 2...6:
             return sentenceCased(date.formatted(Date.FormatStyle().weekday(.wide).locale(locale)))
         default:
-            let style = calendar.isDate(date, equalTo: now, toGranularity: .year)
-                ? Date.FormatStyle().day().month(.abbreviated)
-                : Date.FormatStyle().day().month(.abbreviated).year()
-            return date.formatted(style.locale(locale))
+            return dayMonth(date, now: now, calendar: calendar)
         }
+    }
+
+    /// Dia e mês para compor frase: "28 de set." no ano corrente, "28 de set.
+    /// de 2025" nos anteriores. Sem "Hoje"/"Ontem" — "Em Ontem" não é frase.
+    static func dayMonth(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let style = calendar.isDate(date, equalTo: now, toGranularity: .year)
+            ? Date.FormatStyle().day().month(.abbreviated)
+            : Date.FormatStyle().day().month(.abbreviated).year()
+        return date.formatted(style.locale(locale))
     }
 
     /// Header de seção de mês (padrão Fotos/Wallet): "Setembro" no ano corrente,

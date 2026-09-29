@@ -83,8 +83,12 @@ struct MaintenanceFormView: View {
         isEditing ? [.dianteiro, .traseiro] : TireSelection.allCases
     }
 
+    /// Registro antigo: a faixa em que o km da época deve cair ("19.958 a
+    /// 20.310"). Dia a dia: o hodômetro atual.
     private var mileagePrompt: String {
-        if isHistoryEntry { return "Km na época" }
+        if isOldRecord {
+            return bounds.rangePlaceholder(currentOdometer: motorcycle.currentOdometer, capAtCurrent: true) ?? "0"
+        }
         return motorcycle.currentOdometer > 0 ? "Atual: \(AppFormat.odometer(motorcycle.currentOdometer))" : "0"
     }
 
@@ -132,6 +136,19 @@ struct MaintenanceFormView: View {
                             Label(t.label, systemImage: t.icon).tag(t)
                         }
                     }
+                } footer: {
+                    // Cada rodapé fala das linhas logo acima: este, da data.
+                    if needsPastDate {
+                        Text("Escolha a data em que a manutenção foi feita.")
+                    } else if willBeHistorical {
+                        // Transparência: registro tardio vale menos (não conta
+                        // para conquistas) — PLAN/registro-retroativo.md.
+                        Label("Registro de histórico: não conta para conquistas.",
+                              systemImage: "clock.arrow.circlepath")
+                    }
+                }
+
+                Section {
                     UnitField(label: "Hodômetro", unit: "km") {
                         TextField("Hodômetro", value: $mileage, format: .number, prompt: Text(mileagePrompt))
                             .keyboardType(.decimalPad)
@@ -144,42 +161,13 @@ struct MaintenanceFormView: View {
                             .focused($fieldFocused)
                     }
                 } footer: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        if needsPastDate {
-                            Text("Escolha a data em que a manutenção foi feita.")
-                        } else if willBeHistorical {
-                            // Transparência: registro tardio vale menos (não conta
-                            // para conquistas) — PLAN/registro-retroativo.md.
-                            Label("Fica marcado como Histórico e não conta para conquistas.",
-                                  systemImage: "clock.arrow.circlepath")
-                        }
-                        // Um aviso só: o de âncora é mais específico (diz que o
-                        // vencimento volta); o de coerência pega o resto (typo).
-                        if let kmWarning = backfillWarning ?? kmCoherenceWarning {
-                            Label(kmWarning, systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                }
-
-                // Registro antigo: o km da época é chute sem contexto — o campo
-                // só dizia "Km na época". Mostra o hodômetro atual e os registros
-                // vizinhos da data ANTES de digitar (prevenir > avisar depois).
-                if showsReference {
-                    Section {
-                        if motorcycle.currentOdometer > 0 {
-                            referenceRow("Hodômetro atual", km: motorcycle.currentOdometer)
-                        }
-                        if let floor = bounds.floor, let floorDate = bounds.floorDate {
-                            referenceRow("Antes · \(AppFormat.relativeDay(floorDate))", km: floor)
-                        }
-                        if let ceiling = bounds.ceiling, let ceilingDate = bounds.ceilingDate {
-                            referenceRow("Depois · \(AppFormat.relativeDay(ceilingDate))", km: ceiling)
-                        }
-                    } header: {
-                        Text("Para referência")
-                    } footer: {
-                        if let referenceFooter { Text(referenceFooter) }
+                    // Uma linha só, colada ao km (DESIGN §7): o contexto da época
+                    // e, quando o km foge, o aviso no MESMO lugar.
+                    if let kmWarning {
+                        Label(kmWarning, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    } else if let kmContext {
+                        Text(kmContext)
                     }
                 }
 
@@ -388,51 +376,34 @@ struct MaintenanceFormView: View {
             km < $0.mileage && calendar.startOfDay(for: date) >= calendar.startOfDay(for: $0.date)
         }
         guard let worst = regressed.max(by: { $0.mileage < $1.mileage }) else { return nil }
-        return "Km menor que a última (\(AppFormat.km(worst.mileage))). Se é um registro antigo, ajuste a data — senão o próximo vencimento volta para trás."
+        return "A última manutenção deste tipo foi com \(AppFormat.km(worst.mileage)), em \(AppFormat.dayMonth(worst.date)). Confira o número ou a data."
     }
 
     /// Limites do hodômetro para a data escolhida (abastecimentos + manutenções,
-    /// menos este registro). Fonte única da referência e do aviso de coerência.
+    /// menos este registro). Fonte única da frase de contexto e do aviso.
     private var bounds: OdometerBounds {
         motorcycle.maintenanceOdometerBounds(on: date, excluding: maintenanceLog)
     }
 
-    /// Referência aparece no registro antigo (modo histórico, ou data passada em
-    /// qualquer form) — no do dia a dia o placeholder "Atual: …" já basta.
-    private var showsReference: Bool {
-        guard isHistoryEntry || bounds.isBackdated else { return false }
-        return motorcycle.currentOdometer > 0 || bounds.floorDate != nil || bounds.ceilingDate != nil
+    /// Registro antigo (modo histórico, ou data passada em qualquer form): é
+    /// quando o km da época precisa de contexto.
+    private var isOldRecord: Bool { isHistoryEntry || bounds.isBackdated }
+
+    /// Frase de contexto sob o km: o hodômetro nos registros vizinhos da data.
+    private var kmContext: String? {
+        guard isOldRecord else { return nil }
+        return bounds.contextSentence(currentOdometer: motorcycle.currentOdometer, capAtCurrent: true)
     }
 
-    private var referenceFooter: String? {
-        switch (bounds.floorDate, bounds.ceilingDate) {
-        case (.some, .some): return "Registros mais próximos da data escolhida. O km da época fica entre eles."
-        case (.some, nil), (nil, .some): return "Registro mais próximo da data escolhida."
-        case (nil, nil): return nil
+    /// Aviso de km fora da ordem do hodômetro (nunca bloqueia o Salvar). A
+    /// coerência vem antes: cita o registro vizinho, o mesmo da frase de
+    /// contexto; a âncora do mesmo tipo cobre o que sobra (na hora).
+    private var kmWarning: String? {
+        guard let km = mileage, km > 0, !needsPastDate else { return nil }
+        if let issue = bounds.maintenanceIssue(km: km, currentOdometer: motorcycle.currentOdometer) {
+            return issue.message()
         }
-    }
-
-    private func referenceRow(_ title: String, km: Double) -> some View {
-        LabeledContent(title) {
-            Text(AppFormat.km(km)).monospacedDigit()
-        }
-    }
-
-    /// Aviso de km fora da ordem do hodômetro (nunca bloqueia o Salvar): menor
-    /// que um registro anterior, maior que um posterior ou que o hodômetro
-    /// atual. Pega o typo que escondia o vencimento (100.000 numa moto em 10.000).
-    private var kmCoherenceWarning: String? {
-        guard let km = mileage, km > 0, !needsPastDate,
-              let issue = bounds.maintenanceIssue(km: km, currentOdometer: motorcycle.currentOdometer)
-        else { return nil }
-        switch issue {
-        case let .belowEarlier(ref, refDate):
-            return "Km menor que o registrado em \(AppFormat.date(refDate)) (\(AppFormat.km(ref))). Confira o número ou a data."
-        case let .aboveLater(ref, refDate):
-            return "Km maior que o registrado em \(AppFormat.date(refDate)) (\(AppFormat.km(ref))). Confira o número ou a data."
-        case let .aboveCurrent(ref):
-            return "Km maior que o hodômetro atual (\(AppFormat.km(ref))). Confira o número."
-        }
+        return backfillWarning
     }
 
     private var canSave: Bool {
