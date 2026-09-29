@@ -8,8 +8,12 @@
 //
 //  - **local** (upload pendente): só o nome do arquivo, `<fuel_log_id>.jpg`,
 //    em Documents/FuelPhotos. Existe só neste device; nunca vai pro servidor.
-//  - **remoto**: o path no bucket, `<user_id>/<fuel_log_id>.jpg`. Válido em
-//    qualquer device do usuário.
+//  - **remoto**: o path no bucket, `<motorcycle_id>/<fuel_log_id>.jpg`. Válido
+//    em qualquer device de quem é dono da moto.
+//
+//  A pasta é a MOTO, não o usuário: a foto é prova da procedência do km e
+//  segue a moto numa transferência (passaporte digital) — o novo dono passa a
+//  ler pela policy, sem mover arquivo nenhum.
 //
 //  Os dois terminam no mesmo `<fuel_log_id>.jpg` — o device que tirou a foto
 //  continua lendo do disco mesmo depois do upload (funciona offline).
@@ -20,17 +24,18 @@ import Foundation
 enum PhotoReference {
     static let bucket = "fuel-log-photos"
 
-    /// Path no bucket. A 1ª pasta é o `user_id` — é o que as policies de RLS
-    /// do Storage checam (`storage.foldername(name)[1] = auth.uid()`).
-    static func remotePath(userID: UUID, logID: UUID) -> String {
-        "\(folder(userID: userID))/\(fileName(logID: logID))"
+    /// Path no bucket. A 1ª pasta é o `motorcycle_id` — as policies de RLS do
+    /// Storage liberam a pasta para quem é dono da moto.
+    static func remotePath(motorcycleID: UUID, logID: UUID) -> String {
+        "\(folder(motorcycleID: motorcycleID))/\(fileName(logID: logID))"
     }
 
-    /// Pasta do usuário no bucket. **Minúsculas:** `auth.uid()::text` do Postgres
-    /// sai em minúsculas e `UUID.uuidString` do Swift em maiúsculas — com a
-    /// pasta em maiúsculas a policy nunca bate e todo upload volta 400.
-    static func folder(userID: UUID) -> String {
-        userID.uuidString.lowercased()
+    /// Pasta da moto no bucket. **Minúsculas:** a policy compara com
+    /// `motorcycles.id::text`, que o Postgres escreve em minúsculas; o
+    /// `UUID.uuidString` do Swift sai em maiúsculas e a pasta nunca bateria
+    /// (todo upload voltava 400 — PR #86).
+    static func folder(motorcycleID: UUID) -> String {
+        motorcycleID.uuidString.lowercased()
     }
 
     static func fileName(logID: UUID) -> String {

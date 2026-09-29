@@ -10,22 +10,23 @@ import XCTest
 @testable import Carburante
 
 final class PhotoReferenceTests: XCTestCase {
-    private let userID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
+    private let motoID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     private let logID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
 
     private var local: String { PhotoReference.fileName(logID: logID) }
-    private var remote: String { PhotoReference.remotePath(userID: userID, logID: logID) }
+    private var remote: String { PhotoReference.remotePath(motorcycleID: motoID, logID: logID) }
 
-    func testRemotePathStartsWithUserFolder() {
-        // A 1ª pasta é o que a policy de RLS do Storage compara com auth.uid().
-        XCTAssertEqual(remote, "\(userID.uuidString)/\(logID.uuidString).jpg")
+    func testRemotePathStartsWithMotorcycleFolder() {
+        // A 1ª pasta é a MOTO: a foto segue a moto numa transferência, e a
+        // policy do Storage libera a pasta para quem é dono dela.
+        XCTAssertEqual(remote, "\(motoID.uuidString)/\(logID.uuidString).jpg")
     }
 
-    func testUserFolderIsLowercase() {
-        // auth.uid()::text é minúsculo; pasta maiúscula = policy nega = upload 400.
+    func testFolderIsLowercase() {
+        // motorcycles.id::text é minúsculo; pasta maiúscula = policy nega = upload 400.
         let id = UUID(uuidString: "04F021F1-7B92-423C-AD72-D762A90A3B14")!
-        XCTAssertEqual(PhotoReference.folder(userID: id), "04f021f1-7b92-423c-ad72-d762a90a3b14")
-        XCTAssertTrue(PhotoReference.remotePath(userID: id, logID: logID)
+        XCTAssertEqual(PhotoReference.folder(motorcycleID: id), "04f021f1-7b92-423c-ad72-d762a90a3b14")
+        XCTAssertTrue(PhotoReference.remotePath(motorcycleID: id, logID: logID)
             .hasPrefix("04f021f1-7b92-423c-ad72-d762a90a3b14/"))
     }
 
