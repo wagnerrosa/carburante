@@ -323,17 +323,18 @@
   }
 
   // Recursos no celular = carrossel (scroll-snap no CSS); os pontos só acompanham a posição.
-  var track = document.querySelector('.features');
+  // (não chamar de "track": o var sobrescreveria a função de analytics do mesmo escopo)
+  var rail = document.querySelector('.features');
   var dots = document.querySelectorAll('.features__dots span');
-  if (track && dots.length) {
+  if (rail && dots.length) {
     var dotFrame = 0;
-    track.addEventListener('scroll', function () {
+    rail.addEventListener('scroll', function () {
       cancelAnimationFrame(dotFrame);
       dotFrame = requestAnimationFrame(function () {
-        var slides = track.children;
+        var slides = rail.children;
         var step = slides[1].offsetLeft - slides[0].offsetLeft;
-        var atEnd = track.scrollLeft >= track.scrollWidth - track.clientWidth - 2;
-        var i = atEnd ? slides.length - 1 : Math.round(track.scrollLeft / step);
+        var atEnd = rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 2;
+        var i = atEnd ? slides.length - 1 : Math.round(rail.scrollLeft / step);
         dots.forEach(function (el, k) { el.classList.toggle('is-on', k === i); });
       });
     }, { passive: true });
