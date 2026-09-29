@@ -57,6 +57,11 @@ final class FuelLog {
     /// cheios (litros de parciais intermediários são somados). Ver `ConsumptionCalculator`.
     /// Default na declaração permite migração leve de stores antigos.
     var isFullTank: Bool = true
+    /// Houve abastecimentos NÃO registrados antes deste (lacuna). Quebra a
+    /// medição: o trecho anterior não vira consumo e este registro recomeça a
+    /// conta como o 1º da moto (âncora se cheio). O km continua contando.
+    /// Marcado pelo usuário, nunca automático. Ver PLAN/lacuna-abastecimento.md.
+    var missedPrevious: Bool = false
 
     // Contexto — nulo no MVP (Fase 7 GPS preenche).
     var latitude: Double?

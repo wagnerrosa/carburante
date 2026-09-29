@@ -387,6 +387,7 @@ final class SyncService {
         log.totalCost = dto.total_cost
         log.fuelTypeRaw = dto.fuel_type
         log.isFullTank = dto.is_full_tank
+        log.missedPrevious = dto.missed_previous
         log.latitude = dto.latitude; log.longitude = dto.longitude
         log.city = dto.city; log.state = dto.state; log.country = dto.country
         log.temperatureC = dto.temperature_c
@@ -550,7 +551,7 @@ final class SyncService {
             ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
             date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited,
             updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt,
-            created_at: f.createdAt
+            created_at: f.createdAt, missed_previous: f.missedPrevious
         )
     }
 
