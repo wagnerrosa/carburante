@@ -433,7 +433,9 @@ struct FuelLogFormView: View {
             log.odometer = odo
             log.liters = lit
             log.totalCost = cost
-            log.fuelType = fuelType
+            // Só regrava se mudou: tipo desconhecido (build mais novo) aparece como
+            // o fallback no form, e regravar trocaria a chave real por ele.
+            if log.fuelType != fuelType { log.fuelType = fuelType }
             log.isFullTank = isFullTank
             if ocrProcessed {
                 log.ocrProcessed = true

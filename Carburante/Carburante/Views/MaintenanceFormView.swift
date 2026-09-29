@@ -392,14 +392,17 @@ struct MaintenanceFormView: View {
         let isFirst = !wasEditing && motorcycle.activeMaintenanceLogs.isEmpty
         if let log = maintenanceLog {
             log.date = date
-            log.type = type
+            // Só regrava se mudou: tipo desconhecido (build mais novo) aparece como
+            // o fallback no form, e regravar trocaria a chave real por ele.
+            if log.type != type { log.type = type }
             log.mileage = km
             log.cost = c
             log.notes = trimmedNotes
             log.intervalKm = ik
             log.intervalMonths = im
             // Editar sempre é uma posição só (o seletor não oferece "Ambos").
-            log.tirePosition = type == .pneus ? tireSelection.positions.first : nil
+            let position = type == .pneus ? tireSelection.positions.first : nil
+            if type != .pneus || log.tirePosition != position { log.tirePosition = position }
             // Soft Revision: registra a edição (revision++ / updatedAt p/ o sync).
             log.markUpdated()
             parent = log
