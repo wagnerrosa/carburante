@@ -97,6 +97,7 @@
     'st.ideas': 'Ideas',
     'r1.t': 'Logbook',
     'r1.d': 'Fast fuel logging, real consumption, receipt reading, scheduled maintenance, a multi-bike garage, badges and a cloud copy of your records.',
+    'r1.link': 'See the features',
     'r2.t': 'TestFlight beta',
     'r2.d': 'Real riders using it day to day through TestFlight. This is where you come in: every fuel-up logged helps decide what comes next.',
     'r3.t': 'Digital passport',
@@ -113,7 +114,8 @@
     'alt.wagner': 'Wagner Rosa riding on a mountain road',
     's.portfolio': 'View portfolio',
     's.code': 'Read the code',
-    'ft.by': 'Made by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a> · 2026',
+    'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="scooter">🛵</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
+    'ft.copy': '© 2026 Carburante. All rights reserved.',
     'ft.portfolio': 'Portfolio',
     'ft.privacy': 'Privacy',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
