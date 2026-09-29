@@ -375,8 +375,10 @@ p { margin: 0; }
   background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line);
 }
 @media (prefers-color-scheme: dark) { .tl__art { background: rgba(255, 255, 255, .06); } }
-.tl__art img { width: 82%; filter: drop-shadow(0 10px 12px rgba(0, 0, 0, .22)); transform: rotate(-6deg); transition: transform .4s cubic-bezier(.3, 1.6, .5, 1); }
-.tl--branch:hover .tl__art img { transform: rotate(-12deg) translateY(-3px); }
+/* A moto olha para a esquerda: empinar = girar no sentido horário com o pivô
+   na roda traseira (direita, embaixo) — a frente sobe, a traseira fica no chão. */
+.tl__art img { width: 82%; filter: drop-shadow(0 10px 12px rgba(0, 0, 0, .22)); transform-origin: 78% 86%; transition: transform .4s cubic-bezier(.3, 1.6, .5, 1); }
+.tl--branch:hover .tl__art img { transform: rotate(16deg); }
 @media (min-width: 560px) {
   .tl--branch { --art: 112px; grid-template-columns: var(--art) 1fr; gap: 24px; align-items: center; }
   .tl__art { align-self: start; }
