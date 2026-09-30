@@ -231,7 +231,7 @@ p { margin: 0; }
   padding: 9px; border-radius: 50px; background: #121214;
   box-shadow: inset 0 0 0 1.5px #3a3a3e, inset 0 0 0 5px #121214, 0 30px 70px -25px rgba(0, 0, 0, .55);
 }
-.phone img { width: 100%; aspect-ratio: 1206 / 2622; object-fit: cover; border-radius: 41px; }
+.phone img, .phone video { display: block; width: 100%; height: auto; aspect-ratio: 1206 / 2622; object-fit: cover; border-radius: 41px; background: #0b0b0c; }
 .phone--hero { max-width: 300px; }
 
 .float { position: absolute; width: 96px; filter: drop-shadow(0 16px 20px rgba(0, 0, 0, .45)); animation: float 7s ease-in-out infinite; }
@@ -373,6 +373,14 @@ p { margin: 0; }
 }
 .features--list .is-active .feature__copy { background: var(--row-fill); box-shadow: var(--frost-sheen); }
 .features--list .is-active .feature__copy::before { width: 3px; background: linear-gradient(180deg, #ff3b30, #ff7a00 55%, #ffc400); }
+/* Com clipe tocando, o trilho aceso vira barra de progresso: trilho apagado + chama enchendo (--p via JS). */
+.features--list.is-playing .is-active .feature__copy::before { background: var(--line); }
+.features--list .feature__copy::after {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; opacity: 0;
+  background: linear-gradient(180deg, #ff3b30, #ff7a00 55%, #ffc400);
+  transform: scaleY(var(--p, 0)); transform-origin: top;
+}
+.features--list.is-playing .is-active .feature__copy::after { opacity: 1; }
 .features--list .kicker { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.012em; color: var(--text-2); }
 .features--list .is-active .kicker { color: var(--text); }
 .feature__tab {
