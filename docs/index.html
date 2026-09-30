@@ -17,13 +17,14 @@
   <meta property="og:title" content="Carburante · Quanto sua moto faz de verdade">
   <meta property="og:description" content="Consumo real, de tanque cheio a tanque cheio, e manutenção em dia. App para iPhone em beta no TestFlight.">
   <meta property="og:url" content="https://carburante.motorcycles/">
-  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=2">
+  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=3">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=2">
+  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=3">
 
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
+  <link rel="stylesheet" href="style.css?v=19">
   <script>document.documentElement.classList.add('js')</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
@@ -103,7 +104,7 @@
       <div class="hero__visual">
         <div class="glow" aria-hidden="true"></div>
         <div class="phone phone--hero">
-          <img src="assets/screens/resumo-dark.webp" width="1206" height="2622" data-i18n-alt="alt.hero" alt="Tela Resumo do Carburante: consumo médio de 28,8 km/l, custo por km e gasto do mês">
+          <video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/hero.webp" data-still="assets/clips/hero-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.hero" aria-label="Tela Resumo do Carburante com uma Harley-Davidson: consumo médio de 20,3 km/l, custo por km e gasto do mês. O app troca de moto e muda de cor."><source src="assets/clips/hero.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/hero.mp4" type="video/mp4"></video>
         </div>
         <img class="float float--a" src="assets/badges/firstFuel.webp" alt="" width="240" height="240">
         <img class="float float--b" src="assets/badges/bestConsumption.webp" alt="" width="240" height="240">
@@ -176,18 +177,18 @@
            esquerda + lista à direita; o item ativo troca a tela (JS). Sem JS: blocos alternados. -->
       <div class="features">
         <div class="feature is-active reveal">
-          <div class="feature__media"><div class="phone"><img src="assets/screens/abastecer.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.fuel" alt="Tela de revisão do abastecimento mostrando 29,6 km/l neste tanque"></div></div>
+          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
           <div class="feature__copy">
             <p class="kicker"><span data-i18n="f1.k">Registro</span></p>
             <div class="feature__detail" id="fd1"><div>
               <h3 data-i18n="f1.t">Três passos. Nenhum campo à toa.</h3>
-              <p data-i18n="f1.d">O app lembra o último combustível, calcula o preço do litro na hora e mostra o consumo daquele tanque antes de salvar. Tem o cupom? Toque em Escanear: a leitura acontece no próprio iPhone e a foto do cupom não é guardada.</p>
+              <p data-i18n="f1.d">Fotografe o hodômetro e o número é lido na hora, no próprio iPhone. Valor e litros podem vir da foto do cupom ou da bomba, e você confere antes de salvar. O app calcula o preço do litro e mostra o consumo daquele tanque.</p>
             </div></div>
           </div>
         </div>
 
         <div class="feature feature--flip reveal">
-          <div class="feature__media"><div class="phone"><img src="assets/screens/consumo.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.consumption" alt="Gráfico de consumo por tanque com média de 28,8 km/l e comparação com a categoria"></div></div>
+          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/consumo.webp" data-still="assets/clips/consumo-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.consumption" aria-label="Gráfico de consumo tanque a tanque da Harley-Davidson, com média de 20,3 km/l e comparação com a categoria"><source src="assets/clips/consumo.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/consumo.mp4" type="video/mp4"></video></div></div>
           <div class="feature__copy">
             <p class="kicker"><span data-i18n="f2.k">Consumo</span></p>
             <div class="feature__detail" id="fd2"><div>
@@ -198,7 +199,7 @@
         </div>
 
         <div class="feature reveal">
-          <div class="feature__media"><div class="phone"><img src="assets/screens/manutencao.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.maintenance" alt="Lista de manutenções programadas com quanto falta para cada uma"></div></div>
+          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/manutencao.webp" data-still="assets/clips/manutencao-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.maintenance" aria-label="Notificação de troca de óleo chega no iPhone e abre a lista de manutenções programadas"><source src="assets/clips/manutencao.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/manutencao.mp4" type="video/mp4"></video></div></div>
           <div class="feature__copy">
             <p class="kicker"><span data-i18n="f3.k">Manutenção</span></p>
             <div class="feature__detail" id="fd3"><div>
@@ -209,7 +210,7 @@
         </div>
 
         <div class="feature feature--flip feature--compact reveal">
-          <div class="feature__media"><div class="phone"><img src="assets/screens/conquistas.webp" width="1206" height="2622" loading="lazy" data-i18n-alt="alt.garage" alt="Garagem com consumo e custo médio e o nível de conquistas"></div></div>
+          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/garagem.webp" data-still="assets/clips/garagem-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.garage" aria-label="Garagem com três motos, recordes, totais e o nível de conquistas"><source src="assets/clips/garagem.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/garagem.mp4" type="video/mp4"></video></div></div>
           <div class="feature__copy">
             <p class="kicker"><span data-i18n="f4.k">Garagem</span></p>
             <div class="feature__detail" id="fd4"><div>
@@ -400,7 +401,7 @@
         </details>
         <details>
           <summary data-i18n="q8.q">Lê o display da bomba?</summary>
-          <p data-i18n="q8.a">Não. Testei, e foto do display da bomba não é lida com confiança. O app lê o cupom impresso, onde funciona, e você confere os valores antes de salvar.</p>
+          <p data-i18n="q8.a">Lê, mas no beta ainda não acerta 100%. Reflexo, ângulo e display de segmentos atrapalham. Por isso o app sempre mostra o que leu antes de salvar: você confere e corrige o que precisar. O cupom impresso costuma sair mais preciso.</p>
         </details>
         <details>
           <summary data-i18n="q6.q">O código é aberto?</summary>
@@ -448,6 +449,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=20"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>

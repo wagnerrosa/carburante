@@ -14,11 +14,11 @@
     'cta.beta': 'Join the beta',
     'cta.how': 'How it works',
     'hero.meta': 'Free during beta · iOS 18+ · Portuguese UI for now',
-    'alt.hero': 'Carburante Summary screen: 28.8 km/l average, cost per km and monthly spend',
-    'alt.fuel': 'Fuel-up review screen showing 29.6 km/l for this tank',
-    'alt.consumption': 'Per-tank consumption chart with a 28.8 km/l average and category comparison',
-    'alt.maintenance': 'Scheduled maintenance list showing how far each item is',
-    'alt.garage': 'Garage with average consumption and cost plus the achievement level',
+    'alt.hero': 'Carburante Summary screen with a Harley-Davidson: 20.3 km/l average, cost per km and monthly spend. The app switches bikes and changes color.',
+    'alt.fuel': 'Logging a fuel-up: the odometer photo is read (22,039 km), the pump photo brings cost and liters (R$ 28.49 and 4.135 L) and the review shows 20.1 km/l for this tank',
+    'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
+    'alt.maintenance': 'An oil change notification arrives on the iPhone and opens the scheduled maintenance list',
+    'alt.garage': 'Garage with three bikes, records, totals and the achievement level',
     'p1.t': 'Fuel up in seconds',
     'p1.d': 'Odometer, price and liters. The date fills itself in, and so does the place if you allow location. Fits in a gas-station stop.',
     'p2.t': 'Honest consumption',
@@ -38,7 +38,7 @@
     'f.title': 'Built for riding, not for typing.',
     'f1.k': 'Logging',
     'f1.t': 'Three steps. Zero wasted fields.',
-    'f1.d': 'It remembers your last fuel type, works out the price per liter on the spot and shows that tank’s consumption before you save. Got the receipt? Tap Scan: it’s read right on your iPhone and the receipt photo isn’t kept.',
+    'f1.d': 'Snap the odometer and the number is read on the spot, right on your iPhone. Cost and liters can come from a photo of the receipt or the pump, and you check them before saving. It works out the price per liter and shows that tank’s consumption.',
     'f2.k': 'Consumption',
     'f2.t': 'Twisties or traffic? The chart shows.',
     'f2.d': 'Tank-by-tank chart, period average and an estimated benchmark for your bike’s category and engine size, if you enter both.',
@@ -74,7 +74,7 @@
     'q5.q': 'Why doesn’t consumption show on the first fuel-up?',
     'q5.a': 'Because honest consumption is measured between two full tanks: the first one is the starting point. The app tells you how many fuel-ups are left until your first average appears.',
     'q8.q': 'Can it read the pump display?',
-    'q8.a': 'No. I tested it, and pump display photos can’t be read reliably. The app reads the printed receipt, where it works, and you check the values before saving.',
+    'q8.a': 'It does, but in the beta it isn’t 100% accurate yet. Glare, angle and segmented displays get in the way. That’s why the app always shows what it read before you save: you check it and fix anything that’s off. Printed receipts tend to come out more accurate.',
     'q6.q': 'Is the code open?',
     'q6.a': 'The code is public on GitHub for anyone curious about how the app is built. If you like it, leave a star, it helps a lot.',
     'b.kicker': 'Achievements',
@@ -132,7 +132,7 @@
   var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-i18n]'));
   var altNodes = Array.prototype.slice.call(document.querySelectorAll('[data-i18n-alt]'));
   nodes.forEach(function (el) { el.dataset.pt = el.innerHTML; });
-  altNodes.forEach(function (el) { el.dataset.ptAlt = el.getAttribute('alt'); });
+  altNodes.forEach(function (el) { el.dataset.ptAlt = el.getAttribute('alt') || el.getAttribute('aria-label'); });
 
   var toggle = document.getElementById('lang-toggle');
   var current = 'pt';
@@ -150,7 +150,7 @@
     });
     altNodes.forEach(function (el) {
       var key = el.getAttribute('data-i18n-alt');
-      el.setAttribute('alt', en && EN[key] ? EN[key] : el.dataset.ptAlt);
+      el.setAttribute(el.tagName === 'VIDEO' ? 'aria-label' : 'alt', en && EN[key] ? EN[key] : el.dataset.ptAlt);
     });
     var m = META[lang];
     document.documentElement.lang = m.html;
@@ -403,6 +403,39 @@
     }
   }
 
+  // Clipes do app (vídeos gravados no simulador no lugar dos prints). Só baixam e tocam na
+  // tela (preload="none"); até o 1º quadro chegar, o poster já mostra a tela. Com "reduzir
+  // movimento", economia de dados ou rede 2G (navigator.connection, onde existir), nenhum
+  // vídeo é baixado e fica a imagem parada de data-still. Vídeo que falha também volta a ela.
+  var net = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  var slowNet = !!(net && (net.saveData || /2g$/.test(net.effectiveType || '')));
+  var clipsOk = !reduceMotion && !slowNet && 'IntersectionObserver' in window;
+  var toStill = function (v) {
+    v.dataset.failed = '1';
+    v.pause();
+    if (v.dataset.still) v.poster = v.dataset.still;
+  };
+  var playClip = function (v) {
+    if (v.dataset.failed) return;
+    if (v.preload !== 'auto') v.preload = 'auto';
+    var p = v.play();
+    if (p && p.catch) p.catch(function () {});
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('video.clip'), function (v) {
+    if (!clipsOk) { toStill(v); return; }
+    // Erro de rede/decodificação chega no último <source>, não no <video>.
+    var last = v.querySelector('source:last-of-type');
+    if (last) last.addEventListener('error', function () { toStill(v); });
+  });
+  if (clipsOk) {
+    var heroClip = document.querySelector('.hero video.clip');
+    if (heroClip) {
+      new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) playClip(heroClip); else heroClip.pause(); });
+      }, { threshold: 0.25 }).observe(heroClip);
+    }
+  }
+
   // Recursos no desktop (≥880px): celular fixo + lista. O rótulo de cada recurso vira botão
   // (padrão acordeão) só nesse modo; no celular segue texto e o carrossel de baixo assume.
   var feats = Array.prototype.slice.call(document.querySelectorAll('.feature'));
@@ -415,7 +448,7 @@
       b.type = 'button';
       b.className = 'feature__tab';
       b.setAttribute('aria-controls', 'fd' + (i + 1));
-      b.addEventListener('click', function () { select(i, false); });
+      b.addEventListener('click', function () { if (i !== active) select(i, false); });
       b.addEventListener('keydown', function (e) {
         var k = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
         if (!k) return;
@@ -424,8 +457,60 @@
       });
       return b;
     });
-    var select = function (i, focus) {
-      if (i !== active && !featTracked) {
+    // Clipes dos recursos. Desktop: o do item ativo toca uma vez e, ao terminar, passa para o
+    // próximo (auto-avanço cíclico); o trilho aceso enche junto (--p). Celular: loop no slide visível.
+    var fclips = feats.map(function (f) { return f.querySelector('video.clip'); });
+    var railVisible = false, rafId = 0;
+    var copyOf = function (i) { return feats[i].querySelector('.feature__copy'); };
+    var progress = function () {
+      cancelAnimationFrame(rafId);
+      var i = active, v = fclips[i];
+      var tick = function () {
+        if (v.duration) copyOf(i).style.setProperty('--p', (v.currentTime / v.duration).toFixed(4));
+        if (i === active && !v.paused && !v.ended) rafId = requestAnimationFrame(tick);
+      };
+      tick();
+    };
+    var runClips = function (restart) {
+      if (!clipsOk) return;
+      fclips.forEach(function (v, k) {
+        if (!v) return;
+        v.loop = !wide.matches;
+        if (wide.matches && k !== active) v.pause();
+      });
+      if (!wide.matches) return;
+      var v = fclips[active];
+      if (!v) return;
+      if (restart) {
+        try { v.currentTime = 0; } catch (e) { /* ainda sem metadados */ }
+        copyOf(active).style.setProperty('--p', 0);
+      }
+      if (railVisible) playClip(v); else v.pause();
+    };
+    var slideIO = null;
+    if (clipsOk) {
+      fclips.forEach(function (v, i) {
+        if (!v) return;
+        v.addEventListener('playing', function () {
+          if (wide.matches && i === active) { featRail.classList.add('is-playing'); progress(); }
+        });
+        v.addEventListener('ended', function () {
+          if (wide.matches && i === active && railVisible) select((i + 1) % feats.length, false, true);
+        });
+      });
+      new IntersectionObserver(function (entries) {
+        railVisible = entries[0].isIntersecting;
+        runClips(false);
+      }, { threshold: 0.35 }).observe(featRail);
+      slideIO = new IntersectionObserver(function (entries) {
+        if (wide.matches) return;
+        entries.forEach(function (e) { if (e.isIntersecting) playClip(e.target); else e.target.pause(); });
+      }, { threshold: 0.6 });
+      fclips.forEach(function (v) { if (v) slideIO.observe(v); });
+    }
+
+    var select = function (i, focus, auto) {
+      if (!auto && i !== active && !featTracked) {
         featTracked = true;
         track('site_interaction', { event_category: 'ui', event_label: 'feature_' + (i + 1), event_location: 'recursos' });
       }
@@ -435,6 +520,7 @@
         tabs[k].setAttribute('aria-expanded', k === i ? 'true' : 'false');
       });
       if (focus) tabs[i].focus();
+      runClips(true);
     };
     // Envolve/desembrulha o <span data-i18n> — o i18n guarda a referência do span, então
     // trocar de idioma continua funcionando nos dois modos.
@@ -451,7 +537,10 @@
         }
       });
       featRail.classList.toggle('features--list', wide.matches);
-      select(active, false);
+      if (!wide.matches) featRail.classList.remove('is-playing');
+      select(active, false, true);
+      // Voltou ao carrossel: reobservar dispara o IO de novo e o slide visível volta a tocar.
+      if (slideIO && !wide.matches) fclips.forEach(function (v) { if (v) { slideIO.unobserve(v); slideIO.observe(v); } });
     };
     mode();
     if (wide.addEventListener) wide.addEventListener('change', mode);
