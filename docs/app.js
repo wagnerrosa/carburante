@@ -9,7 +9,6 @@
     'nav.how': 'How it works',
     'nav.features': 'Features',
     'nav.roadmap': 'Roadmap',
-    'hero.pill': 'TestFlight beta · iPhone',
     'hero.title': 'See your bike’s <span class="flame-text">real fuel economy.</span>',
     'hero.lede': 'Log the fuel-up at the pump, even with no signal. Carburante measures consumption from full tank to full tank and warns you before the next service is due.',
     'cta.beta': 'Join the beta',
@@ -320,46 +319,61 @@
     }
   }
 
-  // Hero: a roda viva dentro do ícone. Ignição uma vez ao carregar, depois o loop; hover no
-  // ícone ou no botão do beta "acelera" (playbackRate + brilho). Fora da tela, pausa. HEVC com
-  // alpha só no WebKit: o Chrome toca HEVC mas ignora o alpha (fundo preto), por isso a escolha
-  // é por motor e não pela ordem de <source>. Sem vídeo (Modo Pouca Energia, codec, "reduzir
-  // movimento"), a imagem fica no lugar.
-  var icon = document.querySelector('[data-icon]');
-  if (icon) {
-    var intro = icon.querySelectorAll('.hero__vid')[0];
-    var loop = icon.querySelectorAll('.hero__vid')[1];
+  // Beta: a roda do ícone acende quando aparece inteira na tela (ignição uma vez, depois o
+  // loop) e o botão "acelera" (playbackRate + brilho). HEVC com alpha só no WebKit: o
+  // Chrome toca HEVC mas ignora o alpha (fundo preto), por isso a escolha é por motor e
+  // não pela ordem de <source>. Sem vídeo (Modo Pouca Energia, codec, "reduzir
+  // movimento"), a imagem acesa fica no lugar.
+  var beta = document.querySelector('[data-ignite]');
+  if (beta) {
+    var intro = beta.querySelectorAll('.beta__vid')[0];
+    var loop = beta.querySelectorAll('.beta__vid')[1];
     var ext = null;
     if (!reduceMotion && 'IntersectionObserver' in window && intro.canPlayType) {
       if (navigator.vendor === 'Apple Computer, Inc.') ext = intro.canPlayType('video/mp4; codecs="hvc1"') ? 'mov' : null;
       else ext = intro.canPlayType('video/webm; codecs="vp9"') ? 'webm' : null;
     }
-    if (ext) {
-      var vidNow = intro, started = false, rate = 1, target = 1, rateFrame = 0, revved = false;
+    if (!ext) {
+      beta.classList.add('is-lit');
+    } else {
+      var lit = false, vidNow = intro, rate = 1, target = 1, rateFrame = 0, revved = false;
       intro.muted = loop.muted = true;
       var play = function (v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); };
       var shown = function (v) {
         v.classList.add('is-shown');
-        icon.classList.add('is-playing');
+        beta.classList.add('is-playing');
         if (v === loop) intro.classList.remove('is-shown'); // os dois têm alpha: o de baixo apareceria
       };
       intro.addEventListener('playing', function () { shown(intro); });
       loop.addEventListener('playing', function () { shown(loop); });
       intro.addEventListener('ended', function () { vidNow = loop; play(loop); });
-      intro.preload = loop.preload = 'auto';
-      intro.src = 'assets/art/roda-intro.' + ext;
-      loop.src = 'assets/art/roda-loop.' + ext;
 
+      var load = function () {
+        if (intro.getAttribute('src')) return;
+        intro.preload = loop.preload = 'auto';
+        intro.src = 'assets/art/roda-intro.' + ext;
+        loop.src = 'assets/art/roda-loop.' + ext;
+      };
+      new IntersectionObserver(function (entries, obs) {
+        if (entries[0].isIntersecting) { obs.disconnect(); load(); }
+      }, { rootMargin: '800px 0px' }).observe(beta);
+
+      // Acende com a roda inteira nos 80% de cima da tela; fora dessa faixa, pausa.
+      var wheel = beta.querySelector('.beta__wheel');
       new IntersectionObserver(function (entries) {
-        if (!entries[0].isIntersecting) { vidNow.pause(); return; }
-        if (started) { play(vidNow); return; }
-        started = true;
-        setTimeout(function () { play(intro); }, 400);
-      }).observe(icon);
+        var e = entries[0];
+        if (!e.isIntersecting) { vidNow.pause(); return; }
+        if (lit) play(vidNow);
+        else if (e.intersectionRatio >= 0.99) {
+          lit = true;
+          load();
+          setTimeout(function () { beta.classList.add('is-lit'); play(intro); }, 250);
+        }
+      }, { rootMargin: '0px 0px -20% 0px', threshold: [0, 1] }).observe(wheel);
 
-      // Acelerar: playbackRate sobe/desce suave (rAF). Teto 1,9×: acima de 2× o Safari
-      // (AVFoundation) entra em avanço rápido e mostra ~4 quadros/s (medido: 2,0× = 45 q/s,
-      // 2,1× = 3,5 q/s). Degraus de 0,05 para não trocar a taxa a cada quadro.
+      // Acelerar: playbackRate sobe/desce suave (rAF); só depois de acesa. Teto 1,9×: acima
+      // de 2× o Safari (AVFoundation) entra em avanço rápido e mostra ~4 quadros/s (medido:
+      // 2,0× = 45 q/s, 2,1× = 3,5 q/s). Degraus de 0,05 para não trocar a taxa a cada quadro.
       var applied = 1;
       var setRate = function () {
         rate += (target - rate) * 0.14;
@@ -369,42 +383,24 @@
         if (rate !== target) rateFrame = requestAnimationFrame(setRate);
       };
       var rev = function (on) {
-        icon.classList.toggle('is-rev', on);
+        on = on && lit;
+        beta.classList.toggle('is-rev', on);
         target = on ? 1.9 : 1;
         cancelAnimationFrame(rateFrame);
         rateFrame = requestAnimationFrame(setRate);
         if (on && !revved) {
           revved = true;
-          track('site_interaction', { event_category: 'ui', event_label: 'icon_rev', event_location: 'hero' });
+          track('site_interaction', { event_category: 'ui', event_label: 'beta_rev', event_location: 'beta' });
         }
       };
-      var heroCta = document.querySelector('.hero .btn--flame');
-      [icon, heroCta].forEach(function (el) {
-        if (!el) return;
+      var cta = beta.querySelector('.btn--flame');
+      [cta, wheel].forEach(function (el) {
         el.addEventListener('pointerenter', function () { rev(true); });
         el.addEventListener('pointerleave', function () { rev(false); });
       });
-      if (heroCta) {
-        heroCta.addEventListener('focus', function () { rev(true); });
-        heroCta.addEventListener('blur', function () { rev(false); });
-      }
+      cta.addEventListener('focus', function () { rev(true); });
+      cta.addEventListener('blur', function () { rev(false); });
     }
-  }
-
-  // Beta: a placa da chama atrás do card varre da esquerda quando o card aparece; hover no
-  // botão esquenta a placa. Sem JS ou com "reduzir movimento", já nasce acesa.
-  var beta = document.querySelector('[data-ignite]');
-  if (beta) {
-    if (reduceMotion || !('IntersectionObserver' in window)) {
-      beta.classList.add('is-lit');
-    } else {
-      new IntersectionObserver(function (entries, obs) {
-        if (entries[0].isIntersecting) { obs.disconnect(); beta.classList.add('is-lit'); }
-      }, { rootMargin: '0px 0px -25% 0px' }).observe(beta.querySelector('.beta'));
-    }
-    var betaCta = beta.querySelector('.btn--flame');
-    betaCta.addEventListener('pointerenter', function () { beta.classList.add('is-rev'); });
-    betaCta.addEventListener('pointerleave', function () { beta.classList.remove('is-rev'); });
   }
 
   // Recursos no desktop (≥880px): celular fixo + lista. O rótulo de cada recurso vira botão
