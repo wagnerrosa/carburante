@@ -26,7 +26,7 @@
     'p3.t': 'No-surprise maintenance',
     'p3.d': 'Oil, tires, chain and brakes. The app warns you before they’re due, by distance or by date.',
     'm.kicker': 'How we measure',
-    'm.title': 'Full tank to full tank. The method that doesn’t lie.',
+    'm.title': 'Full tank to full tank.<br>The method that doesn’t lie.',
     'm1.t': 'Fill it up',
     'm1.d': 'Your first full tank is the starting point. No average yet, and the app shows how many fuel-ups are left.',
     'm2.t': 'Ride as usual',
@@ -575,6 +575,6 @@
     entries.forEach(function (e) {
       if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
     });
-  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  }, { threshold: 0 });
   items.forEach(function (el) { io.observe(el); });
 })();
