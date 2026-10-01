@@ -196,11 +196,12 @@
 				};
 			};
 			buildConfigurationList = CC558AD72FE34F24009BAC75 /* Build configuration list for PBXProject "Carburante" */;
-			developmentRegion = en;
+			developmentRegion = "pt-BR";
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				"pt-BR",
 			);
 			mainGroup = CC558AD32FE34F24009BAC75;
 			minimizedProjectReferenceProxies = 1;

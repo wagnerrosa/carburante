@@ -3,9 +3,10 @@
 //  Carburante
 //
 //  Checklist de ativação (PLAN/onboarding.md): leva o usuário ao momento de
-//  valor o mais rápido possível. Quatro passos, marcados automaticamente a
-//  partir dos dados reais (não há estado próprio a sincronizar — derivado do
-//  SwiftData). Some sozinho quando os quatro estão concluídos, e pode ser
+//  valor o mais rápido possível. Passos marcados automaticamente a partir dos
+//  dados reais (não há estado próprio a sincronizar — derivado do SwiftData e
+//  da sessão; o de conta segue `CloudBackupStep`). Some sozinho quando todos
+//  estão concluídos, e pode ser
 //  dispensado a qualquer momento (não fica incomodando no uso recorrente).
 //
 //  Visual: card agrupado nativo. Passo concluído = check na cor do tema; passo
