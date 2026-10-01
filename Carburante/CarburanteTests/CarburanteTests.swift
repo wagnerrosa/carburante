@@ -229,6 +229,60 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(moto.currentOdometer, 20_500, "preserva o maior valor conhecido como baseline")
     }
 
+    // MARK: - Manutenção também é leitura do hodômetro (2026-10-01)
+
+    /// Troca de óleo com km acima do último abastecimento → a moto andou.
+    func testReconcile_maintenanceAboveFuelAdvances() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1500], in: ctx)
+        ctx.insert(MaintenanceLog(mileage: 1650, type: .oleo, motorcycle: moto))
+        moto.reconcileOdometer(latestEntry: 1650)
+        try ctx.save()
+
+        XCTAssertEqual(moto.currentOdometer, 1650)
+        XCTAssertEqual(moto.fuelOdometerFloor, 1500,
+                       "piso do abastecimento ignora a manutenção (km arredondado não trava)")
+    }
+
+    /// Km abaixo do atual (manutenção antiga ou de manhã) não mexe no hodômetro.
+    func testReconcile_maintenanceBelowKeepsOdometer() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1500], in: ctx)
+        ctx.insert(MaintenanceLog(mileage: 1300, type: .oleo, motorcycle: moto))
+        moto.reconcileOdometer(latestEntry: 1300)
+        try ctx.save()
+
+        XCTAssertEqual(moto.currentOdometer, 1500)
+    }
+
+    /// Excluir (lógico) a manutenção mais alta recua para o maior registro vivo.
+    func testReconcile_deleteMaintenanceRecedes() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200, 1500], in: ctx)
+        let typo = MaintenanceLog(mileage: 15_000, type: .oleo, motorcycle: moto)
+        ctx.insert(typo)
+        moto.reconcileOdometer(latestEntry: 15_000)
+        try ctx.save()
+        XCTAssertEqual(moto.currentOdometer, 15_000)
+
+        typo.softDelete()
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.currentOdometer, 1500)
+    }
+
+    /// Editar a manutenção (corrigir typo) exclui ela mesma da referência.
+    func testReadingsMaxExcludingEditedMaintenance() throws {
+        let ctx = try makeContext()
+        let moto = try motoWithLogs(baseline: 1000, odometers: [1200], in: ctx)
+        let edited = MaintenanceLog(mileage: 1800, type: .revisao, motorcycle: moto)
+        ctx.insert(edited)
+        ctx.insert(MaintenanceLog(mileage: 1800, type: .oleo, partOfMaintenanceID: edited.id, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.readingsMax(), 1800)
+        XCTAssertEqual(moto.readingsMax(excluding: edited), 1200, "tira a revisão e os itens dela")
+    }
+
     // MARK: - Lembretes locais de ausência
 
     private func day(_ d: Int) -> Date {

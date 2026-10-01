@@ -117,3 +117,29 @@ extension OdometerBounds {
         }
     }
 }
+
+/// Registro na hora com km acima do hodômetro: a moto andou desde o último
+/// registro e salvar atualiza o hodômetro. Abastecimento sempre fez isso;
+/// manutenção também, desde 2026-10-01. Salto acima do limite de `FuelGap`
+/// (o mesmo do abastecimento) vira o aviso de conferir — um typo aqui mexeria
+/// no "faltam X km" de todas as manutenções. Nunca bloqueia.
+struct OdometerAdvance: Equatable {
+    let from: Double
+    let to: Double
+    let isSuspicious: Bool
+
+    /// nil quando o km não passa do hodômetro (ou a moto ainda não tem um).
+    static func check(km: Double, current: Double, deltas: [Double], daysSinceLast: Int?) -> OdometerAdvance? {
+        guard current > 0, km > current else { return nil }
+        let suspicious = FuelGap.isSuspiciousJump(delta: km - current, deltas: deltas,
+                                                  daysSinceLast: daysSinceLast)
+        return OdometerAdvance(from: current, to: km, isSuspicious: suspicious)
+    }
+
+    /// Linha sob o campo (DESIGN.md §7): contexto neutro, ou o aviso no mesmo lugar.
+    var message: String {
+        isSuspicious
+            ? "+\(AppFormat.km(to - from)) desde o último registro — confira o km"
+            : "Isto vai atualizar o hodômetro de \(AppFormat.km(from)) para \(AppFormat.km(to))"
+    }
+}

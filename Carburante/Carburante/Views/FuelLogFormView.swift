@@ -72,7 +72,8 @@ struct FuelLogFormView: View {
         let logsMax = motorcycle.activeFuelLogs
             .filter { $0.persistentModelID != fuelLog?.persistentModelID }
             .map(\.odometer).max() ?? 0
-        return max(logsMax, motorcycle.currentOdometer)
+        // Sem o km das manutenções (ver `Motorcycle.fuelOdometerFloor`).
+        return max(logsMax, motorcycle.odometerBaseline)
     }
 
     /// Piso de validação ("não pode ser menor que o último"). Vale só para
