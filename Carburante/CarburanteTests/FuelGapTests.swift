@@ -81,6 +81,57 @@ final class FuelGapTests: XCTestCase {
         XCTAssertEqual(ConsumptionCalculator.records(from: entries).bestKmPerLiter, 30)
     }
 
+    // MARK: - Teto físico
+
+    /// Trecho acima de 80 km/l não é consumo (buraco ou digitação): sai da
+    /// média sozinho e o cheio que o fecharia vira âncora nova.
+    func testImpossibleSegmentDropsAndReanchors() {
+        let entries = [entry(1_000, 10), entry(1_500, 4), entry(1_800, 10)]   // 125 km/l, depois 30
+        let segs = ConsumptionCalculator.segments(from: entries)
+        XCTAssertEqual(segs.count, 1)
+        XCTAssertEqual(segs.first?.distance, 300)
+        XCTAssertEqual(ConsumptionCalculator.summary(from: entries).averageKmPerLiter, 30)
+        XCTAssertEqual(ConsumptionCalculator.segments(from: entries, keepingImpossible: true).count, 2)
+    }
+
+    /// Exatamente no teto ainda é consumo (o teto é "nenhuma moto passa disso").
+    func testCeilingItselfStillCounts() {
+        let segs = ConsumptionCalculator.segments(from: [entry(1_000, 10), entry(1_400, 5)])   // 80 km/l
+        XCTAssertEqual(segs.count, 1)
+    }
+
+    /// O aviso do fluxo continua vendo o número absurdo (senão sumiria justo
+    /// no caso que mais precisa dele).
+    func testImpliedSeesImpossible() {
+        let base = [entry(1_000, 10)]
+        let new = entry(1_500, 4)
+        XCTAssertEqual(FuelGap.impliedKmPerLiter(adding: new, to: base) ?? 0, 125, accuracy: 0.001)
+        XCTAssertTrue(FuelGap.isImplausibleKmPerLiter(adding: new, to: base))
+    }
+
+    /// Recordes ignoram todo trecho que toca histórico (âncora, meio ou fim);
+    /// preço mais barato só de registro na hora.
+    func testRecordsIgnoreHistory() {
+        func e(_ odo: Double, _ liters: Double, _ cost: Double, history: Bool) -> FuelEntry {
+            FuelEntry(odometer: odo, liters: liters, totalCost: cost, isFullTank: true,
+                      date: Date(timeIntervalSince1970: 0), isHistorical: history)
+        }
+        let entries = [
+            e(1_000, 10, 40, history: true),
+            e(1_300, 5, 20, history: true),    // 60 km/l, fim histórico
+            e(1_700, 10, 60, history: false),  // 40 km/l, âncora histórica
+            e(2_200, 10, 55, history: false),  // 50 km/l, 100% na hora
+        ]
+        let segs = ConsumptionCalculator.segments(from: entries)
+        XCTAssertEqual(segs.map(\.touchesHistory), [true, true, false])
+        let r = ConsumptionCalculator.records(from: entries)
+        XCTAssertEqual(r.bestKmPerLiter ?? 0, 50, accuracy: 0.001)
+        XCTAssertEqual(r.longestSegment, 500)
+        XCTAssertEqual(r.cheapestPricePerLiter ?? 0, 5.5, accuracy: 0.001)
+        // Consumo usa os três trechos.
+        XCTAssertEqual(ConsumptionCalculator.summary(from: entries).segmentCount, 3)
+    }
+
     // MARK: - fullTanksUntilFirstReading
 
     /// Âncora + lacuna cheia, sem nenhum trecho medido: falta 1.

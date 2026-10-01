@@ -21,6 +21,9 @@ struct FuelEntry {
     let date: Date
     /// Lacuna antes deste registro (ver `FuelLog.missedPrevious`).
     var missedPrevious: Bool = false
+    /// Registrado dias depois do fato (`EventProvenance`). Entra no consumo;
+    /// só tira o trecho dos recordes (`ConsumptionSegment.touchesHistory`).
+    var isHistorical: Bool = false
 }
 
 /// Consumo de um segmento entre dois tanques cheios consecutivos.
@@ -36,6 +39,9 @@ struct ConsumptionSegment: Equatable {
     /// odômetro do cheio que fecha o segmento — casa o segmento ao `FuelLog`
     /// correspondente (pílula de km/l no histórico).
     let endOdometer: Double
+    /// Algum registro do trecho (âncora inclusa) é histórico. Consumo usa o
+    /// trecho normalmente; recordes não (histórico não vira conquista).
+    var touchesHistory: Bool = false
 
     /// km por litro.
     var kmPerLiter: Double { liters > 0 ? distance / liters : 0 }
@@ -83,25 +89,18 @@ struct GarageRecords: Equatable {
 extension FuelLog {
     var asFuelEntry: FuelEntry {
         FuelEntry(odometer: odometer, liters: liters, totalCost: totalCost, isFullTank: isFullTank,
-                  date: date, missedPrevious: missedPrevious)
+                  date: date, missedPrevious: missedPrevious, isHistorical: isHistorical)
     }
 }
 
 extension Motorcycle {
-    /// Abastecimentos que alimentam consumo, gráficos e recordes. Fica de fora o
-    /// HISTÓRICO anterior ao 1º registro na hora (o passado da moto): recibo
-    /// antigo tem buracos e inventaria km/l absurdo (PLAN/registro-retroativo.md,
-    /// decisão 1). Histórico INTERCALADO entre registros na hora (abastecimento
-    /// real lançado com atraso) fica dentro — tirá-lo abriria um buraco no
-    /// trecho cheio→cheio e inflaria o km/l. Sem nenhum registro na hora → vazio.
-    var consumptionFuelLogs: [FuelLog] {
-        let active = activeFuelLogs
-        guard let start = active.filter({ !$0.isHistorical }).map(\.odometer).min() else { return [] }
-        return active.filter { $0.odometer >= start }
-    }
-
-    /// Entradas do cálculo de consumo (ver `consumptionFuelLogs`).
-    var consumptionEntries: [FuelEntry] { consumptionFuelLogs.map(\.asFuelEntry) }
+    /// Entradas que alimentam consumo, gráficos, gasto e recordes — porta única.
+    /// Histórico ENTRA (PLAN/registro-retroativo.md, decisão 1, revista em
+    /// 30/09): proveniência decide conquista, continuidade decide consumo. O
+    /// buraco de recibo antigo é tratado pela lacuna (`missedPrevious`), pelo
+    /// teto físico de km/l em `segments` e pelo salto máximo nos rodados.
+    /// Recordes filtram o histórico por conta própria (`touchesHistory`).
+    var consumptionEntries: [FuelEntry] { activeFuelLogs.map(\.asFuelEntry) }
 
     /// Resumo de consumo da moto a partir dos seus abastecimentos.
     var consumptionSummary: ConsumptionSummary {
@@ -185,7 +184,7 @@ extension Motorcycle {
     /// Preço médio por litro = gasto total ÷ litros totais (ponderado pelo
     /// volume, não média simples dos preços). nil sem litros.
     var averagePricePerLiter: Double? {
-        let logs = consumptionFuelLogs
+        let logs = activeFuelLogs
         let liters = logs.reduce(0) { $0 + $1.liters }
         let cost = logs.reduce(0) { $0 + $1.totalCost }
         return liters > 0 ? cost / liters : nil
@@ -313,7 +312,14 @@ enum ConsumptionCalculator {
 
     /// Quebra os abastecimentos em segmentos full-to-full.
     /// Entradas em qualquer ordem — são ordenadas por odômetro asc.
-    static func segments(from entries: [FuelEntry]) -> [ConsumptionSegment] {
+    ///
+    /// Trecho acima do teto físico (`FuelGap.absoluteKmPerLiterCeiling`) não é
+    /// consumo, é buraco (recibo antigo sem os do meio) ou erro de digitação:
+    /// sai sozinho, como uma lacuna — o cheio que o fecharia vira âncora nova.
+    /// `keepingImpossible` devolve o trecho mesmo assim (o aviso de lacuna do
+    /// fluxo precisa ver o número absurdo para mostrá-lo).
+    static func segments(from entries: [FuelEntry],
+                         keepingImpossible: Bool = false) -> [ConsumptionSegment] {
         let ordered = entries.sorted { $0.odometer < $1.odometer }
         guard ordered.count >= 2 else { return [] }
 
@@ -321,6 +327,7 @@ enum ConsumptionCalculator {
         var anchor: FuelEntry?          // último cheio que abre um segmento
         var litersSinceAnchor = 0.0     // litros acumulados após a âncora
         var costSinceAnchor = 0.0
+        var historyInSegment = false    // âncora ou algum registro do trecho é histórico
 
         for entry in ordered {
             // Lacuna: houve abastecimentos não registrados antes deste. O trecho
@@ -330,33 +337,40 @@ enum ConsumptionCalculator {
                 anchor = entry.isFullTank ? entry : nil
                 litersSinceAnchor = 0
                 costSinceAnchor = 0
+                historyInSegment = entry.isFullTank && entry.isHistorical
                 continue
             }
             if let start = anchor {
                 // Tudo que entra depois da âncora conta para o segmento atual.
                 litersSinceAnchor += entry.liters
                 costSinceAnchor += entry.totalCost
+                historyInSegment = historyInSegment || entry.isHistorical
 
                 if entry.isFullTank {
                     let distance = entry.odometer - start.odometer
-                    // Distância inválida (odômetro não avançou) → ignora o segmento,
-                    // mas mantém este cheio como nova âncora.
-                    if distance > 0 {
-                        segments.append(ConsumptionSegment(
-                            distance: distance,
-                            liters: litersSinceAnchor,
-                            cost: costSinceAnchor,
-                            endDate: entry.date,
-                            endOdometer: entry.odometer
-                        ))
+                    let segment = ConsumptionSegment(
+                        distance: distance,
+                        liters: litersSinceAnchor,
+                        cost: costSinceAnchor,
+                        endDate: entry.date,
+                        endOdometer: entry.odometer,
+                        touchesHistory: historyInSegment
+                    )
+                    // Distância inválida (odômetro não avançou) ou km/l impossível
+                    // → ignora o segmento, mas mantém este cheio como nova âncora.
+                    let isPossible = segment.kmPerLiter <= FuelGap.absoluteKmPerLiterCeiling
+                    if distance > 0, isPossible || keepingImpossible {
+                        segments.append(segment)
                     }
                     anchor = entry
                     litersSinceAnchor = 0
                     costSinceAnchor = 0
+                    historyInSegment = entry.isHistorical
                 }
             } else if entry.isFullTank {
                 // Primeiro cheio = âncora inicial, sem consumo associado.
                 anchor = entry
+                historyInSegment = entry.isHistorical
             }
             // Abastecimentos parciais antes do primeiro cheio são descartados
             // (não há âncora confiável para medir).
@@ -397,10 +411,9 @@ enum ConsumptionCalculator {
     }
 
     /// km rodados por mês-civil, dos `monthCount` meses até `now` (inclusive),
-    /// mais antigo → mais novo. Como o odômetro é cumulativo, os km de um mês =
-    /// (maior odômetro lido nesse mês) − (último odômetro conhecido antes dele).
-    /// Mês sem abastecimento → 0 (nenhuma leitura nova). Para a sparkline de
-    /// barras "rodados por mês".
+    /// mais antigo → mais novo. Os km de cada passo entre leituras são
+    /// repartidos pelos meses que ele atravessa (`spreadDistance`). Para a
+    /// sparkline de barras "rodados por mês".
     static func monthlyDistance(
         from entries: [FuelEntry],
         monthCount: Int = 6,
@@ -412,34 +425,11 @@ enum ConsumptionCalculator {
         let months: [Date] = (0..<monthCount).reversed().compactMap {
             calendar.date(byAdding: .month, value: -$0, to: thisMonth)
         }
-        guard let firstMonth = months.first else { return [] }
-
-        let ordered = entries.sorted { $0.odometer < $1.odometer }
-        // Maior odômetro lido em cada mês da janela.
-        var maxByMonth: [Date: Double] = [:]
-        // Baseline = último odômetro ANTES da janela (para o 1º mês ter referência).
-        var baseline: Double?
-        for e in ordered {
-            guard let m = calendar.dateInterval(of: .month, for: e.date)?.start else { continue }
-            if m < firstMonth {
-                baseline = e.odometer            // ordenado por odômetro → fica o maior
-            } else if maxByMonth[m] != nil || months.contains(m) {
-                maxByMonth[m] = max(maxByMonth[m] ?? 0, e.odometer)
-            }
+        let buckets = months.map {
+            calendar.dateInterval(of: .month, for: $0) ?? DateInterval(start: $0, duration: 0)
         }
-
-        // Caminha os meses acumulando: cada mês fecha no seu maior odômetro;
-        // meses vazios herdam o anterior (delta 0).
-        var prev = baseline
-        return months.map { month in
-            let end = maxByMonth[month] ?? prev
-            let dist: Double = {
-                guard let end, let p = prev else { return 0 }
-                return max(end - p, 0)
-            }()
-            if let end { prev = end }
-            return (month: month, distance: dist)
-        }
+        let totals = spreadDistance(from: entries, into: buckets)
+        return zip(months, totals).map { (month: $0, distance: $1) }
     }
 
     /// km rodados por SEMANA, das `weekCount` semanas até `now` (inclusive),
@@ -459,34 +449,16 @@ enum ConsumptionCalculator {
         let weeks: [Date] = (0..<weekCount).reversed().compactMap {
             calendar.date(byAdding: .weekOfYear, value: -$0, to: thisWeek)
         }
-        guard let firstWeek = weeks.first else { return [] }
-
-        let ordered = entries.sorted { $0.odometer < $1.odometer }
-        // Maior odômetro lido em cada semana da janela + baseline antes dela.
-        var maxByWeek: [Date: Double] = [:]
-        var baseline: Double?
-        let weekSet = Set(weeks)
-        for e in ordered {
-            guard let w = calendar.dateInterval(of: .weekOfYear, for: e.date)?.start else { continue }
-            if w < firstWeek {
-                baseline = e.odometer
-            } else if weekSet.contains(w) {
-                maxByWeek[w] = max(maxByWeek[w] ?? 0, e.odometer)
-            }
+        let buckets = weeks.map {
+            calendar.dateInterval(of: .weekOfYear, for: $0) ?? DateInterval(start: $0, duration: 0)
         }
+        let totals = spreadDistance(from: entries, into: buckets)
 
-        var prev = baseline
         // Inicia no mês da 1ª semana → a 1ª barra NÃO é rotulada (senão dois meses
         // colam na borda esquerda, ex.: "dez"+"jan"="djan"). Rótulo só nas
         // transições de mês dentro da janela — como o Fitness rotula só alguns X.
         var lastMonth = weeks.first.map { calendar.component(.month, from: $0) } ?? -1
-        return weeks.map { week in
-            let end = maxByWeek[week] ?? prev
-            let dist: Double = {
-                guard let end, let p = prev else { return 0 }
-                return max(end - p, 0)
-            }()
-            if let end { prev = end }
+        return zip(weeks, totals).map { week, dist in
             let month = calendar.component(.month, from: week)
             let label: String? = month != lastMonth
                 ? week.formatted(.dateTime.month(.abbreviated).locale(locale))
@@ -494,6 +466,35 @@ enum ConsumptionCalculator {
             lastMonth = month
             return DistanceBar(start: week, distance: dist, monthLabel: label)
         }
+    }
+
+    /// km rodados em cada balde (mês/semana): o km de cada passo entre leituras
+    /// consecutivas é espalhado em linha reta entre as duas datas (odômetro
+    /// interpolado). O km é real mesmo com lacuna (PLAN/lacuna-abastecimento.md
+    /// §2) — só não se sabe o dia exato. Assim um recibo de março seguido de um
+    /// registro em outubro reparte os km por mar–out (antes: 5.000 km caíam no
+    /// mês atual) e vários registros no 1º mês somam (antes: 0). Passo no mesmo
+    /// instante cai inteiro no balde da leitura.
+    private static func spreadDistance(from entries: [FuelEntry],
+                                       into buckets: [DateInterval]) -> [Double] {
+        var totals = Array(repeating: 0.0, count: buckets.count)
+        let ordered = entries.sorted { $0.odometer < $1.odometer }
+        for (prev, next) in zip(ordered, ordered.dropFirst()) {
+            let km = next.odometer - prev.odometer
+            guard km > 0 else { continue }
+            guard next.date > prev.date else {
+                if let i = buckets.firstIndex(where: { $0.start <= next.date && next.date < $0.end }) {
+                    totals[i] += km
+                }
+                continue
+            }
+            let span = DateInterval(start: prev.date, end: next.date)
+            for (i, bucket) in buckets.enumerated() {
+                guard let overlap = bucket.intersection(with: span) else { continue }
+                totals[i] += km * overlap.duration / span.duration
+            }
+        }
+        return totals
     }
 
     /// Preço por litro de cada abastecimento (mais antigo → mais novo), só os
@@ -544,11 +545,15 @@ enum ConsumptionCalculator {
     /// km/l e trecho saem dos segmentos full-to-full (mesma fonte do gráfico);
     /// preço/litro olha cada abastecimento (não depende de tanque cheio). Cada
     /// recorde é nil quando não há dado para ele → empty state na Garagem.
+    ///
+    /// Histórico não vira recorde (PLAN/registro-retroativo.md, decisão 2): só
+    /// trechos 100% na hora e preços de registros na hora.
     static func records(from entries: [FuelEntry]) -> GarageRecords {
-        let segs = segments(from: entries)
+        let segs = segments(from: entries).filter { !$0.touchesHistory }
         let bestKmPerLiter = segs.map(\.kmPerLiter).filter { $0 > 0 }.max()
         let longestSegment = segs.map(\.distance).max()
         let cheapest = entries
+            .filter { !$0.isHistorical }
             .compactMap { $0.liters > 0 ? $0.totalCost / $0.liters : nil }
             .min()
         return GarageRecords(

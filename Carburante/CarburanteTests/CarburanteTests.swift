@@ -697,28 +697,69 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(series.map(\.total), [0, 0, 80])
     }
 
-    /// km rodados/mês: delta do maior odômetro de cada mês vs. mês anterior.
-    func testMonthlyDistanceDeltasWithBaseline() {
+    /// km rodados/mês: o km de cada passo entre leituras é repartido pelos dias
+    /// que ele atravessa (odômetro interpolado); a parte fora da janela some.
+    func testMonthlyDistanceSpreadsStepsAcrossMonths() {
         let entries = [
-            entryOn(2026, 3, 10, odo: 1000, liters: 10, cost: 0),   // baseline (fora da janela abr-jun)
-            entryOn(2026, 4, 10, odo: 1400, liters: 10, cost: 0),   // abr: 1400-1000 = 400
-            entryOn(2026, 4, 25, odo: 1600, liters: 10, cost: 0),   // ainda abr, fecha em 1600 → 600
-            entryOn(2026, 6, 5,  odo: 2000, liters: 10, cost: 0),   // mai vazio (0); jun: 2000-1600 = 400
+            entryOn(2026, 3, 10, odo: 1000, liters: 10, cost: 0),   // antes da janela abr-jun
+            entryOn(2026, 4, 10, odo: 1400, liters: 10, cost: 0),   // 400 em 31 dias: 9 em abr
+            entryOn(2026, 4, 25, odo: 1600, liters: 10, cost: 0),   // 200, tudo em abr
+            entryOn(2026, 6, 5,  odo: 2000, liters: 10, cost: 0),   // 400 em 41 dias: 6 abr, 31 mai, 4 jun
         ]
         let series = ConsumptionCalculator.monthlyDistance(
             from: entries, monthCount: 3, now: day(2026, 6, 18))
-        XCTAssertEqual(series.map(\.distance), [600, 0, 400])   // abr, mai, jun
+        let d = series.map(\.distance)
+        XCTAssertEqual(d[0], 400.0 * 9 / 31 + 200 + 400.0 * 6 / 41, accuracy: 1)   // abr
+        XCTAssertEqual(d[1], 400.0 * 31 / 41, accuracy: 1)                          // mai
+        XCTAssertEqual(d[2], 400.0 * 4 / 41, accuracy: 1)                           // jun
     }
 
-    /// Sem baseline (nenhum abastecimento antes da janela) o 1º mês fica 0.
-    func testMonthlyDistanceNoBaselineFirstMonthZero() {
+    /// Uma leitura só não tem passo → nada rodado; o 1º passo se reparte entre
+    /// os meses que atravessa.
+    func testMonthlyDistanceFirstReadingAnchors() {
         let entries = [
-            entryOn(2026, 4, 10, odo: 1000, liters: 10, cost: 0),   // 1º da história → âncora, delta 0
-            entryOn(2026, 5, 10, odo: 1250, liters: 10, cost: 0),   // mai: 250
+            entryOn(2026, 4, 10, odo: 1000, liters: 10, cost: 0),
+            entryOn(2026, 5, 10, odo: 1250, liters: 10, cost: 0),   // 250 em 30 dias: 21 abr, 9 mai
         ]
         let series = ConsumptionCalculator.monthlyDistance(
             from: entries, monthCount: 3, now: day(2026, 6, 18))
-        XCTAssertEqual(series.map(\.distance), [0, 250, 0])   // abr, mai, jun(vazio)
+        let d = series.map(\.distance)
+        XCTAssertEqual(d[0], 250.0 * 21 / 30, accuracy: 1)
+        XCTAssertEqual(d[1], 250.0 * 9 / 30, accuracy: 1)
+        XCTAssertEqual(d[2], 0)
+        XCTAssertEqual(ConsumptionCalculator.monthlyDistance(
+            from: [entries[0]], monthCount: 3, now: day(2026, 6, 18)).map(\.distance), [0, 0, 0])
+    }
+
+    /// Vários abastecimentos no 1º mês da moto somam os km entre eles (antes o
+    /// mês sem leitura anterior dava sempre 0 — "Rodados: 0 km" com 3 registros).
+    func testMonthlyDistanceFirstMonthSumsSteps() {
+        let entries = [
+            entryOn(2026, 9, 15, odo: 1, liters: 1.5, cost: 10),
+            entryOn(2026, 9, 17, odo: 50, liters: 4, cost: 20),
+            entryOn(2026, 9, 30, odo: 150, liters: 10, cost: 50),
+        ]
+        let series = ConsumptionCalculator.monthlyDistance(
+            from: entries, monthCount: 2, now: day(2026, 9, 30))
+        XCTAssertEqual(series.map(\.distance), [0, 149])   // ago, set
+    }
+
+    /// Recibo antigo (mar → out, +5.000) reparte os km por mar–set em vez de
+    /// jogá-los no mês atual; lacuna marcada continua somando (o km é real).
+    func testMonthlyDistanceOldReceiptSpreadsAndGapCounts() {
+        let entries = [
+            entryOn(2026, 3, 1, odo: 15_000, liters: 10, cost: 0),    // recibo antigo
+            entryOn(2026, 10, 1, odo: 20_000, liters: 11, cost: 0),   // +5.000 em mar–set
+            entryOn(2026, 10, 5, odo: 20_300, liters: 10, cost: 0),   // +300
+            FuelEntry(odometer: 20_700, liters: 4, totalCost: 0, isFullTank: true,
+                      date: day(2026, 10, 9), missedPrevious: true),  // lacuna: +400 conta
+            entryOn(2026, 10, 12, odo: 20_900, liters: 10, cost: 0),  // +200
+        ]
+        let series = ConsumptionCalculator.monthlyDistance(
+            from: entries, monthCount: 8, now: day(2026, 10, 20))
+        XCTAssertEqual(series.last?.distance ?? 0, 900, accuracy: 0.001)   // out
+        XCTAssertEqual(series.reduce(0) { $0 + $1.distance }, 5_900, accuracy: 1)
+        XCTAssertTrue(series.dropLast().allSatisfy { $0.distance > 0 }, "mar–set recebem parte")
     }
 
     /// Distância semanal: nº de barras = weekCount, e a soma dos deltas iguala
@@ -1457,20 +1498,55 @@ final class CarburanteTests: XCTestCase {
                                                    createdAt: EventProvenance.ruleStart))
     }
 
-    /// Passado da moto (histórico ANTES do 1º registro na hora) fica fora do
-    /// consumo: o buraco 15.000→20.000 inventaria ~450 km/l.
-    func testConsumption_excludesHistoryBeforeLiveEra() {
+    /// Caso do usuário (30/09): moto nova, 2 tanques lançados como histórico + 1
+    /// na hora. Histórico entra no consumo, no gasto e nos rodados — a média
+    /// aparece já; recordes seguem só com o que foi registrado na hora.
+    func testConsumption_historyCountsFromFirstAccess() {
+        let moto = Motorcycle(make: "Honda", model: "PCX", year: 2024, country: "Brasil")
+        let created = day(2026, 9, 30)
+        moto.fuelLogs = [
+            FuelLog(date: day(2026, 9, 15), odometer: 1, liters: 1.5, totalCost: 10,
+                    fuelType: .gasolinaComum, isFullTank: true, createdAt: created),
+            FuelLog(date: day(2026, 9, 17), odometer: 50, liters: 4, totalCost: 20,
+                    fuelType: .gasolinaComum, isFullTank: true, createdAt: created),
+            FuelLog(date: created, odometer: 150, liters: 10, totalCost: 50,
+                    fuelType: .gasolinaComum, isFullTank: true, createdAt: created),
+        ]
+        XCTAssertEqual(moto.activeFuelLogs.filter(\.isHistorical).count, 2)
+
+        let summary = moto.consumptionSummary
+        XCTAssertEqual(summary.segmentCount, 2)
+        XCTAssertEqual(summary.averageKmPerLiter ?? 0, 149.0 / 14.0, accuracy: 0.001)   // 10,6 km/l
+        XCTAssertEqual(moto.fullTanksUntilConsumption, 0)
+        XCTAssertEqual(moto.kmPerLiterByOdometer[50] ?? 0, 12.25, accuracy: 0.001)
+        XCTAssertEqual(moto.kmPerLiterByOdometer[150] ?? 0, 10, accuracy: 0.001)
+
+        let now = day(2026, 9, 30)
+        XCTAssertEqual(moto.expenseThisMonth(now: now), 80, "gasto bate com o total do mês na lista")
+        XCTAssertEqual(moto.distanceThisMonth(now: now), 149, accuracy: 0.001)
+        XCTAssertEqual(moto.averagePricePerLiter ?? 0, 80 / 15.5, accuracy: 0.001)
+
+        let records = moto.records
+        XCTAssertNil(records.bestKmPerLiter, "trecho com histórico não vira recorde")
+        XCTAssertNil(records.longestSegment)
+        XCTAssertEqual(records.cheapestPricePerLiter ?? 0, 5, accuracy: 0.001, "preço só do registro na hora")
+    }
+
+    /// Recibo antigo com buraco (15.000→20.000 ≈ 454 km/l) cai pelo teto físico,
+    /// sem regra de proveniência; o resto do histórico segue valendo.
+    func testConsumption_oldReceiptGapDroppedByPhysicalCeiling() {
         let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
         moto.fuelLogs = [
             fuelLog(15_000, 10, date: day(2026, 3, 1), created: day(2026, 10, 20)),   // histórico
             fuelLog(20_000, 11, date: day(2026, 10, 1), created: day(2026, 10, 1)),   // na hora
             fuelLog(20_400, 10, date: day(2026, 10, 10), created: day(2026, 10, 10)), // na hora
         ]
-        XCTAssertEqual(moto.consumptionFuelLogs.count, 2)
         let summary = moto.consumptionSummary
         XCTAssertEqual(summary.segmentCount, 1)
         XCTAssertEqual(summary.averageKmPerLiter ?? 0, 40, accuracy: 0.001)
-        XCTAssertEqual(moto.records.bestKmPerLiter ?? 0, 40, accuracy: 0.001, "recorde ignora o passado")
+        XCTAssertEqual(moto.records.bestKmPerLiter ?? 0, 40, accuracy: 0.001)
+        XCTAssertEqual(moto.distanceThisMonth(now: day(2026, 10, 20)), 400, accuracy: 0.001,
+                       "os 5.000 km do recibo se repartem por mar–set, não caem em outubro")
     }
 
     /// Histórico INTERCALADO (abastecimento real lançado com atraso) fica dentro:
@@ -1484,36 +1560,25 @@ final class CarburanteTests: XCTestCase {
             fuelLog(20_800, 10, date: day(2026, 10, 19), created: day(2026, 10, 19)),
         ]
         XCTAssertTrue(late.isHistorical)
-        XCTAssertEqual(moto.consumptionFuelLogs.count, 3)
         XCTAssertEqual(moto.consumptionSummary.segmentCount, 2)
         XCTAssertEqual(moto.consumptionSummary.averageKmPerLiter ?? 0, 40, accuracy: 0.001)
+        XCTAssertNil(moto.records.bestKmPerLiter, "os dois trechos tocam o histórico → fora dos recordes")
     }
 
-    /// Só histórico → nada de consumo (e faltam 2 cheios na hora para o 1º km/l).
-    func testConsumption_onlyHistoryIsEmpty() {
+    /// Só histórico já mede consumo (fotos/recibos dos últimos tanques), mas
+    /// não gera recorde.
+    func testConsumption_onlyHistoryMeasures() {
         let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
         moto.fuelLogs = [
             fuelLog(10_000, 10, date: day(2026, 1, 1), created: day(2026, 10, 20)),
             fuelLog(10_400, 10, date: day(2026, 1, 10), created: day(2026, 10, 20)),
         ]
-        XCTAssertTrue(moto.consumptionFuelLogs.isEmpty)
-        XCTAssertEqual(moto.consumptionSummary.segmentCount, 0)
+        XCTAssertEqual(moto.consumptionSummary.segmentCount, 1)
+        XCTAssertEqual(moto.consumptionSummary.averageKmPerLiter ?? 0, 40, accuracy: 0.001)
+        XCTAssertEqual(moto.fullTanksUntilConsumption, 0)
         XCTAssertNil(moto.records.bestKmPerLiter)
-        XCTAssertEqual(moto.fullTanksUntilConsumption, 2)
-        XCTAssertEqual(moto.fuelLogCount, 2, "histórico continua na lista e nos totais")
-    }
-
-    /// Sem histórico nenhum, o consumo é idêntico ao de antes da regra.
-    func testConsumption_withoutHistoryUnchanged() {
-        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
-        moto.fuelLogs = [
-            fuelLog(1_000, 8, date: day(2026, 10, 1), created: day(2026, 10, 1)),
-            fuelLog(1_300, 10, date: day(2026, 10, 5), created: day(2026, 10, 5)),
-            fuelLog(1_500, 5, date: day(2026, 10, 7), created: day(2026, 10, 7), full: false),
-            fuelLog(1_800, 5, date: day(2026, 10, 9), created: day(2026, 10, 9)),
-        ]
-        let before = ConsumptionCalculator.summary(from: moto.activeFuelLogs.map(\.asFuelEntry))
-        XCTAssertEqual(moto.consumptionSummary, before)
+        XCTAssertNil(moto.records.cheapestPricePerLiter)
+        XCTAssertEqual(moto.fuelLogCount, 2)
     }
 
     /// Conquistas: manutenção e cheios HISTÓRICOS não contam; os na hora sim.

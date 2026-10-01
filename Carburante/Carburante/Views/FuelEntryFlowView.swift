@@ -35,7 +35,7 @@ struct FuelEntryFlowView: View {
     var entryPoint: String = "toolbar_plus"
     /// Abastecimento ANTIGO ("Adicionar histórico"): a data vem primeiro (passo
     /// 1) e decide os limites do hodômetro; sem GPS (o local de agora seria
-    /// falso); fica fora do consumo e das conquistas (PLAN/registro-retroativo.md).
+    /// falso); entra no consumo, fica fora das conquistas (PLAN/registro-retroativo.md).
     var isHistoryEntry: Bool = false
 
     /// Passo atual. `fill` reúne valor + litros (uma foto traz os dois).
@@ -139,7 +139,7 @@ struct FuelEntryFlowView: View {
         historyMode && Calendar.current.startOfDay(for: date) >= Calendar.current.startOfDay(for: Date())
     }
 
-    /// Vai ficar marcado como Histórico (fora do consumo e das conquistas).
+    /// Vai ficar marcado como Histórico (entra no consumo, fora das conquistas).
     private var willBeHistorical: Bool {
         EventProvenance.isHistorical(date: date, createdAt: Date())
     }
@@ -171,10 +171,16 @@ struct FuelEntryFlowView: View {
     }
 
     private var estimatedKmPerLiter: Double? {
-        // Histórico não entra no consumo → não promete um km/l.
-        guard !historyMode, !willBeHistorical, !missedPrevious,
-              isFullTank, let odo = odometer, let l = liters, l > 0,
-              lastOdometer > 0, odo > lastOdometer else { return nil }
+        guard !missedPrevious, isFullTank, let odo = odometer, let l = liters, l > 0 else { return nil }
+        // Registro antigo pode cair no meio dos existentes: o trecho que ele
+        // fecha sai do mesmo cálculo da média (âncora = cheio anterior por km,
+        // parciais do meio somados), não do último km da moto.
+        if historyMode || willBeHistorical {
+            let entry = FuelEntry(odometer: odo, liters: l, totalCost: cost ?? 0,
+                                  isFullTank: true, date: date)
+            return FuelGap.impliedKmPerLiter(adding: entry, to: motorcycle.consumptionEntries)
+        }
+        guard lastOdometer > 0, odo > lastOdometer else { return nil }
         return (odo - lastOdometer) / l
     }
 
@@ -199,12 +205,12 @@ struct FuelEntryFlowView: View {
     }
 
     /// Este registro fecharia um trecho com km/l alto demais (abastecimento
-    /// esquecido no meio, mesmo com salto de km pequeno). Histórico fica fora do
-    /// consumo → nada a avisar. Independe da marcação (o analytics precisa
-    /// saber que o sinal apareceu mesmo depois de o usuário marcar).
+    /// esquecido no meio, mesmo com salto de km pequeno). Vale também para o
+    /// histórico — recibo antigo sem os do meio é o caso clássico. Independe da
+    /// marcação (o analytics precisa saber que o sinal apareceu mesmo depois de
+    /// o usuário marcar).
     private var isImplausibleKmPerLiter: Bool {
-        guard !historyMode, !willBeHistorical,
-              let odo = odometer, let l = liters, l > 0 else { return false }
+        guard let odo = odometer, let l = liters, l > 0 else { return false }
         let entry = FuelEntry(odometer: odo, liters: l, totalCost: cost ?? 0,
                               isFullTank: isFullTank, date: date)
         return FuelGap.isImplausibleKmPerLiter(adding: entry, to: motorcycle.consumptionEntries)
@@ -585,15 +591,16 @@ struct FuelEntryFlowView: View {
         ScrollView {
             VStack(spacing: 16) {
                 if historyMode || willBeHistorical {
-                    // Transparência: registro antigo vale menos.
-                    Label("Registro de histórico: fica fora do consumo e das conquistas.",
+                    // Transparência: registro antigo conta na média, não em conquista.
+                    Label("Registro de histórico: entra no consumo, fica fora das conquistas.",
                           systemImage: "clock.arrow.circlepath")
                         .font(.footnote).foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(16)
                         .background(Color(.secondarySystemGroupedBackground),
                                     in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                } else if let kmL = estimatedKmPerLiter {
+                }
+                if let kmL = estimatedKmPerLiter {
                     VStack(spacing: 2) {
                         Text("Consumo deste tanque")
                             .font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
