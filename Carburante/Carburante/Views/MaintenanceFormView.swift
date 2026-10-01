@@ -166,6 +166,13 @@ struct MaintenanceFormView: View {
                     if let kmWarning {
                         Label(kmWarning, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
+                    } else if let advance = odometerAdvance {
+                        if advance.isSuspicious {
+                            Label(advance.message, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        } else {
+                            Text(advance.message)
+                        }
                     } else if let kmContext {
                         Text(kmContext)
                     }
@@ -406,6 +413,32 @@ struct MaintenanceFormView: View {
         return backfillWarning
     }
 
+    /// Na hora, km acima do hodômetro = a moto andou: salvar atualiza o
+    /// hodômetro (`reconcileOdometer` conta as manutenções). Registro antigo
+    /// fica de fora — lá o km acima do atual já é o aviso de `kmWarning`.
+    private var odometerAdvance: OdometerAdvance? {
+        guard !isOldRecord, let km = mileage, km > 0, !needsPastDate else { return nil }
+        // Editando, o km antigo deste registro pode ser o próprio hodômetro.
+        let current = maintenanceLog == nil
+            ? motorcycle.currentOdometer
+            : max(motorcycle.odometerBaseline, motorcycle.readingsMax(excluding: maintenanceLog))
+        // Dias desde a leitura mais alta (abastecimento ou outra manutenção):
+        // o mesmo teto de km por dia do aviso de salto do abastecimento.
+        let readings = motorcycle.activeFuelLogs.map { (date: $0.date, km: $0.odometer) }
+            + motorcycle.activeMaintenanceLogs
+                .filter { $0.id != maintenanceLog?.id && $0.partOfMaintenanceID != maintenanceLog?.id }
+                .map { (date: $0.date, km: $0.mileage) }
+        let lastDate = readings.max { $0.km < $1.km }?.date ?? motorcycle.createdAt
+        let calendar = Calendar.current
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: lastDate),
+                                           to: calendar.startOfDay(for: date)).day
+        return OdometerAdvance.check(
+            km: km, current: current,
+            deltas: FuelGap.deltas(from: motorcycle.activeFuelLogs.map(\.asFuelEntry)),
+            daysSinceLast: days
+        )
+    }
+
     private var canSave: Bool {
         guard (mileage ?? 0) > 0, !needsPastDate else { return false }
         // Revisão Geral precisa de ≥1 item: sem item não reinicia contador nem
@@ -482,6 +515,9 @@ struct MaintenanceFormView: View {
             // do próximo launch ressuscitava o filho.
             for child in parent.children { child.softDelete() }
         }
+        // O km da manutenção também é leitura do painel: acima do hodômetro,
+        // avança; editado para baixo, recua (derivado, nada gravado à parte).
+        motorcycle.reconcileOdometer(latestEntry: km)
         do {
             try modelContext.save()
         } catch {

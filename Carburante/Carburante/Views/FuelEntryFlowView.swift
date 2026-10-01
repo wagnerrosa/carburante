@@ -124,7 +124,9 @@ struct FuelEntryFlowView: View {
         OdometerBounds.forEntry(
             on: date,
             logs: motorcycle.activeFuelLogs.map { ($0.date, $0.odometer) },
-            currentOdometer: motorcycle.currentOdometer,
+            // Sem o km das manutenções (`fuelOdometerFloor`): arredondado, não
+            // pode travar o abastecimento nem distorcer o km/l ao vivo.
+            currentOdometer: motorcycle.fuelOdometerFloor,
             registeredAt: motorcycle.createdAt
         )
     }

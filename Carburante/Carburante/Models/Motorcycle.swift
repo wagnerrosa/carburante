@@ -21,8 +21,10 @@ final class Motorcycle {
     /// de specs do modelo. Não confundir com país do usuário ou do abastecimento.
     var country: String
     /// Hodômetro efetivo da moto = maior entre a leitura manual de cadastro
-    /// (`odometerBaseline`) e o maior odômetro dos abastecimentos. Mantido por
-    /// `reconcileOdometer(latestEntry:)` ao inserir/editar/excluir um registro.
+    /// (`odometerBaseline`) e o maior km dos abastecimentos e das manutenções.
+    /// Mantido por `reconcileOdometer(latestEntry:)` ao inserir/editar/excluir
+    /// um registro. O piso do abastecimento NÃO é este valor: ver
+    /// `fuelOdometerFloor`.
     var currentOdometer: Double
     /// Leitura MANUAL de hodômetro informada no cadastro/edição da moto. É o
     /// piso de `currentOdometer` independente dos abastecimentos — assim, excluir
@@ -136,18 +138,22 @@ extension Motorcycle {
     }
 
     /// Reconcilia `currentOdometer` com a verdade após inserir, editar ou
-    /// excluir um abastecimento: maior entre a leitura manual de cadastro
-    /// (`odometerBaseline`), o maior odômetro dos abastecimentos e `latestEntry`
-    /// (o registro recém-salvo, passado explicitamente para não depender do
-    /// momento em que a relação SwiftData atualiza o array `fuelLogs`).
+    /// excluir um registro: maior entre a leitura manual de cadastro
+    /// (`odometerBaseline`), o maior km dos abastecimentos e das manutenções e
+    /// `latestEntry` (o registro recém-salvo, passado explicitamente para não
+    /// depender do momento em que a relação SwiftData atualiza o array).
     ///
-    /// Excluir o abastecimento mais recente cai naturalmente para o próximo
-    /// maior — ou para o `odometerBaseline` se não houver mais abastecimentos,
-    /// nunca para zero (corrige o bug do hodômetro preso após exclusão).
+    /// Manutenção conta desde 2026-10-01: o km dela é outra leitura do painel
+    /// (troca de óleo com km acima do último abastecimento = a moto andou), e o
+    /// "faltam X km" ficava maior que o real até o próximo abastecimento.
+    ///
+    /// Excluir o registro mais recente cai naturalmente para o próximo maior —
+    /// ou para o `odometerBaseline` se não houver mais registros, nunca para
+    /// zero (corrige o bug do hodômetro preso após exclusão).
     func reconcileOdometer(latestEntry: Double = 0) {
-        // Só abastecimentos vivos: soft-deletar o mais recente recua o hodômetro
+        // Só registros vivos: soft-deletar o mais recente recua o hodômetro
         // para o próximo maior (ou o baseline), igual ao delete físico antigo.
-        let logsMax = activeFuelLogs.map(\.odometer).max() ?? 0
+        let logsMax = readingsMax()
         // Migração preguiçosa: motos gravadas antes deste campo têm
         // `odometerBaseline == 0`. Se o hodômetro atual excede tudo que os
         // abastecimentos explicam, esse excedente veio de uma leitura manual —
@@ -156,5 +162,24 @@ extension Motorcycle {
             odometerBaseline = currentOdometer
         }
         currentOdometer = max(odometerBaseline, logsMax, latestEntry)
+    }
+
+    /// Maior km registrado (abastecimentos + manutenções vivos). `excluding`
+    /// tira uma manutenção e os itens dela — a que está sendo editada.
+    func readingsMax(excluding log: MaintenanceLog? = nil) -> Double {
+        let fuel = activeFuelLogs.map(\.odometer).max() ?? 0
+        let maintenance = activeMaintenanceLogs
+            .filter { log == nil || ($0.id != log?.id && $0.partOfMaintenanceID != log?.id) }
+            .map(\.mileage).max() ?? 0
+        return max(fuel, maintenance)
+    }
+
+    /// Piso do hodômetro para um abastecimento: leitura do cadastro + maior km
+    /// dos abastecimentos. Manutenção fica de fora de propósito: o km dela
+    /// costuma vir arredondado da nota da oficina ("12.500") e não pode travar
+    /// um abastecimento real em 12.450 — ela só avança o hodômetro exibido.
+    /// Também é a referência do "+X km desde o último" e do km/l ao vivo.
+    var fuelOdometerFloor: Double {
+        max(odometerBaseline, activeFuelLogs.map(\.odometer).max() ?? 0)
     }
 }

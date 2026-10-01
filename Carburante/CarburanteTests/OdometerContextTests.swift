@@ -121,4 +121,26 @@ final class OdometerContextTests: XCTestCase {
         XCTAssertEqual(AppFormat.dayMonth(jun28, now: now), "28 de jun.")
         XCTAssertEqual(AppFormat.dayMonth(day(2025, 12, 3), now: now), "3 de dez. de 2025")
     }
+
+    // MARK: - Registro na hora acima do hodômetro (OdometerAdvance)
+
+    func testAdvance_nilWhenNotAbove() {
+        XCTAssertNil(OdometerAdvance.check(km: 1000, current: 1000, deltas: [], daysSinceLast: 3))
+        XCTAssertNil(OdometerAdvance.check(km: 900, current: 1000, deltas: [], daysSinceLast: 3))
+        XCTAssertNil(OdometerAdvance.check(km: 900, current: 0, deltas: [], daysSinceLast: 3),
+                     "moto sem hodômetro: nada a comparar")
+    }
+
+    func testAdvance_neutralMessage() {
+        let a = OdometerAdvance.check(km: 12_450, current: 12_300, deltas: [300, 280, 310], daysSinceLast: 4)
+        XCTAssertEqual(a?.isSuspicious, false)
+        XCTAssertEqual(a?.message, "Isto vai atualizar o hodômetro de 12.300 km para 12.450 km")
+    }
+
+    /// Typo (um zero a mais) passa do limite de salto do abastecimento.
+    func testAdvance_typoIsSuspicious() {
+        let a = OdometerAdvance.check(km: 124_500, current: 12_300, deltas: [300, 280, 310], daysSinceLast: 4)
+        XCTAssertEqual(a?.isSuspicious, true)
+        XCTAssertEqual(a?.message, "+112.200 km desde o último registro — confira o km")
+    }
 }

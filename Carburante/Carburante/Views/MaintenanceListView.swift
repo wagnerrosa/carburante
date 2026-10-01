@@ -187,6 +187,8 @@ struct MaintenanceListView: View {
             for child in log.children { child.softDelete() }
             log.softDelete()
         }
+        // O km da manutenção conta no hodômetro: excluir a mais alta recua.
+        motorcycle.reconcileOdometer()
         try? modelContext.save()
         // Delete agora SINCRONIZA (antes só o notify rodava; o delete físico não
         // propagava). Push manda a linha com `deletedAt` → cruza pros devices.
