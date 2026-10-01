@@ -103,4 +103,21 @@ extension MotorcycleOwnership {
         }
         return created
     }
+
+    /// Passa as linhas de propriedade de `oldID` para `newID`. Usado quando a
+    /// sessão troca de usuário no mesmo aparelho (sessão anônima → conta Apple
+    /// que já existia): é a mesma pessoa, e a linha com o id antigo não sobe
+    /// mais (RLS exige `user_id` = sessão). Retorna true se mudou algo.
+    @discardableResult
+    @MainActor
+    static func reassign(from oldID: UUID, to newID: UUID, in context: ModelContext) -> Bool {
+        guard oldID != newID else { return false }
+        let rows = (try? context.fetch(FetchDescriptor<MotorcycleOwnership>())) ?? []
+        var changed = false
+        for row in rows where row.userID == oldID {
+            row.userID = newID
+            changed = true
+        }
+        return changed
+    }
 }

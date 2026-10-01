@@ -37,6 +37,12 @@ struct DashboardView: View {
     /// Convite de histórico → manutenção antiga / abastecimento antigo.
     @State private var showingHistoryForm = false
     @State private var showingFuelHistory = false
+    /// Passo "Guarde seu histórico" → convite para entrar com a Apple.
+    @State private var showingCloudBackup = false
+    /// Mesma flag do AccountView: desligada, o passo de conta não aparece.
+    @AppStorage("appleSignInEnabled") private var appleSignInEnabled = true
+
+    private var sync: SyncService { .shared }
 
     private var dismissedChecklistIDs: Set<String> {
         Set(dismissedChecklistIDsCSV.split(separator: ",").map(String.init))
@@ -114,6 +120,9 @@ struct DashboardView: View {
                 if let moto = motorcycle {
                     FuelLogFormView(motorcycle: moto, entryPoint: "history_invite", isHistoryEntry: true)
                 }
+            }
+            .sheet(isPresented: $showingCloudBackup) {
+                CloudBackupSheet()
             }
             .onChange(of: activeMotorcycleID) { _, newID in
                 Haptics.selection()
@@ -295,7 +304,8 @@ struct DashboardView: View {
             bikeID: moto.id,
             fuel: !moto.activeFuelLogs.isEmpty,
             maintenance: !moto.activeMaintenanceLogs.isEmpty,
-            consumption: moto.consumptionSummary.segmentCount > 0
+            consumption: moto.consumptionSummary.segmentCount > 0,
+            cloudBackup: cloudBackupState(for: moto) == .done
         )
         let remaining = moto.fullTanksUntilConsumption
         if remaining > 0, !trackedWaiting {
@@ -339,8 +349,25 @@ struct DashboardView: View {
                            isDone: hasConsumption,
                            action: hasConsumption ? { showingConsumption = true } : nil),
         ])
+        // Conta é do usuário, não da moto: quem já entrou com a Apple antes de
+        // cadastrar esta moto não vê o passo (regra em `CloudBackupStep`).
+        // Último da lista: o guia leva primeiro ao valor (consumo), depois a
+        // proteger o histórico que já existe.
+        if let cloud = cloudBackupState(for: moto) {
+            steps.append(ActivationStep(title: "Guarde seu histórico na nuvem",
+                                        isDone: cloud == .done,
+                                        action: { showingCloudBackup = true }))
+        }
         // Todos concluídos → some.
         return steps.allSatisfy(\.isDone) ? nil : steps
+    }
+
+    /// Estado do passo de conta para esta moto, ou nil quando não aparece.
+    private func cloudBackupState(for moto: Motorcycle) -> CloudBackupStep.State? {
+        guard appleSignInEnabled else { return nil }
+        return CloudBackupStep.state(isAnonymous: sync.isAnonymous,
+                                     appleLinkedAt: sync.appleLinkedAt,
+                                     bikeCreatedAt: moto.createdAt)
     }
 
     // MARK: - Blocos

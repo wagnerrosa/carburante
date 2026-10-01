@@ -141,4 +141,26 @@ final class MotorcycleOwnershipTests: XCTestCase {
         XCTAssertFalse(MotorcycleOwnership.backfillActive(for: [], userID: UUID(), in: ctx))
         XCTAssertEqual(try ctx.fetch(FetchDescriptor<MotorcycleOwnership>()).count, 0)
     }
+    // MARK: - Troca de usuário (anônimo → conta Apple existente)
+
+    func testReassignMovesOnlyRowsOfOldUser() throws {
+        let ctx = try makeContext()
+        let anon = UUID(), account = UUID(), other = UUID()
+        let mine = MotorcycleOwnership(motorcycleID: UUID(), userID: anon)
+        let theirs = MotorcycleOwnership(motorcycleID: UUID(), userID: other)
+        ctx.insert(mine)
+        ctx.insert(theirs)
+
+        XCTAssertTrue(MotorcycleOwnership.reassign(from: anon, to: account, in: ctx))
+        XCTAssertEqual(mine.userID, account)
+        XCTAssertEqual(theirs.userID, other)
+    }
+
+    func testReassignIsNoOpWithoutRowsOrSameUser() throws {
+        let ctx = try makeContext()
+        let uid = UUID()
+        ctx.insert(MotorcycleOwnership(motorcycleID: UUID(), userID: uid))
+        XCTAssertFalse(MotorcycleOwnership.reassign(from: UUID(), to: uid, in: ctx))
+        XCTAssertFalse(MotorcycleOwnership.reassign(from: uid, to: uid, in: ctx))
+    }
 }

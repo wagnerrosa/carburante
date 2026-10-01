@@ -378,9 +378,11 @@ enum AdoptionTracker {
 /// Emite `activation_step_completed` uma vez por passo, por moto. Recebe o
 /// estado atual dos passos derivados e dispara só os que viraram concluídos.
 enum ActivationTracker {
-    static func sync(bikeID: UUID, fuel: Bool, maintenance: Bool, consumption: Bool) {
+    static func sync(bikeID: UUID, fuel: Bool, maintenance: Bool, consumption: Bool,
+                     cloudBackup: Bool = false) {
         let steps: [(String, Bool)] = [
             ("fuel", fuel), ("maintenance", maintenance), ("consumption", consumption),
+            ("cloud_backup", cloudBackup),
         ]
         for (name, done) in steps where done {
             let key = "activation_\(bikeID.uuidString)_\(name)"

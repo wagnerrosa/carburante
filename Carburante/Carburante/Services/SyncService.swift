@@ -39,6 +39,10 @@ final class SyncService {
     private(set) var isAnonymous = true
     /// E-mail da conta logada (Apple), se houver. Anônimo → nil.
     private(set) var accountEmail: String?
+    /// Quando a identidade Apple entrou nesta conta (nil = anônimo, ou data
+    /// desconhecida). Base da regra do passo "Guarde seu histórico" do
+    /// checklist (`CloudBackupStep`).
+    private(set) var appleLinkedAt: Date?
     /// A última sincronização no launch falhou ou estourou o timeout? A UI mostra
     /// um aviso discreto ("modo offline") para o usuário não achar que os dados
     /// subiram quando não subiram. O app continua funcional (offline-first).
@@ -49,6 +53,10 @@ final class SyncService {
             supabaseURL: SupabaseConfig.url,
             supabaseKey: SupabaseConfig.publishableKey
         )
+        // Estado da conta já no 1º frame, lido da sessão guardada (Keychain, sem
+        // rede). Sem isso quem já entrou com a Apple veria o passo "Guarde seu
+        // histórico" pendente até o `ensureSession` do launch responder.
+        if let user = client.auth.currentUser { applyUser(user) }
     }
 
     /// Sincronização de launch: pull (aditivo) seguido de push, com um teto de
@@ -112,8 +120,21 @@ final class SyncService {
     /// com identidade Apple vinculada deixa de ser anônimo e ganha e-mail.
     private func applySession(_ session: Session) {
         userID = session.user.id
-        isAnonymous = session.user.isAnonymous
-        accountEmail = session.user.email
+        applyUser(session.user)
+    }
+
+    private func applyUser(_ user: User) {
+        isAnonymous = user.isAnonymous
+        accountEmail = user.email
+        appleLinkedAt = user.identities?.first { $0.provider == "apple" }?.createdAt
+    }
+
+    /// Zera o estado observável da conta (antes de abrir uma sessão anônima nova).
+    private func clearAccountState() {
+        userID = nil
+        isAnonymous = true
+        accountEmail = nil
+        appleLinkedAt = nil
     }
 
     /// Promove a sessão anônima atual a uma conta Apple, VINCULANDO a identidade
@@ -131,6 +152,10 @@ final class SyncService {
             // Conta real → traz dados de outros devices do mesmo usuário.
             if let context { await pullAll(into: context) }
             return true
+        } catch let error as AuthError where error.errorCode == .identityAlreadyExists {
+            // A conta Apple já existe (2º iPhone, app reinstalado, ou saiu e
+            // voltou): vincular não dá — entra nela.
+            return await switchToAppleAccount(idToken: idToken, nonce: nonce, context: context)
         } catch {
             // O segredo Apple do Supabase (JWT ES256) expira a cada ~6 meses; se
             // estiver vencido/mal configurado o link falha com erro do provedor.
@@ -152,14 +177,85 @@ final class SyncService {
         }
     }
 
-    /// Sai da conta. Volta a uma sessão anônima nova (user_id diferente) para o
-    /// app continuar gravando local→remoto. NÃO apaga dados locais.
-    func signOut() async {
+    /// Entra numa conta Apple que JÁ existe, levando o que este aparelho tem.
+    /// Vincular falhou porque a identidade é de outro usuário, então a sessão
+    /// anônima vira conta por TROCA:
+    /// 1. apaga o usuário anônimo no servidor. As linhas dele são cópia do
+    ///    local, e o RLS não deixa a conta dar upsert em linha de outro usuário
+    ///    (o push travaria para sempre). O local fica intacto;
+    /// 2. entra na conta;
+    /// 3. a propriedade local das motos passa do anônimo para a conta;
+    /// 4. pull (traz a conta) + push (sobe o que só existia neste aparelho).
+    /// Fotos já enviadas ficam no Storage (pasta = moto) e voltam a ser
+    /// legíveis assim que a moto sobe na conta.
+    private func switchToAppleAccount(idToken: String, nonce: String, context: ModelContext?) async -> Bool {
+        let anonymousID = userID
+        do {
+            try await client.rpc("delete_current_user").execute()
+        } catch {
+            lastError = "Falha ao entrar com a Apple: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "apple_switch_cleanup", errorCode: Self.errorCode(error))
+            return false
+        }
+
+        let session: Session
+        do {
+            session = try await client.auth.signInWithIdToken(
+                credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+            )
+        } catch {
+            // O anônimo já foi apagado: abre outro para o app seguir gravando —
+            // os dados locais estão intactos e sobem nele.
+            let message = "Falha ao entrar com a Apple: \(error.localizedDescription)"
+            Analytics.syncFailed(stage: "apple_switch", errorCode: Self.errorCode(error))
+            try? await client.auth.signOut()
+            clearAccountState()
+            if let newID = await ensureSession(), let context {
+                adoptLocalOwnerships(from: anonymousID, to: newID, in: context)
+                await pushAll(from: context)
+            }
+            lastError = message
+            return false
+        }
+
+        applySession(session)
+        lastError = nil
+        if let context {
+            adoptLocalOwnerships(from: anonymousID, to: session.user.id, in: context)
+            await pullAll(into: context)
+            await pushAll(from: context)
+        }
+        return true
+    }
+
+    /// Propriedade local que era do usuário anterior passa para o atual (troca
+    /// de sessão sem perder o vínculo moto↔dono). Salva para o push ver.
+    private func adoptLocalOwnerships(from oldID: UUID?, to newID: UUID, in context: ModelContext) {
+        guard let oldID,
+              MotorcycleOwnership.reassign(from: oldID, to: newID, in: context) else { return }
+        try? context.save()
+    }
+
+    /// Sai da conta. Os dados ficam na conta Apple e voltam ao entrar de novo;
+    /// o aparelho fica vazio, numa sessão anônima nova. Manter o local aqui
+    /// quebrava o sync: o anônimo novo não pode dar upsert nas linhas da conta
+    /// (RLS), e o push falhava em todo launch.
+    /// Antes de apagar o local, sobe o que estiver pendente — sem rede, não sai
+    /// (edição offline ainda não enviada se perderia). Retorna true se saiu.
+    @discardableResult
+    func signOut(context: ModelContext) async -> Bool {
+        // Direto no `performPush`: o `pushAll` volta na hora se houver push em
+        // voo, e aqui é preciso saber se ESTE envio deu certo.
+        await performPush(from: context)
+        guard lastError == nil else {
+            lastError = "Sem conexão. Tente de novo para não perder alterações que ainda não subiram."
+            return false
+        }
+        Self.wipeLocalData(context)
         try? await client.auth.signOut()
-        userID = nil
-        isAnonymous = true
-        accountEmail = nil
+        clearAccountState()
         await ensureSession()
+        return true
     }
 
     /// Apaga permanentemente a conta do usuário e TODOS os seus dados (exigência
@@ -172,7 +268,7 @@ final class SyncService {
     @discardableResult
     func deleteAccount(context: ModelContext) async -> Bool {
         guard let uid = await ensureSession() else {
-            lastError = "Sem sessão para excluir a conta."
+            lastError = "Sem conexão para apagar os dados."
             return false
         }
         do {
@@ -180,7 +276,7 @@ final class SyncService {
             try await deleteRemotePhotos()
             try await client.rpc("delete_current_user").execute()
         } catch {
-            lastError = "Falha ao excluir a conta: \(error.localizedDescription)"
+            lastError = "Falha ao apagar os dados: \(error.localizedDescription)"
             Analytics.syncFailed(stage: "delete_account", errorCode: Self.errorCode(error))
             return false
         }
@@ -190,9 +286,7 @@ final class SyncService {
         // Encerra a sessão (o usuário no servidor já não existe) e abre uma anônima
         // nova, deixando o app pronto para um recomeço limpo.
         try? await client.auth.signOut()
-        userID = nil
-        isAnonymous = true
-        accountEmail = nil
+        clearAccountState()
         await ensureSession()
         lastError = nil
         return true
@@ -330,10 +424,22 @@ final class SyncService {
             // --- Badges conquistadas (sem moto; só user_id) ---
             let remoteAwards: [BadgeAwardDTO] = try await client
                 .from("badge_awards").select().execute().value
-            let localBadgeIDs = Set(try context.fetch(FetchDescriptor<BadgeAward>()).map(\.badgeID))
-            for dto in remoteAwards where !localBadgeIDs.contains(dto.badge_id) {
-                let award = BadgeAward(badgeID: dto.badge_id, earnedAt: dto.earned_at, id: dto.id)
-                context.insert(award)
+            let localAwards = Dictionary(
+                try context.fetch(FetchDescriptor<BadgeAward>()).map { ($0.badgeID, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for dto in remoteAwards {
+                if let local = localAwards[dto.badge_id] {
+                    // Mesma medalha ganha neste aparelho antes de entrar na conta:
+                    // adota o id do servidor (unique user_id+badge_id — com o id
+                    // local o push batia na constraint) e fica a data mais antiga.
+                    if local.id != dto.id {
+                        local.id = dto.id
+                        local.earnedAt = min(local.earnedAt, dto.earned_at)
+                    }
+                } else {
+                    context.insert(BadgeAward(badgeID: dto.badge_id, earnedAt: dto.earned_at, id: dto.id))
+                }
             }
 
             // --- Propriedades (moto↔usuário; referência solta por UUID) ---
