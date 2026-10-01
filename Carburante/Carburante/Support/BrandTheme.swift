@@ -23,6 +23,35 @@ enum BrandTheme {
     /// Azul do sistema (tint padrão do iOS) — neutro e nativo.
     static let `default`: Color = .blue  // iOS systemBlue
 
+    /// Identidade do próprio Carburante (ícone, landing). Só no onboarding — o
+    /// único momento sem moto cadastrada, logo sem tema de marca (DESIGN.md §1).
+    /// Claro = token da landing (`--accent` #D92D20). Escuro = #FF453A (vermelho
+    /// do sistema): o #FF6B5E da landing é cor de texto sobre preto — como
+    /// fundo de botão com rótulo branco dá ~2,8:1; #FF453A dá ~3,4:1.
+    static let carburante = Color(UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor(red: 1, green: 0x45 / 255, blue: 0x3A / 255, alpha: 1)
+            : UIColor(red: 0xD9 / 255, green: 0x2D / 255, blue: 0x20 / 255, alpha: 1)
+    })
+
+    /// Gradiente "chama" da landing (`--flame`: vermelho → laranja → amarelo).
+    /// No claro o amarelo some sobre o fundo branco — termina num âmbar mais
+    /// escuro para o texto grande manter contraste.
+    static let flame = LinearGradient(
+        colors: [
+            Color(UIColor { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1, green: 0x3B / 255, blue: 0x30 / 255, alpha: 1)
+                : UIColor(red: 0xD9 / 255, green: 0x2D / 255, blue: 0x20 / 255, alpha: 1) }),
+            Color(UIColor { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1, green: 0x7A / 255, blue: 0, alpha: 1)
+                : UIColor(red: 0xF0 / 255, green: 0x5A / 255, blue: 0x0A / 255, alpha: 1) }),
+            Color(UIColor { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1, green: 0xC4 / 255, blue: 0, alpha: 1)
+                : UIColor(red: 0xE0 / 255, green: 0x82 / 255, blue: 0, alpha: 1) }),
+        ],
+        startPoint: .leading, endPoint: .trailing
+    )
+
     /// Cor de destaque por marca. Tons sólidos derivados das marcas, mas
     /// adaptados ao visual nativo (sem saturação excessiva — legibilidade).
     /// Chave normalizada (minúscula, sem acento/variação) para casar com

@@ -6,10 +6,12 @@
 //  Objetivo: explicar o valor do app e levar o usuário ao cadastro da 1ª moto
 //  com o mínimo de atrito. Quatro telas de valor + um CTA final.
 //
-//  HIG/nativo: TabView paginada (mesmo padrão do onboarding do sistema), ícone
+//  HIG/nativo: TabView paginada (mesmo padrão do onboarding do sistema), arte
 //  grande + título + descrição, botão primário fixo no rodapé. Sem libs, sem
-//  animações supérfluas, sem linguagem promocional. Light/Dark automáticos.
-//  A accent color segue o tema global (.tint do RootTabView).
+//  animações supérfluas. Light/Dark automáticos.
+//  Identidade do Carburante (não da moto): ainda não há moto cadastrada, então
+//  é o único lugar com a cor e a arte da marca — vermelho + chama da landing,
+//  objetos 3D da mesma família das medalhas (DESIGN.md §1, exceção 3).
 //
 
 import SwiftUI
@@ -53,6 +55,7 @@ struct OnboardingView: View {
             footer
         }
         .background(Color(.systemGroupedBackground))
+        .tint(BrandTheme.carburante)
         .onAppear {
             Analytics.onboardingStarted()
             Analytics.onboardingStepViewed(stepIndex: 0, stepName: stepName(0))
@@ -122,51 +125,41 @@ struct OnboardingView: View {
 
 // MARK: - Modelo de uma tela de valor
 
-/// Conteúdo de uma tela de onboarding. Telas comuns usam só ícone+título+texto
-/// (+ bullets opcionais); a tela de consumo usa um layout próprio (stepper).
+/// Conteúdo de uma tela de onboarding: arte 3D + título + texto. A tela de
+/// consumo acrescenta o passo a passo do tanque cheio a tanque cheio.
 struct OnboardingPage: Identifiable {
     let id = UUID()
-    let symbol: String
+    /// Imageset em `Assets.xcassets/Onboarding/`.
+    let art: String
     let title: String
+    /// Fim do título no gradiente chama (como "de verdade." na landing).
+    var flame: String? = nil
     let message: String
-    /// Benefícios curtos (linhas com check). Vazio = sem lista.
-    var bullets: [String] = []
     /// Tela especial do método Full-to-Full (renderiza o stepper).
     var isFullToFull = false
 
     static let allPages: [OnboardingPage] = [
         OnboardingPage(
-            symbol: "fuelpump.fill",
-            title: "Sua moto, seus números",
-            message: "Registre abastecimentos, acompanhe consumo, custos e manutenção da sua motocicleta em um só lugar."
+            art: "Onboarding/wheel",
+            title: "Saiba quanto sua moto faz",
+            flame: "de verdade.",
+            message: "Consumo real, de tanque cheio a tanque cheio, e manutenção em dia."
         ),
         OnboardingPage(
-            symbol: "camera.viewfinder",
-            title: "Abasteça em poucos toques",
-            message: "Use OCR para capturar informações do hodômetro e do comprovante. A localização é preenchida automaticamente.",
-            bullets: [
-                "OCR do hodômetro",
-                "OCR do comprovante",
-                "Localização automática",
-                "Registro rápido",
-            ]
+            art: "Onboarding/station",
+            title: "Abasteça em segundos",
+            message: "Fotografe o painel e o comprovante: o app lê os números e você só confere. O local do posto entra sozinho."
         ),
         OnboardingPage(
-            symbol: "gauge.with.dots.needle.67percent",
-            title: "Entenda o consumo da sua moto",
-            message: "O consumo é calculado usando o método Full-to-Full.",
+            art: "Onboarding/stopwatch",
+            title: "Tanque cheio a tanque cheio",
+            message: "O jeito que não mente: o consumo é medido entre dois tanques cheios.",
             isFullToFull: true
         ),
         OnboardingPage(
-            symbol: "wrench.and.screwdriver",
-            title: "Cuide da sua moto",
-            message: "Acompanhe trocas de óleo, pneus, freios, filtros, relação e revisões gerais.",
-            bullets: [
-                "Histórico completo",
-                "Alertas automáticos",
-                "Intervalos por quilometragem e tempo",
-                "Próximas manutenções",
-            ]
+            art: "Onboarding/oil",
+            title: "Manutenção em dia",
+            message: "Troca de óleo, pneus, relação, freios e revisão. O app avisa antes de vencer — por km ou por data, o que chegar primeiro."
         ),
     ]
 }
@@ -181,14 +174,9 @@ private struct OnboardingPageView: View {
             VStack(spacing: 20) {
                 Spacer(minLength: 24)
 
-                Image(systemName: page.symbol)
-                    .font(.system(size: 72, weight: .regular))
-                    .foregroundStyle(.tint)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityHidden(true)
-                    .padding(.bottom, 4)
+                OnboardingArt(name: page.art)
 
-                Text(page.title)
+                title
                     .font(.largeTitle.weight(.bold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -202,9 +190,6 @@ private struct OnboardingPageView: View {
                 if page.isFullToFull {
                     FullToFullExplainer()
                         .padding(.top, 4)
-                } else if !page.bullets.isEmpty {
-                    OnboardingBullets(items: page.bullets)
-                        .padding(.top, 4)
                 }
 
                 Spacer(minLength: 24)
@@ -215,30 +200,11 @@ private struct OnboardingPageView: View {
             .padding(.bottom, 36)
         }
     }
-}
 
-/// Lista de benefícios — linhas com check na cor do tema (padrão Ajustes).
-private struct OnboardingBullets: View {
-    let items: [String]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(items, id: \.self) { item in
-                Label {
-                    Text(item)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.tint)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Color(.secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    /// Título com o fim em chama, quando houver ("…faz de verdade.").
+    private var title: Text {
+        guard let flame = page.flame else { return Text(page.title) }
+        return Text(page.title + " ") + Text(flame).foregroundStyle(BrandTheme.flame)
     }
 }
 
@@ -289,7 +255,7 @@ private struct FullToFullExplainer: View {
                 Image(systemName: "info.circle.fill")
                     .foregroundStyle(.tint)
                     .accessibilityHidden(true)
-                Text("Os primeiros indicadores aparecem após abastecimentos suficientes para calcular o consumo corretamente.")
+                Text("O primeiro km/l aparece no segundo tanque cheio.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -305,7 +271,7 @@ private struct FullToFullExplainer: View {
                     in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         // O VoiceOver lê o fluxo como uma frase única e direta.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Como o consumo é calculado: tanque cheio, rodar normalmente, próximo tanque cheio, consumo calculado. Os primeiros indicadores aparecem após abastecimentos suficientes.")
+        .accessibilityLabel("Como o consumo é calculado: tanque cheio, rodar normalmente, próximo tanque cheio, consumo calculado. O primeiro km/l aparece no segundo tanque cheio.")
     }
 
     private func stepRow(_ step: Step) -> some View {
@@ -331,19 +297,14 @@ private struct OnboardingCTAView: View {
             VStack(spacing: 20) {
                 Spacer(minLength: 24)
 
-                Image(systemName: "motorcycle")
-                    .font(.system(size: 72, weight: .regular))
-                    .foregroundStyle(.tint)
-                    .symbolRenderingMode(.hierarchical)
-                    .accessibilityHidden(true)
-                    .padding(.bottom, 4)
+                OnboardingArt(name: "Onboarding/flag")
 
                 Text("Pronto para começar?")
                     .font(.largeTitle.weight(.bold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text("Cadastre sua moto para registrar o primeiro abastecimento.")
+                Text("Cadastre sua moto e registre o próximo abastecimento.")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -358,7 +319,22 @@ private struct OnboardingCTAView: View {
     }
 }
 
+// MARK: - Arte 3D
+
+/// Objeto 3D da página (mesma família das medalhas e da landing). Decorativo:
+/// o título já diz o assunto.
+private struct OnboardingArt: View {
+    let name: String
+
+    var body: some View {
+        Image(name)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 160, height: 160)
+            .accessibilityHidden(true)
+    }
+}
+
 #Preview {
     OnboardingView(onRegisterMotorcycle: {}, onExplore: {})
-        .tint(BrandTheme.default)
 }
