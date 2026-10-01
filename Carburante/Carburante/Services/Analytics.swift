@@ -111,10 +111,14 @@ enum Analytics {
     /// `gapWarning` (`none`/`jump`/`kml`): aviso de lacuna que o fluxo mostrou;
     /// com `missed_previous` calibra os limites de `FuelGap` (quantos avisos
     /// viraram marcação vs. correção do km). Sem km, só o tipo do sinal.
+    ///
+    /// `priceWarning`: salvou com o preço por litro fora da faixa de `FuelPrice`
+    /// (aviso ignorado) — calibra a faixa e mede o erro de vírgula do OCR.
     static func fuelCreated(fuelType: FuelType, isFullTank: Bool, ocrOutcome: OCROutcome,
                             hasLocation: Bool, logNumber: Int, liters: Double, cost: Double,
                             unlocksConsumption: Bool, currency: String, isHistorical: Bool,
-                            missedPrevious: Bool = false, gapWarning: String = "none") {
+                            missedPrevious: Bool = false, gapWarning: String = "none",
+                            priceWarning: Bool = false) {
         capture("fuel_created", [
             "fuel_type": fuelType.rawValue,
             "is_full_tank": isFullTank,
@@ -128,6 +132,7 @@ enum Analytics {
             "is_historical": isHistorical,
             "missed_previous": missedPrevious,
             "gap_warning": gapWarning,
+            "price_warning": priceWarning,
         ])
     }
 
