@@ -170,6 +170,12 @@ struct FuelEntryFlowView: View {
         return c / l
     }
 
+    /// Preço por litro fora do normal → provável vírgula perdida (OCR ou
+    /// digitação). Só sugere conferir; não bloqueia (`FuelPrice`).
+    private var isImplausiblePrice: Bool {
+        FuelPrice.isImplausible(cost: cost, liters: liters)
+    }
+
     private var estimatedKmPerLiter: Double? {
         guard !missedPrevious, isFullTank, let odo = odometer, let l = liters, l > 0 else { return nil }
         // Registro antigo pode cair no meio dos existentes: o trecho que ele
@@ -553,10 +559,19 @@ struct FuelEntryFlowView: View {
                 .background(Color(.secondarySystemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
+                // Contexto do campo que vira o aviso (DESIGN.md §7): a mesma
+                // linha do preço por litro fica laranja quando foge do normal.
                 if let ppl = pricePerLiter {
-                    feedbackLabel("≈ \(AppFormat.currencyPrecise(ppl)) por litro",
-                                  icon: "fuelpump.fill", color: .secondary)
-                        .padding(.horizontal, 4)
+                    Group {
+                        if isImplausiblePrice {
+                            feedbackLabel("\(AppFormat.currencyPrecise(ppl)) por litro — confira o valor e os litros",
+                                          icon: "exclamationmark.triangle.fill", color: .orange)
+                        } else {
+                            feedbackLabel("≈ \(AppFormat.currencyPrecise(ppl)) por litro",
+                                          icon: "fuelpump.fill", color: .secondary)
+                        }
+                    }
+                    .padding(.horizontal, 4)
                 }
             }
             .padding(20)
@@ -633,6 +648,13 @@ struct FuelEntryFlowView: View {
                 }
                 .background(Color(.secondarySystemGroupedBackground),
                             in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                // Colado às linhas de valor e litros: o aviso do passo 2 pode
+                // ter passado batido (OCR preencheu e o usuário avançou).
+                if isImplausiblePrice, let ppl = pricePerLiter {
+                    feedbackLabel("\(AppFormat.currencyPrecise(ppl)) por litro está fora do normal. Confira o valor e os litros.",
+                                  icon: "exclamationmark.triangle.fill", color: .orange)
+                }
 
                 VStack(spacing: 0) {
                     Picker("Combustível", selection: $fuelType) {
@@ -1019,7 +1041,8 @@ struct FuelEntryFlowView: View {
             currency: "BRL",
             isHistorical: log.isHistorical,
             missedPrevious: missedPrevious,
-            gapWarning: gapWarning?.rawValue ?? "none"
+            gapWarning: gapWarning?.rawValue ?? "none",
+            priceWarning: isImplausiblePrice
         )
         // 1º OCR aceito = adoção da feature OCR (1 vez por usuário).
         if ocrProcessed, ocrOutcome != .notUsed, AdoptionTracker.markAndCheck(.ocr) {

@@ -88,6 +88,11 @@ struct FuelLogFormView: View {
         return c / l
     }
 
+    /// Preço por litro fora do normal → provável vírgula perdida (`FuelPrice`).
+    private var isImplausiblePrice: Bool {
+        FuelPrice.isImplausible(cost: totalCost, liters: liters)
+    }
+
     /// Aviso de hodômetro retrógrado, ao vivo (não só ao salvar).
     private var odometerWarning: String? {
         guard let odo = odometer, odo > 0, let floor = odometerFloor, odo < floor else { return nil }
@@ -213,6 +218,7 @@ struct FuelLogFormView: View {
                         if let ppl = pricePerLiter {
                             LabeledContent("Preço por litro") {
                                 Text(AppFormat.currencyPrecise(ppl)).monospacedDigit()
+                                    .foregroundStyle(isImplausiblePrice ? .orange : .secondary)
                             }
                         }
                         if let est = liveKmPerLiter {
@@ -221,7 +227,11 @@ struct FuelLogFormView: View {
                             }
                         }
                     } footer: {
-                        if liveKmPerLiter != nil {
+                        if isImplausiblePrice {
+                            Label("Preço por litro fora do normal. Confira o valor e os litros.",
+                                  systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                        } else if liveKmPerLiter != nil {
                             Text("Estimativa deste tanque pelo hodômetro anterior — o consumo oficial é fechado no próximo tanque cheio.")
                         }
                     }
