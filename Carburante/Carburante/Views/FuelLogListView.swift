@@ -85,7 +85,7 @@ struct FuelLogListView: View {
                             Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
                         }
                     } footer: {
-                        Text("Abastecimentos antigos ficam no histórico da moto, fora do consumo e das conquistas.")
+                        Text("Abastecimentos antigos entram no consumo da moto, mas não nas conquistas.")
                     }
                 }
             }

@@ -5,8 +5,9 @@
 //  "Histórico" vs "na hora" — o primeiro degrau da escada de evidência
 //  (PLAN/metadados-auditoria.md §"Nível de evidência do evento"). Um evento
 //  registrado dias depois de acontecer vale menos que um registrado no momento:
-//  não conta para medalhas/conquistas e o abastecimento fica fora do consumo
-//  (PLAN/registro-retroativo.md). Regra DERIVADA de `date` (quando aconteceu) e
+//  não conta para medalhas/conquistas/recordes — mas o abastecimento ENTRA no
+//  consumo: proveniência decide conquista, continuidade (lacuna) decide consumo
+//  (PLAN/registro-retroativo.md, decisão 1). Regra DERIVADA de `date` (quando aconteceu) e
 //  `createdAt` (quando entrou no app) — nada persistido, nada que o usuário
 //  marque. Lógica pura, testável.
 //

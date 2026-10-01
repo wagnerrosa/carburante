@@ -3,7 +3,8 @@
 //  Carburante
 //
 //  Convite pós-cadastro "Sua moto já tem histórico?" (PLAN/registro-retroativo.md,
-//  decisão 3): moto usada chega ao app com passado — trocas de óleo, pneus,
+//  decisão 3): moto usada chega ao app com passado — abastecimentos (fotos e
+//  recibos dão a média de consumo já no 1º acesso), trocas de óleo, pneus,
 //  revisões. Sem convite, o usuário só registra "daqui pra frente" e o
 //  vencimento da próxima troca nasce errado. Aparece no Resumo DEPOIS dos
 //  primeiros passos (nunca empilhado com o checklist), só para moto que parece
@@ -37,7 +38,7 @@ struct HistoryInviteCard: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Dispensar convite de histórico")
                 }
-                Text("Registre trocas de óleo, pneus e revisões feitas antes de usar o app — o próximo vencimento fica certo.")
+                Text("Registre abastecimentos e manutenções de antes do app — a média de consumo aparece já e o próximo vencimento fica certo.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

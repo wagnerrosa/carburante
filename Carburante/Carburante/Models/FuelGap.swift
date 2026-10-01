@@ -7,6 +7,11 @@
 //  "Abasteci sem registrar". Nunca bloqueia o save, nunca marca sozinho
 //  (descartar em silêncio esconderia um erro de digitação/OCR).
 //
+//  Exceção: acima do teto físico (`absoluteKmPerLiterCeiling`) não é suspeita,
+//  é impossível — `ConsumptionCalculator.segments` tira o trecho da média
+//  sozinho (derivado, nada gravado). Protege o histórico: recibo antigo sem os
+//  abastecimentos do meio daria centenas de km/l (PLAN/registro-retroativo.md).
+//
 //  Dois sinais independentes:
 //  - salto de km (passo do hodômetro, litros ainda desconhecidos);
 //  - km/l implícito alto demais (revisão, quando o registro fecha um trecho).
@@ -25,6 +30,7 @@ enum FuelGap {
     /// Teto físico por dia (Iron Butt ≈ 1.600 km/24h; 1.000 é folgado p/ o normal).
     static let maxKmPerDay: Double = 1_000
     /// Teto de km/l sem histórico da moto (nenhuma moto de rua passa disso).
+    /// Também é o teto FÍSICO: trecho acima dele nunca entra na média.
     static let absoluteKmPerLiterCeiling: Double = 80
 
     /// Aviso que o fluxo mostra (e manda no analytics).
@@ -77,10 +83,11 @@ enum FuelGap {
 
     /// km/l do trecho que ESTE registro fecharia, se fechar algum. Usa o mesmo
     /// cálculo do app (`ConsumptionCalculator.segments`), então parciais no
-    /// meio do trecho entram — é exatamente o número que iria para a média.
+    /// meio do trecho entram. Mantém o trecho impossível (> teto físico) — o
+    /// aviso precisa mostrar justamente esse número.
     static func impliedKmPerLiter(adding entry: FuelEntry, to entries: [FuelEntry]) -> Double? {
         guard entry.isFullTank, !entry.missedPrevious else { return nil }
-        let segs = ConsumptionCalculator.segments(from: entries + [entry])
+        let segs = ConsumptionCalculator.segments(from: entries + [entry], keepingImpossible: true)
         return segs.last(where: { $0.endOdometer == entry.odometer })?.kmPerLiter
     }
 
