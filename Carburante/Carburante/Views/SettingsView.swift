@@ -35,6 +35,14 @@ struct SettingsView: View {
                     Text("Estatísticas anônimas de uso ajudam a melhorar o app. Nunca coletamos localização, valores ou quilometragem exatos — só eventos agregados. Você pode desligar a qualquer momento.")
                 }
 
+                // Canal qualitativo fora do TestFlight (que tem feedback com print):
+                // quem baixa da App Store só fala com a gente por aqui.
+                Section {
+                    Link("Enviar sugestão", destination: feedbackURL)
+                } footer: {
+                    Text("Travou em algo ou sentiu falta de alguma coisa? Conte pra gente.")
+                }
+
                 Section {
                     LabeledContent("Versão", value: appVersion)
                 } footer: {
@@ -53,6 +61,31 @@ struct SettingsView: View {
 
     /// Mesma URL informada no App Store Connect (campo Privacy Policy URL).
     static let privacyPolicyURL = URL(string: "https://carburante.motorcycles/privacidade/")!
+
+    /// Mesmo contato da política de privacidade e do feedback do TestFlight.
+    static let feedbackEmail = "contato@wagnerrosa.com"
+
+    /// E-mail com versão, iOS e aparelho já no corpo — ajuda a reproduzir sem
+    /// perguntar de volta. O usuário vê tudo e pode apagar antes de enviar.
+    private var feedbackURL: URL {
+        var c = URLComponents()
+        c.scheme = "mailto"
+        c.path = Self.feedbackEmail
+        c.queryItems = [
+            URLQueryItem(name: "subject", value: "Carburante — sugestão"),
+            URLQueryItem(name: "body", value: "\n\n\n—\nCarburante \(appVersion) · iOS \(UIDevice.current.systemVersion) · \(deviceModel)"),
+        ]
+        return c.url!
+    }
+
+    /// Identificador do modelo (ex.: "iPhone17,5"); `UIDevice.model` só diz "iPhone".
+    private var deviceModel: String {
+        var info = utsname()
+        uname(&info)
+        return withUnsafeBytes(of: &info.machine) { raw in
+            String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+        }
+    }
 
     private var appVersion: String {
         let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"

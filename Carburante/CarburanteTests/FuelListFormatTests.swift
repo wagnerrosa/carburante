@@ -83,4 +83,12 @@ final class FuelListFormatTests: XCTestCase {
         XCTAssertEqual(AppFormat.kmPerLiterValue(14.56), "14,6")
         XCTAssertEqual(AppFormat.kmPerLiter(14.56), "14,6 km/l")
     }
+
+    func testLitersPreciseKeepsWhatWasTyped() {
+        // Revisão do abastecimento: 10,95 não pode virar "11 L".
+        XCTAssertEqual(AppFormat.litersPrecise(10.95), "10,95 L")
+        XCTAssertEqual(AppFormat.litersPrecise(4.135), "4,135 L")
+        XCTAssertEqual(AppFormat.litersPrecise(12), "12 L")
+        XCTAssertEqual(AppFormat.liters(10.95), "11 L") // lista/resumo: 1 casa
+    }
 }
