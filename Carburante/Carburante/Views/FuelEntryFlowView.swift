@@ -22,10 +22,13 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import StoreKit
 
 struct FuelEntryFlowView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.requestReview) private var requestReview
+    @AppStorage(ReviewPrompt.askedVersionKey) private var reviewAskedVersion = ""
 
     let motorcycle: Motorcycle
     /// De onde o fluxo foi aberto (analytics). Default = toolbar "+".
@@ -618,7 +621,7 @@ struct FuelEntryFlowView: View {
                     reviewRow("Valor", value: cost.map(AppFormat.currency) ?? "—") { goTo(.fill) }
                     Divider().padding(.leading, 16)
                     reviewRow("Litros",
-                              value: liters.map(AppFormat.liters) ?? "—",
+                              value: liters.map(AppFormat.litersPrecise) ?? "—",
                               detail: pricePerLiter.map { "\(AppFormat.currencyPrecise($0))/L" }) { goTo(.fill) }
                 }
                 .background(Color(.secondarySystemGroupedBackground),
@@ -1026,6 +1029,23 @@ struct FuelEntryFlowView: View {
         Task {
             await NotificationService.shared.rescheduleAbsenceReminders(lastFuelDate: lastFuelDate)
             await NotificationService.shared.rescheduleMaintenance(statuses: statuses)
+        }
+
+        // Momento de valor: este registro fechou um trecho de consumo (o usuário
+        // ganha um km/l). Pede avaliação 1× por versão; o iOS decide se mostra.
+        let closedSegment = ConsumptionCalculator.segments(from: motorcycle.consumptionEntries)
+            .contains { $0.endOdometer == odo }
+        let version = ReviewPrompt.currentVersion
+        if ReviewPrompt.shouldAsk(closedConsumptionSegment: closedSegment, isHistorical: log.isHistorical,
+                                  askedVersion: reviewAskedVersion, currentVersion: version) {
+            reviewAskedVersion = version
+            let requestReview = requestReview
+            Task { @MainActor in
+                // Depois do sheet fechar: o pedido aparece sobre a tela de origem,
+                // não no meio da animação.
+                try? await Task.sleep(for: .seconds(1))
+                requestReview()
+            }
         }
         dismiss()
     }

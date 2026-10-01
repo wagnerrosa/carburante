@@ -47,6 +47,12 @@ nonisolated enum AppFormat {
         "\(value.formatted(.number.precision(.fractionLength(0...1)).locale(locale))) L"
     }
 
+    /// Litros como digitado/lido, até 3 casas (a bomba mostra "4,135"): "10,95 L".
+    /// Para conferência — a revisão não pode arredondar o que o usuário vai salvar.
+    static func litersPrecise(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(0...3)).locale(locale))) L"
+    }
+
     /// Número como um `TextField(format: .number)` o exibe ("28,49", "1.200");
     /// nil → `placeholder`. Mede a largura do campo p/ a moeda colar no número.
     static func numberInput(_ value: Double?, placeholder: String) -> String {
