@@ -11,9 +11,11 @@
     'nav.roadmap': 'Roadmap',
     'hero.title': 'See your bike’s <span class="flame-text">real fuel economy.</span>',
     'hero.lede': 'Log the fuel-up at the pump, even with no signal. Carburante measures consumption from full tank to full tank and warns you before the next service is due.',
-    'cta.beta': 'Join the beta',
+    'cta.store': 'Download on the App Store',
+    'cta.badge': '<img src="assets/store/app-store-en-us.svg" alt="Download on the App Store" width="144" height="48">',
+    'cta.nav': 'Download',
     'cta.how': 'How it works',
-    'hero.meta': 'Free during beta · iOS 18+ · Portuguese UI for now',
+    'hero.meta': 'Free · iOS 18+ · Brazil only, Portuguese UI for now',
     'alt.hero': 'Carburante Summary screen with a Harley-Davidson: 20.3 km/l average, cost per km and monthly spend. The app switches bikes and changes color.',
     'alt.fuel': 'Logging a fuel-up: the odometer photo is read (22,039 km), the pump photo brings cost and liters (R$ 28.49 and 4.135 L) and the review shows 20.1 km/l for this tank',
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
@@ -56,15 +58,17 @@
     'x3.d': 'Open it and go. No account to create, no password.',
     'x4.t': 'Gentle reminders',
     'x4.d': 'Nudges you about the oil change and reminds you to log if you go quiet.',
-    'bt.title': 'Try it at your next fuel-up.',
-    'bt.d': 'For people who ride often. Open the link on your iPhone, install TestFlight and you’re in. Requires iOS 18 or later; the app is in Portuguese for now. Limited spots.',
-    'bt.mail': 'Questions or ideas? <a href="mailto:beta@carburante.motorcycles?subject=Beta%20Carburante">beta@carburante.motorcycles</a>',
+    'bt.title': 'Use it at your next fuel-up.',
+    'bt.d': 'Free on the Brazilian App Store. Requires an iPhone with iOS 18 or later; the app is in Portuguese for now.',
+    'bt.mail': 'Questions or ideas? <a href="mailto:beta@carburante.motorcycles?subject=Carburante">beta@carburante.motorcycles</a>',
     'q.kicker': 'Questions',
     'q.title': 'Before you ask.',
     'q1.q': 'Is it free?',
-    'q1.a': 'Yes, for the whole beta. The App Store model is still being defined, and beta testers will be the first to know.',
+    'q1.a': 'Yes. It’s free on the App Store, with no ads.',
     'q2.q': 'Is there an Android version?',
     'q2.a': 'Not for now. Carburante is native to iPhone on purpose: fast, light and at home in the system.',
+    'q9.q': 'Is it available outside Brazil?',
+    'q9.a': 'For now it’s only on the Brazilian App Store, and the app is in Portuguese. Other countries and languages are in the plans.',
     'q3.q': 'Do I need an account?',
     'q3.a': 'No. Open it and go: the app works with no account to create and no password.',
     'q4.q': 'Where does my data live?',
@@ -74,7 +78,7 @@
     'q5.q': 'Why doesn’t consumption show on the first fuel-up?',
     'q5.a': 'Because honest consumption is measured between two full tanks: the first one is the starting point. The app tells you how many fuel-ups are left until your first average appears.',
     'q8.q': 'Can it read the pump display?',
-    'q8.a': 'It does, but in the beta it isn’t 100% accurate yet. Glare, angle and segmented displays get in the way. That’s why the app always shows what it read before you save: you check it and fix anything that’s off. Printed receipts tend to come out more accurate.',
+    'q8.a': 'It does, but it isn’t 100% accurate yet. Glare, angle and segmented displays get in the way. That’s why the app always shows what it read before you save: you check it and fix anything that’s off. Printed receipts tend to come out more accurate.',
     'q6.q': 'Is the code open?',
     'q6.a': 'The code is public on GitHub for anyone curious about how the app is built. If you like it, leave a star, it helps a lot.',
     'b.kicker': 'Achievements',
@@ -88,7 +92,7 @@
     'r.kicker': 'Roadmap',
     'r.title': 'Today, a logbook. On the horizon, your bike’s passport.',
     'r.quote': '“The bike carries its events. You keep your story.”',
-    'r.lede': 'The idea is for the history to belong to the motorcycle, not the owner: in a sale, services, mileage and consumption would go with it. None of this has a date. What comes next depends on what the beta shows.',
+    'r.lede': 'The idea is for the history to belong to the motorcycle, not the owner: in a sale, services, mileage and consumption would go with it. None of this has a date. What comes next depends on real-world use.',
     'st.done': 'Shipped',
     'st.now': 'Now',
     'st.planned': 'Planned',
@@ -97,8 +101,8 @@
     'r1.t': 'Logbook',
     'r1.d': 'Fast fuel logging, real consumption, receipt reading, scheduled maintenance, a multi-bike garage, badges and a cloud copy of your records.',
     'r1.link': 'See the features',
-    'r2.t': 'TestFlight beta',
-    'r2.d': 'Real riders using it day to day through TestFlight. This is where you come in: every fuel-up logged helps decide what comes next.',
+    'r2.t': 'On the App Store',
+    'r2.d': 'Available on the Brazilian App Store. This is where you come in: every fuel-up logged helps decide what comes next.',
     'r3.t': 'Digital passport',
     'r3.d': 'The history starts belonging to the bike, keeping the author of each record.',
     'r4.t': 'QR code transfer',
@@ -188,16 +192,16 @@
 
   // Analytics — cliques classificados pelo href, sem data-track no HTML: o i18n troca o
   // innerHTML dos parágrafos, e links internos a eles perderiam atributos. Parâmetros
-  // espelham o site_interaction do portfólio (mesmo formato, propriedade GA4 própria); o pedido de beta
-  // vai como generate_lead para ser marcado como key event.
+  // espelham o site_interaction do portfólio (mesmo formato, propriedade GA4 própria); o clique para a
+  // App Store vai como generate_lead para ser marcado como key event.
   document.addEventListener('click', function (e) {
     var a = e.target.closest ? e.target.closest('a[href]') : null;
     if (!a) return;
     var box = a.closest('footer') ? { id: 'footer' } : a.closest('section[id], header[id]');
     var where = !box ? 'hero' : box.id === 'top' ? 'nav' : box.id;
     var href = a.getAttribute('href');
-    if (a.classList.contains('js-beta')) {
-      track('generate_lead', { method: 'testflight', event_location: where });
+    if (a.classList.contains('js-store')) {
+      track('generate_lead', { method: 'app_store', event_location: where });
     } else if (href === '#consumo') {
       track('site_interaction', { event_category: 'navigation', event_label: 'anchor_how', event_location: where });
     } else if (/github\.com/.test(href)) {

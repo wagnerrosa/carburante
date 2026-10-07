@@ -131,7 +131,7 @@ p { margin: 0; }
 .star__label span { color: #ffc400; }
 .star__count { background: rgba(255, 255, 255, .14); color: #fff; border-radius: 999px; padding: 3px 8px; font-size: 12px; margin-left: -3px; }
 .star__count[hidden] { display: none; }
-/* CTA fixo no nav (.btn--nav, como o "Comprar" da Apple): o beta a um toque em qualquer ponto da
+/* CTA fixo no nav (.btn--nav, como o "Comprar" da Apple): a App Store a um toque em qualquer ponto da
    página. No celular ocupa o lugar da estrela do GitHub, que segue no rodapé e em Bastidores. */
 @media (max-width: 879px) { .star { display: none; } }
 /* Área de toque ≥ 44pt sem mudar o desenho: controles de 30–32px ganham uma borda invisível */
@@ -205,18 +205,13 @@ p { margin: 0; }
 }
 @media (max-width: 719px) { .hero__icon { width: 88px; margin-bottom: 16px; } }
 
-/* CTA do hero com sinal "ao vivo" (o beta está aberto): brasa escura pulsando sobre a chama */
-.btn--live { gap: 10px; padding-left: 20px; }
-.live-dot {
-  position: relative; width: 9px; height: 9px; border-radius: 50%; flex: none;
-  background: radial-gradient(circle at 35% 30%, #ff6a4d, #b01200 70%);
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .55);
-}
-.live-dot::after {
-  content: ""; position: absolute; inset: 0; border-radius: 50%;
-  animation: live-pulse 2s cubic-bezier(.2, .6, .4, 1) infinite;
-}
-@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(176, 18, 0, .7); } 75%, 100% { box-shadow: 0 0 0 10px rgba(176, 18, 0, 0); } }
+/* Selo oficial da App Store (hero e Bastidores). Regras da Apple: arte intacta (sem hover,
+   sem animar, sem inclinar), altura ≥ 40px, respiro de ¼ da altura (12px = gap da .cta-row),
+   versão preta, idioma da página (o i18n troca o <img>). Nav, roadmap e card final seguem
+   com o botão de chama: um selo por tela. */
+.store-badge { display: inline-flex; align-self: center; border-radius: 9px; }
+.store-badge img { display: block; height: 48px; width: auto; }
+.store-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 
 .hero h1 { font-size: clamp(42px, 9vw, 80px); font-weight: 700; letter-spacing: -.035em; line-height: 1.02; margin: 22px 0 22px; }
 .flame-text { background: var(--flame); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -723,7 +718,7 @@ p { margin: 0; }
 .js .reveal.in { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .js .reveal { opacity: 1; transform: none; transition: none; }
-  .float, .live-dot::after, .tl--now .tl__node { animation: none; }
+  .float, .tl--now .tl__node { animation: none; }
   .story__stage, .story__rider, .story__visual .float, .tl__art img, .footer__moto { transition: none; }
   .story__flash { display: none; }
   #beta .wrap::before, .beta__wheel, .beta__wheel::before, .beta__body { transition: none; }
