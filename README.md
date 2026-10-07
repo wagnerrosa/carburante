@@ -24,11 +24,9 @@ iOS 18+ · SwiftUI · SwiftData · Supabase
 - **Conquistas e níveis** — 25 medalhas com pontos por dificuldade.
 - **Sync opcional** — funciona 100% offline; com Sign in with Apple os dados acompanham você entre dispositivos.
 
-## Entrar no beta (TestFlight)
+## Baixar
 
-O app está em TestFlight. Quer testar? Mande um email para **contato@wagnerrosa.com** com o assunto *"Beta Carburante"* e eu te adiciono.
-
-> Em breve um link público de inscrição aparece aqui, dispensando o email.
+[**Carburante na App Store**](https://apps.apple.com/br/app/carburante/id6785659437) — grátis, iPhone com iOS 18 ou mais recente. Por enquanto só na App Store do Brasil, com o app em português.
 
 ---
 
