@@ -38,6 +38,11 @@ alter table public.motorcycles add column if not exists displacement_cc integer;
 alter table public.motorcycles add column if not exists odometer_baseline double precision not null default 0;
 -- Exclusão lógica da moto (nil = viva): o delete propaga e o pull não ressuscita.
 alter table public.motorcycles add column if not exists deleted_at timestamptz;
+-- Situação da moto (2026-10-08): 'active' / 'for_sale' / 'sold' — chave
+-- congelada de MotorcycleStatus no app. A data da mudança decide quem vence
+-- (trigger keep_latest_motorcycle_status, abaixo).
+alter table public.motorcycles add column if not exists status text not null default 'active';
+alter table public.motorcycles add column if not exists status_changed_at timestamptz;
 
 -- ---------- fuel_logs ----------
 create table if not exists public.fuel_logs (
@@ -276,6 +281,30 @@ drop trigger if exists motorcycles_keep_earliest_created_at on public.motorcycle
 create trigger motorcycles_keep_earliest_created_at
     before update on public.motorcycles
     for each row execute function public.keep_earliest_created_at();
+
+-- Situação da moto (2026-10-08): a moto não tem updated_at, e o push sobe a
+-- linha inteira — um device que ainda não puxou a venda desfaria "vendida".
+-- O servidor só aceita a situação com status_changed_at MAIS RECENTE; sem data
+-- (build antigo ou situação nunca mudada) mantém a que já está.
+create or replace function public.keep_latest_motorcycle_status()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+    if new.status_changed_at is null
+       or (old.status_changed_at is not null and new.status_changed_at < old.status_changed_at) then
+        new.status := old.status;
+        new.status_changed_at := old.status_changed_at;
+    end if;
+    return new;
+end;
+$$;
+
+drop trigger if exists motorcycles_keep_latest_status on public.motorcycles;
+create trigger motorcycles_keep_latest_status
+    before update on public.motorcycles
+    for each row execute function public.keep_latest_motorcycle_status();
 
 -- Foto do hodômetro (comprovante do km rodado — base da auditoria anti-burla e,
 -- no futuro, de uma checagem por IA). Bucket PRIVADO: nada de URL pública (não

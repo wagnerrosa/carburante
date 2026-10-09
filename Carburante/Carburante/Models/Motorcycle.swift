@@ -47,6 +47,14 @@ final class Motorcycle {
     /// o pull aditivo ressuscitava a moto no launch seguinte. Default nil →
     /// migração leve.
     var deletedAt: Date?
+    /// Situação: na garagem / à venda / vendida — chave congelada de
+    /// `MotorcycleStatus`. Default "active" → migração leve; chave desconhecida
+    /// (build mais novo) é preservada como veio, nunca regravada.
+    var statusRaw: String = "active"
+    /// Quando a situação mudou pela última vez (nil = nunca). Decide o
+    /// last-write-wins da situação no pull e conta a janela de 30 dias da venda
+    /// (PLAN/premium-mvp.md §1).
+    var statusChangedAt: Date?
 
     /// Abastecimentos da moto. Apagar a moto apaga seus abastecimentos.
     @Relationship(deleteRule: .cascade, inverse: \FuelLog.motorcycle)
@@ -92,6 +100,29 @@ extension Motorcycle {
     /// Filtro das `@Query`/fetches de leitura: só motos não excluídas.
     static var activePredicate: Predicate<Motorcycle> {
         #Predicate<Motorcycle> { $0.deletedAt == nil }
+    }
+
+    /// Motos na garagem: não excluídas e não vendidas (à venda continua sua).
+    /// Resumo e moto ativa usam este; a Garagem usa `activePredicate`, porque
+    /// recordes, totais e medalhas são vitalícios (incluem as vendidas).
+    static var garagePredicate: Predicate<Motorcycle> {
+        let sold = MotorcycleStatus.sold.rawValue
+        return #Predicate<Motorcycle> { $0.deletedAt == nil && $0.statusRaw != sold }
+    }
+
+    // MARK: - Situação (na garagem / à venda / vendida)
+
+    /// Situação lida da chave. Chave desconhecida conta como na garagem, só
+    /// para leitura — `statusRaw` não é tocado.
+    var status: MotorcycleStatus { MotorcycleStatus(rawValue: statusRaw) ?? .active }
+
+    var isSold: Bool { statusRaw == MotorcycleStatus.sold.rawValue }
+
+    /// Muda a situação e carimba a data (base do last-write-wins no sync).
+    func setStatus(_ newStatus: MotorcycleStatus, now: Date = Date()) {
+        guard newStatus.rawValue != statusRaw else { return }
+        statusRaw = newStatus.rawValue
+        statusChangedAt = now
     }
 
     /// Exclui a moto logicamente e, em cascata, seus abastecimentos e manutenções

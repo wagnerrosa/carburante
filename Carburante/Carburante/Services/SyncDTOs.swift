@@ -26,6 +26,12 @@ struct MotorcycleDTO: Codable {
     /// esse direito. Mesmo contrato do `FuelLogDTO.created_at`: não-opcional, e
     /// o servidor só aceita valor MENOR (trigger `keep_earliest_created_at`).
     let created_at: Date
+    /// Situação (chave congelada de `MotorcycleStatus`). Não-opcional: build
+    /// novo sempre manda; build antigo não manda a coluna e não a toca. O
+    /// servidor só aceita a de `status_changed_at` mais recente (trigger
+    /// `keep_latest_motorcycle_status`) — device desatualizado não desfaz.
+    let status: String
+    var status_changed_at: Date? = nil
     /// Exclusão lógica da moto (nil = viva). nil é omitido no JSON; o upsert em
     /// lote do SDK manda `columns` = união das chaves, então num lote misto as
     /// vivas vão como null e build antigo (sem o campo) nunca toca a coluna.

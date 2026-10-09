@@ -340,6 +340,10 @@ final class SyncService {
                     local.deletedAt = deletedAt
                 }
                 healCreatedAt(&local.createdAt, remote: dto.created_at)
+                if Self.remoteStatusWins(localAt: local.statusChangedAt, remoteAt: dto.status_changed_at) {
+                    local.statusRaw = dto.status
+                    local.statusChangedAt = dto.status_changed_at
+                }
             }
 
             // Moto remota ausente local → insere (mesmo excluída: mantém a FK dos
@@ -354,6 +358,8 @@ final class SyncService {
                 )
                 moto.id = dto.id
                 moto.odometerBaseline = dto.odometer_baseline
+                moto.statusRaw = dto.status
+                moto.statusChangedAt = dto.status_changed_at
                 moto.deletedAt = dto.deleted_at
                 context.insert(moto)
                 motoByID[dto.id] = moto
@@ -482,6 +488,14 @@ final class SyncService {
         local = Self.healedCreatedAt(local: local, remote: remote)
     }
 
+    /// Situação da moto no pull: last-write-wins por `status_changed_at` (a moto
+    /// não tem `updated_at`). Remota sem data nunca mudou → não sobrescreve.
+    static func remoteStatusWins(localAt: Date?, remoteAt: Date?) -> Bool {
+        guard let remoteAt else { return false }
+        guard let localAt else { return true }
+        return remoteAt > localAt.addingTimeInterval(1)
+    }
+
     /// Regra pura de `healCreatedAt` (testada): o menor vence, com 1 s de folga.
     static func healedCreatedAt(local: Date, remote: Date) -> Date {
         remote < local.addingTimeInterval(-1) ? remote : local
@@ -568,6 +582,8 @@ final class SyncService {
                     category: m.category, displacement_cc: m.displacementCC,
                     manufacturer_consumption: m.manufacturerConsumption,
                     created_at: m.createdAt,
+                    status: m.statusRaw,
+                    status_changed_at: m.statusChangedAt,
                     deleted_at: m.deletedAt
                 )
             }

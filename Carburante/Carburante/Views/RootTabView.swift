@@ -12,7 +12,7 @@ import SwiftData
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Query(filter: Motorcycle.activePredicate, sort: \Motorcycle.createdAt, order: .reverse)
+    @Query(filter: Motorcycle.garagePredicate, sort: \Motorcycle.createdAt, order: .reverse)
     private var motorcycles: [Motorcycle]
     /// Mesma chave do Resumo — fonte única da moto ativa, define o tema global.
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
