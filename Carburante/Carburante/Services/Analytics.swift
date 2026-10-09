@@ -79,8 +79,9 @@ enum Analytics {
 
     /// Fechou o cadastro de moto nova sem salvar — diz onde travou. `exit`:
     /// `cancel` (Cancelar/Descartar) ou `swipe` (arrastou p/ baixo).
-    /// `makeChoice`: `untouched` (ficou em "Outra…" sem nome), `other` (digitou
-    /// a marca) ou `catalog`. Só se cada campo tinha algo — nunca o texto.
+    /// `makeChoice`: `default` (ficou na marca pré-escolhida), `catalog` (trocou
+    /// por outra do catálogo), `other_empty` ("Outra…" sem nome) ou `other`
+    /// (digitou a marca). Só se cada campo tinha algo — nunca o texto.
     static func motorcycleFormAbandoned(entryPoint: String, exit: String, makeChoice: String,
                                         modelFilled: Bool, odometerFilled: Bool,
                                         optionalFilled: Bool, seconds: TimeInterval) {

@@ -18,11 +18,13 @@ struct MotorcycleFormView: View {
     /// `garage`) — só analytics, separa o funil por origem.
     var entryPoint: String = "other"
 
+    /// Marca do cadastro novo: a 1ª do catálogo (Honda). Começar em "Outra…" foi
+    /// testado e revertido — o campo "Nome da marca" aberto induzia a digitar
+    /// "Honda" ali, sem abrir o menu.
+    private static let defaultMake = MotorcycleMake.catalog.first ?? ""
+
     /// Marca selecionada no Picker. "Outra…" revela o campo livre `make`.
-    /// Cadastro novo começa em "Outra…", não na 1ª do catálogo: com Honda
-    /// pré-escolhida, quem tem outra marca precisava notar e trocar antes — a
-    /// marca é a 1ª decisão, então nenhuma vem escolhida por ele.
-    @State private var selectedMake: String = MotorcycleMake.other
+    @State private var selectedMake: String = Self.defaultMake
     /// Marca efetiva persistida. Espelha o Picker, exceto quando "Outra…" → texto livre.
     @State private var make: String = ""
     @State private var model: String = ""
@@ -101,7 +103,7 @@ struct MotorcycleFormView: View {
         }
         return !model.isEmpty || (isOther && !make.isEmpty)
             || currentOdometer != nil || category != nil || displacementCC != nil
-            || selectedMake != MotorcycleMake.other
+            || selectedMake != Self.defaultMake
     }
 
     var body: some View {
@@ -267,8 +269,14 @@ struct MotorcycleFormView: View {
     /// `interactiveDismissDisabled`).
     private func trackAbandonIfNeeded() {
         guard !isEditing, !didSave, let openedAt else { return }
-        let makeChoice = !isOther ? "catalog"
-            : make.trimmingCharacters(in: .whitespaces).isEmpty ? "untouched" : "other"
+        let makeChoice: String
+        if selectedMake == Self.defaultMake {
+            makeChoice = "default"
+        } else if !isOther {
+            makeChoice = "catalog"
+        } else {
+            makeChoice = make.trimmingCharacters(in: .whitespaces).isEmpty ? "other_empty" : "other"
+        }
         Analytics.motorcycleFormAbandoned(
             entryPoint: entryPoint,
             exit: exitedByCancel ? "cancel" : "swipe",
