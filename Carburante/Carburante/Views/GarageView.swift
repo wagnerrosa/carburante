@@ -34,24 +34,31 @@ struct GarageView: View {
     /// Filtro do grid de medalhas (estilo Garmin: Conquistadas / Disponíveis).
     @State private var badgeFilter: BadgeFilter = .conquistadas
 
-    /// Moto ativa = a da chave salva, ou a mais recente como fallback.
+    /// Motos na garagem (à venda incluída). `motorcycles` traz também as
+    /// vendidas: recordes, totais e medalhas são vitalícios.
+    private var garageBikes: [Motorcycle] { motorcycles.filter { !$0.isSold } }
+
+    /// Vendidas — seção "Motos que já tive", só para consulta.
+    private var soldBikes: [Motorcycle] { motorcycles.filter(\.isSold) }
+
+    /// Moto ativa = a da chave salva, ou a mais recente como fallback. Nunca vendida.
     private var activeMotorcycle: Motorcycle? {
-        motorcycles.first { $0.id.uuidString == activeMotorcycleID } ?? motorcycles.first
+        garageBikes.first { $0.id.uuidString == activeMotorcycleID } ?? garageBikes.first
     }
 
     /// As demais motos (para a seção "Outras motos" / troca de ativa).
     private var otherMotorcycles: [Motorcycle] {
         guard let active = activeMotorcycle else { return [] }
-        return motorcycles.filter { $0.id != active.id }
+        return garageBikes.filter { $0.id != active.id }
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let moto = activeMotorcycle {
-                    garageList(for: moto)
-                } else {
+                if motorcycles.isEmpty {
                     emptyState
+                } else {
+                    garageList(for: activeMotorcycle)
                 }
             }
             .navigationTitle("Garagem")
@@ -98,14 +105,21 @@ struct GarageView: View {
     // MARK: - Conteúdo principal
 
     @ViewBuilder
-    private func garageList(for moto: Motorcycle) -> some View {
+    private func garageList(for moto: Motorcycle?) -> some View {
         List {
-            heroSection(moto)
-                // Tema da marca tinge o bloco da moto (mesma técnica das telas por-moto).
-                .tint(moto.themeColor)
+            // Sem moto na garagem (todas vendidas) → sem herói; o `+` cadastra a próxima.
+            if let moto {
+                heroSection(moto)
+                    // Tema da marca tinge o bloco da moto (mesma técnica das telas por-moto).
+                    .tint(moto.themeColor)
+            }
 
             if !otherMotorcycles.isEmpty {
                 otherBikesSection
+            }
+
+            if !soldBikes.isEmpty {
+                soldBikesSection
             }
 
             recordsSection
@@ -138,6 +152,11 @@ struct GarageView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
+                        if let label = moto.status.label {
+                            Text(label)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -170,9 +189,54 @@ struct GarageView: View {
                                 .monospacedDigit()
                         }
                         Spacer()
+                        if let label = moto.status.label {
+                            Text(label)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .buttonStyle(.plain)
+                .swipeActions {
+                    Button("Excluir", role: .destructive) { pendingDeletion = moto }
+                }
+            }
+        }
+    }
+
+    // MARK: Motos que já tive
+
+    /// Vendidas: só consulta (toque abre o perfil com o histórico). Apagadas de
+    /// propósito — texto secundário + logo esmaecido + a palavra "Vendida"
+    /// (nunca só cor/opacidade, PLAN/DESIGN.md §4).
+    private var soldBikesSection: some View {
+        Section("Motos que já tive") {
+            ForEach(soldBikes) { moto in
+                NavigationLink {
+                    MotorcycleProfileView(motorcycle: moto)
+                } label: {
+                    HStack(spacing: 12) {
+                        Group {
+                            if let logo = moto.logoAsset {
+                                BrandLogoTile(assetName: logo, size: 32)
+                            } else {
+                                IconTile(systemName: "motorcycle", tint: moto.themeColor, size: 32)
+                            }
+                        }
+                        .opacity(0.45)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("\(moto.make) \(moto.model)")
+                            Text(AppFormat.km(moto.currentOdometer))
+                                .font(.caption)
+                                .monospacedDigit()
+                        }
+                        .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(MotorcycleStatus.sold.label ?? "")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 .swipeActions {
                     Button("Excluir", role: .destructive) { pendingDeletion = moto }
                 }

@@ -186,6 +186,16 @@ enum Analytics {
         ])
     }
 
+    /// Mudou a situação da moto (perfil). `to` = chave congelada (`active` /
+    /// `for_sale` / `sold`). Base de medida da troca de moto e do limite do
+    /// Premium (PLAN/premium-mvp.md §1).
+    static func motorcycleStatusChanged(to status: MotorcycleStatus, garageBikeCount: Int) {
+        capture("motorcycle_status_changed", [
+            "to": status.rawValue,
+            "garage_bike_count": garageBikeCount,
+        ])
+    }
+
     static func motorcycleSwitched(bikeCount: Int, toCategory: String?) {
         capture("motorcycle_switched", [
             "bike_count": bikeCount,

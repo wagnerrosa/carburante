@@ -26,6 +26,10 @@ final class PersistedEnumKeyTests: XCTestCase {
         ])
     }
 
+    func testMotorcycleStatusKeysAreFrozen() {
+        XCTAssertEqual(MotorcycleStatus.allCases.map(\.rawValue), ["active", "for_sale", "sold"])
+    }
+
     func testTirePositionKeysAreFrozen() {
         XCTAssertEqual(TirePosition.allCases.map(\.rawValue), ["Dianteiro", "Traseiro"])
     }
