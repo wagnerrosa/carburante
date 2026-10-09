@@ -268,6 +268,15 @@ create trigger maintenance_logs_keep_earliest_created_at
     before update on public.maintenance_logs
     for each row execute function public.keep_earliest_created_at();
 
+-- Moto (2026-10-08): o app passou a enviar `created_at` da moto — base da regra
+-- do Premium "moto cadastrada antes do lançamento nunca conta para o limite".
+-- Até aqui a coluna era a hora do 1º push (default now()); o valor do device é
+-- menor e passa; um device que puxou a moto antes (hora do pull) não sobrescreve.
+drop trigger if exists motorcycles_keep_earliest_created_at on public.motorcycles;
+create trigger motorcycles_keep_earliest_created_at
+    before update on public.motorcycles
+    for each row execute function public.keep_earliest_created_at();
+
 -- Foto do hodômetro (comprovante do km rodado — base da auditoria anti-burla e,
 -- no futuro, de uma checagem por IA). Bucket PRIVADO: nada de URL pública (não
 -- dá para revogar); o app baixa autenticado.
