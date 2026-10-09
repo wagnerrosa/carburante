@@ -107,6 +107,14 @@ enum Analytics {
                                   userProperties: ["$internal_or_test_user": isInternal])
     }
 
+    // MARK: - Ícone do app
+
+    /// Trocou o ícone do app (ícones de conquista — PLAN/premium-mvp.md §3).
+    /// `to` = id da opção (`default` ou `conquista-<arte>`).
+    static func appIconChanged(to icon: String) {
+        capture("app_icon_changed", ["to": icon])
+    }
+
     // MARK: - Custos completos
 
     /// Abriu a tela Custos (Premium MVP, PLAN/premium-mvp.md §2). Mede a
