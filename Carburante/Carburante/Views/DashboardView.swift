@@ -615,9 +615,16 @@ struct DashboardView: View {
             MetricTile(label: "Custo por km",
                        value: summary.costPerKm.map(AppFormat.currency) ?? "—",
                        sparkline: moto.costPerKmSeries)
-            MetricTile(label: "Gasto este mês",
-                       value: AppFormat.currency(expense.last?.total ?? 0),
-                       sparkline: expense.map(\.total))
+            // Toque abre os Custos completos (gasolina + manutenção), como o
+            // número do consumo abre a tela de Consumo.
+            NavigationLink {
+                CostsView(motorcycle: moto)
+            } label: {
+                MetricTile(label: "Gasto este mês",
+                           value: AppFormat.currency(expense.last?.total ?? 0),
+                           sparkline: expense.map(\.total))
+            }
+            .buttonStyle(.plain)
             MetricTile(label: "Rodados este mês",
                        value: AppFormat.km(distanceThisMonth),
                        distanceBars: weeklyBars)
