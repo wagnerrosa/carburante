@@ -20,6 +20,12 @@ struct MotorcycleDTO: Codable {
     let category: String?
     let displacement_cc: Int?
     let manufacturer_consumption: Double?
+    /// Quando a moto entrou no app. Base da regra do Premium "moto cadastrada
+    /// antes do lançamento nunca conta para o limite" (PLAN/premium-mvp.md) —
+    /// sem sincronizar, um reinstall recriava a moto com `Date()` e ela perdia
+    /// esse direito. Mesmo contrato do `FuelLogDTO.created_at`: não-opcional, e
+    /// o servidor só aceita valor MENOR (trigger `keep_earliest_created_at`).
+    let created_at: Date
     /// Exclusão lógica da moto (nil = viva). nil é omitido no JSON; o upsert em
     /// lote do SDK manda `columns` = união das chaves, então num lote misto as
     /// vivas vão como null e build antigo (sem o campo) nunca toca a coluna.

@@ -332,10 +332,14 @@ final class SyncService {
 
             // Exclusão lógica vinda de outro device: aplica na moto local viva.
             // Só a moto — os logs filhos trazem o próprio `deleted_at` (LWW abaixo).
+            // `createdAt` cura pelo menor (moto puxada antes do campo sincronizar
+            // ganhou a hora do pull).
             for dto in remoteMotos {
-                if let deletedAt = dto.deleted_at, let local = motoByID[dto.id], local.deletedAt == nil {
+                guard let local = motoByID[dto.id] else { continue }
+                if let deletedAt = dto.deleted_at, local.deletedAt == nil {
                     local.deletedAt = deletedAt
                 }
+                healCreatedAt(&local.createdAt, remote: dto.created_at)
             }
 
             // Moto remota ausente local → insere (mesmo excluída: mantém a FK dos
@@ -345,7 +349,8 @@ final class SyncService {
                     make: dto.make, model: dto.model, year: dto.year,
                     country: dto.country ?? "", currentOdometer: dto.current_odometer,
                     category: dto.category, displacementCC: dto.displacement_cc,
-                    manufacturerConsumption: dto.manufacturer_consumption
+                    manufacturerConsumption: dto.manufacturer_consumption,
+                    createdAt: dto.created_at
                 )
                 moto.id = dto.id
                 moto.odometerBaseline = dto.odometer_baseline
@@ -474,7 +479,12 @@ final class SyncService {
     /// pull). Tolerância de 1 s: o JSON perde sub-milissegundos e não queremos
     /// reescrever toda linha a cada launch.
     private func healCreatedAt(_ local: inout Date, remote: Date) {
-        if remote < local.addingTimeInterval(-1) { local = remote }
+        local = Self.healedCreatedAt(local: local, remote: remote)
+    }
+
+    /// Regra pura de `healCreatedAt` (testada): o menor vence, com 1 s de folga.
+    static func healedCreatedAt(local: Date, remote: Date) -> Date {
+        remote < local.addingTimeInterval(-1) ? remote : local
     }
 
     /// Aplica os campos de um `FuelLogDTO` a um `FuelLog` (novo ou já existente).
@@ -557,6 +567,7 @@ final class SyncService {
                     odometer_baseline: m.odometerBaseline,
                     category: m.category, displacement_cc: m.displacementCC,
                     manufacturer_consumption: m.manufacturerConsumption,
+                    created_at: m.createdAt,
                     deleted_at: m.deletedAt
                 )
             }
