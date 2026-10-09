@@ -61,7 +61,7 @@ struct RootTabView: View {
             .tint(activeTint)
         }
         .sheet(isPresented: $showRegisterMotorcycle) {
-            MotorcycleFormView()
+            MotorcycleFormView(entryPoint: "onboarding")
         }
         .task {
             // Sincronização no launch: puxa o que falta (dados de outro device do

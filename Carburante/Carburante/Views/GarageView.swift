@@ -74,7 +74,7 @@ struct GarageView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                MotorcycleFormView()
+                MotorcycleFormView(entryPoint: "garage")
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
