@@ -24,6 +24,7 @@ struct CarburanteApp: App {
         // analytics anônimo de produto.
         let analyticsEnabled = UserDefaults.standard.object(forKey: "analyticsEnabled") as? Bool ?? true
         Analytics.setEnabled(analyticsEnabled)
+        Analytics.registerInstallProperties()
         Self.trackVersionUpdateIfNeeded()
     }
 
