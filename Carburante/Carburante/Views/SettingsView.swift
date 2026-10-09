@@ -8,9 +8,15 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    /// Planilhas geradas por "Exportar meus dados" → folha de compartilhar.
+    @State private var export: ExportedFiles?
+    @State private var exportFailed = false
 
     /// Compartilhar dados de uso (analytics). Default true — analytics de produto
     /// anônimo é opt-out (sem ATT/IDFA). A fonte de verdade do opt-out é aplicada
@@ -41,6 +47,19 @@ struct SettingsView: View {
                     Text("Estatísticas anônimas de uso ajudam a melhorar o app. Nunca coletamos localização, valores ou quilometragem exatos — só eventos agregados. Você pode desligar a qualquer momento.")
                 }
 
+                // Grátis, sempre: dado nunca é refém (PLAN/monetizacao.md).
+                Section {
+                    Button {
+                        exportData()
+                    } label: {
+                        Label("Exportar meus dados", systemImage: "square.and.arrow.up")
+                    }
+                } header: {
+                    Text("Seus dados")
+                } footer: {
+                    Text("Planilhas com suas motos, abastecimentos e manutenções. Abrem no Numbers e no Excel.")
+                }
+
                 // Canal qualitativo fora do TestFlight (que tem feedback com print):
                 // quem baixa da App Store só fala com a gente por aqui.
                 Section {
@@ -58,6 +77,15 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Ajustes")
+            .sheet(item: $export) { files in
+                ActivityView(items: files.urls)
+                    .presentationDetents([.medium, .large])
+            }
+            .alert("Não foi possível exportar", isPresented: $exportFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Tente novamente.")
+            }
             .alert(isInternalDevice ? "Aparelho interno" : "Aparelho comum",
                    isPresented: $showInternalAlert) {
                 Button("OK", role: .cancel) {}
@@ -72,6 +100,23 @@ struct SettingsView: View {
                     Button("OK") { dismiss() }
                 }
             }
+        }
+    }
+
+    private func exportData() {
+        let descriptor = FetchDescriptor<Motorcycle>(predicate: Motorcycle.activePredicate,
+                                                     sortBy: [SortDescriptor(\.createdAt)])
+        do {
+            let motorcycles = try modelContext.fetch(descriptor)
+            let urls = try DataExport.write(DataExport.files(for: motorcycles))
+            export = ExportedFiles(urls: urls)
+            Analytics.dataExported(
+                bikeCount: motorcycles.count,
+                fuelLogCount: motorcycles.reduce(0) { $0 + $1.activeFuelLogs.count },
+                maintenanceCount: motorcycles.reduce(0) { $0 + $1.activeMaintenanceLogs.count }
+            )
+        } catch {
+            exportFailed = true
         }
     }
 
@@ -122,4 +167,11 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .modelContainer(for: Motorcycle.self, inMemory: true)
+}
+
+/// Planilhas prontas para a folha de compartilhar (`.sheet(item:)` pede Identifiable).
+private struct ExportedFiles: Identifiable {
+    let id = UUID()
+    let urls: [URL]
 }
