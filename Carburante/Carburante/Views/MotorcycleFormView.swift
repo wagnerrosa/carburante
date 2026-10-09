@@ -14,9 +14,17 @@ struct MotorcycleFormView: View {
 
     /// Nil = cadastro novo. Não-nil = edição.
     var motorcycle: Motorcycle?
+    /// De onde o cadastro novo foi aberto (`onboarding` / `dashboard` /
+    /// `garage`) — só analytics, separa o funil por origem.
+    var entryPoint: String = "other"
+
+    /// Marca do cadastro novo: a 1ª do catálogo (Honda). Começar em "Outra…" foi
+    /// testado e revertido — o campo "Nome da marca" aberto induzia a digitar
+    /// "Honda" ali, sem abrir o menu.
+    private static let defaultMake = MotorcycleMake.catalog.first ?? ""
 
     /// Marca selecionada no Picker. "Outra…" revela o campo livre `make`.
-    @State private var selectedMake: String = MotorcycleMake.catalog.first ?? ""
+    @State private var selectedMake: String = Self.defaultMake
     /// Marca efetiva persistida. Espelha o Picker, exceto quando "Outra…" → texto livre.
     @State private var make: String = ""
     @State private var model: String = ""
@@ -38,6 +46,10 @@ struct MotorcycleFormView: View {
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
     @FocusState private var odometerFocused: Bool
     @FocusState private var displacementFocused: Bool
+    /// Analytics do abandono: salvou? saiu por Cancelar ou arrastando? quando abriu?
+    @State private var didSave = false
+    @State private var exitedByCancel = false
+    @State private var openedAt: Date?
 
     private var isEditing: Bool { motorcycle != nil }
 
@@ -91,7 +103,7 @@ struct MotorcycleFormView: View {
         }
         return !model.isEmpty || (isOther && !make.isEmpty)
             || currentOdometer != nil || category != nil || displacementCC != nil
-            || selectedMake != (MotorcycleMake.catalog.first ?? "")
+            || selectedMake != Self.defaultMake
     }
 
     var body: some View {
@@ -134,6 +146,17 @@ struct MotorcycleFormView: View {
                     .id("ano-\(effectiveMake)")
                 }
 
+                Section("Hodômetro") {
+                    UnitField(label: "Atual", unit: "km") {
+                        TextField("Quilometragem atual", value: $currentOdometer,
+                                  format: .number, prompt: Text("0"))
+                            .keyboardType(.decimalPad)
+                            .focused($odometerFocused)
+                    }
+                }
+
+                // Opcionais por último: no meio do form, faziam o cadastro
+                // parecer mais longo do que é (só marca + modelo são exigidos).
                 Section {
                     Picker("Categoria", selection: $category) {
                         Text("Não informado").tag(MotorcycleCategory?.none)
@@ -157,15 +180,6 @@ struct MotorcycleFormView: View {
                     Text("Detalhes (opcional)")
                 } footer: {
                     Text("Categoria e cilindrada habilitam a comparação de consumo com motos parecidas. Pode completar depois.")
-                }
-
-                Section("Hodômetro") {
-                    UnitField(label: "Atual", unit: "km") {
-                        TextField("Quilometragem atual", value: $currentOdometer,
-                                  format: .number, prompt: Text("0"))
-                            .keyboardType(.decimalPad)
-                            .focused($odometerFocused)
-                    }
                 }
 
                 if let saveError {
@@ -199,7 +213,12 @@ struct MotorcycleFormView: View {
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancelar") {
-                        if hasChanges { showDiscardConfirm = true } else { dismiss() }
+                        if hasChanges {
+                            showDiscardConfirm = true
+                        } else {
+                            exitedByCancel = true
+                            dismiss()
+                        }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
@@ -221,7 +240,10 @@ struct MotorcycleFormView: View {
             .confirmationDialog(isEditing ? "Descartar alterações?" : "Descartar esta moto?",
                                 isPresented: $showDiscardConfirm,
                                 titleVisibility: .visible) {
-                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Descartar", role: .destructive) {
+                    exitedByCancel = true
+                    dismiss()
+                }
                 Button("Continuar editando", role: .cancel) {}
             }
         }
@@ -232,6 +254,38 @@ struct MotorcycleFormView: View {
         // num tom intermediário (parecia "vermelho preso"). Snap instantâneo do
         // tint; só o header (logo + texto) anima a troca.
         .tint(previewTheme)
+        // Funil do cadastro: no NavigationStack (não no Form), que não some
+        // quando um Picker abre por cima. Só cadastro novo — edição não conta.
+        .onAppear {
+            guard !isEditing, openedAt == nil else { return }
+            openedAt = Date()
+            Analytics.motorcycleFormOpened(entryPoint: entryPoint)
+        }
+        .onDisappear(perform: trackAbandonIfNeeded)
+    }
+
+    /// Fechou o cadastro novo sem salvar → diz onde travou. Sem `exitedByCancel`
+    /// foi arrastando p/ baixo (só possível sem nada digitado, ver
+    /// `interactiveDismissDisabled`).
+    private func trackAbandonIfNeeded() {
+        guard !isEditing, !didSave, let openedAt else { return }
+        let makeChoice: String
+        if selectedMake == Self.defaultMake {
+            makeChoice = "default"
+        } else if !isOther {
+            makeChoice = "catalog"
+        } else {
+            makeChoice = make.trimmingCharacters(in: .whitespaces).isEmpty ? "other_empty" : "other"
+        }
+        Analytics.motorcycleFormAbandoned(
+            entryPoint: entryPoint,
+            exit: exitedByCancel ? "cancel" : "swipe",
+            makeChoice: makeChoice,
+            modelFilled: !model.trimmingCharacters(in: .whitespaces).isEmpty,
+            odometerFilled: currentOdometer != nil,
+            optionalFilled: category != nil || displacementCC != nil,
+            seconds: Date().timeIntervalSince(openedAt)
+        )
     }
 
     private func loadIfEditing() {
@@ -304,6 +358,7 @@ struct MotorcycleFormView: View {
             return
         }
         Haptics.success()
+        didSave = true
         // Moto nova vira a ativa (comportamento previsível — antes só trocava
         // quando a chave nunca tinha sido materializada, via fallback .first).
         if !wasEditing {
@@ -316,6 +371,7 @@ struct MotorcycleFormView: View {
             let existingCount = (try? modelContext.fetchCount(FetchDescriptor<Motorcycle>(predicate: Motorcycle.activePredicate))) ?? 1
             Analytics.motorcycleCreated(
                 savedMoto,
+                entryPoint: entryPoint,
                 isFirstBike: existingCount <= 1,
                 makeFromCatalog: !isOther,
                 filledOptionalDetails: category != nil || displacementCC != nil

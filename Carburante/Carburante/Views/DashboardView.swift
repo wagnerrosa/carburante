@@ -104,7 +104,7 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showingAddMoto) {
-                MotorcycleFormView()
+                MotorcycleFormView(entryPoint: "dashboard")
             }
             .sheet(isPresented: $showingMaintenanceForm) {
                 if let moto = motorcycle {

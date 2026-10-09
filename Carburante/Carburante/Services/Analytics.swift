@@ -70,9 +70,36 @@ enum Analytics {
 
     // MARK: - Motorcycle
 
-    static func motorcycleCreated(_ moto: Motorcycle, isFirstBike: Bool,
+    /// Abriu o cadastro de moto nova (edição não conta). Com
+    /// `motorcycle_form_abandoned` e `motorcycle_created` fecha o funil do
+    /// cadastro por `entry_point` (`onboarding` / `dashboard` / `garage`).
+    static func motorcycleFormOpened(entryPoint: String) {
+        capture("motorcycle_form_opened", ["entry_point": entryPoint])
+    }
+
+    /// Fechou o cadastro de moto nova sem salvar — diz onde travou. `exit`:
+    /// `cancel` (Cancelar/Descartar) ou `swipe` (arrastou p/ baixo).
+    /// `makeChoice`: `default` (ficou na marca pré-escolhida), `catalog` (trocou
+    /// por outra do catálogo), `other_empty` ("Outra…" sem nome) ou `other`
+    /// (digitou a marca). Só se cada campo tinha algo — nunca o texto.
+    static func motorcycleFormAbandoned(entryPoint: String, exit: String, makeChoice: String,
+                                        modelFilled: Bool, odometerFilled: Bool,
+                                        optionalFilled: Bool, seconds: TimeInterval) {
+        capture("motorcycle_form_abandoned", [
+            "entry_point": entryPoint,
+            "exit": exit,
+            "make_choice": makeChoice,
+            "model_filled": modelFilled,
+            "odometer_filled": odometerFilled,
+            "optional_filled": optionalFilled,
+            "time_band": formTimeBand(seconds),
+        ])
+    }
+
+    static func motorcycleCreated(_ moto: Motorcycle, entryPoint: String, isFirstBike: Bool,
                                   makeFromCatalog: Bool, filledOptionalDetails: Bool) {
         capture("motorcycle_created", [
+            "entry_point": entryPoint,
             "make": moto.make,
             "category": moto.category as Any,
             "displacement_band": displacementBand(moto.displacementCC),
@@ -349,6 +376,18 @@ extension Analytics {
         case ..<1800:    return "5-30min"       // 30 min
         case ..<86400:   return "30min-24h"     // 24 h
         default:         return "1d+"
+        }
+    }
+
+    /// Tempo com um form aberto → faixa. Separa quem fechou sem querer
+    /// (segundos) de quem tentou e travou (minutos).
+    static func formTimeBand(_ seconds: TimeInterval) -> String {
+        switch seconds {
+        case ..<10:   return "0-10s"
+        case ..<30:   return "10-30s"
+        case ..<60:   return "30-60s"
+        case ..<180:  return "1-3min"
+        default:      return "3min+"
         }
     }
 
