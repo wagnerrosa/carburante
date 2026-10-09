@@ -475,7 +475,7 @@ enum ConsumptionCalculator {
     /// registro em outubro reparte os km por mar–out (antes: 5.000 km caíam no
     /// mês atual) e vários registros no 1º mês somam (antes: 0). Passo no mesmo
     /// instante cai inteiro no balde da leitura.
-    private static func spreadDistance(from entries: [FuelEntry],
+    static func spreadDistance(from entries: [FuelEntry],
                                        into buckets: [DateInterval]) -> [Double] {
         var totals = Array(repeating: 0.0, count: buckets.count)
         let ordered = entries.sorted { $0.odometer < $1.odometer }

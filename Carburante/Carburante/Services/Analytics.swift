@@ -107,6 +107,14 @@ enum Analytics {
                                   userProperties: ["$internal_or_test_user": isInternal])
     }
 
+    // MARK: - Custos completos
+
+    /// Abriu a tela Custos (Premium MVP, PLAN/premium-mvp.md §2). Mede a
+    /// procura antes da trava de Premium existir.
+    static func costsViewed(hasMaintenanceCost: Bool) {
+        capture("costs_viewed", ["has_maintenance_cost": hasMaintenanceCost])
+    }
+
     // MARK: - Dados
 
     /// Exportou os próprios dados (Ajustes → "Exportar meus dados"). Mede a

@@ -50,13 +50,20 @@ struct MotorcycleProfileView: View {
                     FuelLogListView(motorcycle: motorcycle)
                 } label: {
                     navRow(icon: "list.bullet",
-                           title: "Abastecimentos", count: motorcycle.activeFuelLogs.count)
+                           title: "Abastecimentos", value: motorcycle.activeFuelLogs.count.formatted())
                 }
                 NavigationLink {
                     MaintenanceListView(motorcycle: motorcycle)
                 } label: {
                     navRow(icon: "wrench.and.screwdriver.fill",
-                           title: "Manutenções", count: motorcycle.activeMaintenanceLogs.count)
+                           title: "Manutenções", value: motorcycle.activeMaintenanceLogs.count.formatted())
+                }
+                // Custos completos (gasolina + manutenção) — PLAN/premium-mvp.md §2.
+                NavigationLink {
+                    CostsView(motorcycle: motorcycle)
+                } label: {
+                    navRow(icon: "brazilianrealsign.circle.fill",
+                           title: "Custos", value: AppFormat.currency(totalSpent))
                 }
             }
 
@@ -229,12 +236,17 @@ struct MotorcycleProfileView: View {
         dismiss()
     }
 
-    private func navRow(icon: String, title: String, count: Int) -> some View {
+    /// Tudo o que a moto já custou (gasolina + manutenção), para a linha Custos.
+    private var totalSpent: Double {
+        motorcycle.totalCostEver + motorcycle.maintenanceCosts.reduce(0) { $0 + $1.amount }
+    }
+
+    private func navRow(icon: String, title: String, value: String) -> some View {
         HStack(spacing: 12) {
             IconTile(systemName: icon)
             Text(title)
             Spacer()
-            Text(count.formatted())
+            Text(value)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
