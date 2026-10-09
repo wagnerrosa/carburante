@@ -17,6 +17,7 @@
 
 import Foundation
 import PostHog
+import StoreKit
 
 enum Analytics {
 
@@ -41,6 +42,69 @@ enum Analytics {
     /// Opt-out de telemetria (Configurações → "Compartilhar dados de uso").
     static func setEnabled(_ enabled: Bool) {
         if enabled { PostHogSDK.shared.optIn() } else { PostHogSDK.shared.optOut() }
+    }
+
+    // MARK: - Canal de instalação e aparelho interno
+
+    private static let distributionKey = "analyticsDistribution"
+    private static let internalDeviceKey = "analyticsInternalDevice"
+
+    /// Super properties que separam uso real de teste: `distribution` (canal) e
+    /// `internal_device`. Chamado no launch. O canal salvo vai na hora — eventos
+    /// do launch não saem sem ele — e é confirmado com a Apple em segundo plano.
+    static func registerInstallProperties() {
+        var props: [String: Any] = ["internal_device": isInternalDevice]
+        if let saved = UserDefaults.standard.string(forKey: distributionKey) {
+            props["distribution"] = saved
+        }
+        PostHogSDK.shared.register(props)
+        Task {
+            let value = await currentDistribution()
+            UserDefaults.standard.set(value, forKey: distributionKey)
+            PostHogSDK.shared.register(["distribution": value])
+        }
+    }
+
+    /// Canal de instalação: `appstore` / `testflight` / `xcode` / `simulator` /
+    /// `unknown`. Quem informa é a Apple (`AppTransaction.environment`) —
+    /// `$is_testflight` e `$is_sideloaded` do SDK erram (testers do beta vinham
+    /// `false`; build do Xcode em iPhone parecia loja).
+    private static func currentDistribution() async -> String {
+        #if targetEnvironment(simulator)
+        return "simulator"
+        #elseif DEBUG
+        return "xcode"  // build Debug só sai do Xcode
+        #else
+        guard let result = try? await AppTransaction.shared else { return "unknown" }
+        switch result {
+        case .verified(let transaction), .unverified(let transaction, _):
+            return distribution(for: transaction.environment)
+        }
+        #endif
+    }
+
+    static func distribution(for environment: AppStore.Environment) -> String {
+        switch environment {
+        case .production: return "appstore"
+        case .sandbox:    return "testflight"
+        case .xcode:      return "xcode"
+        default:          return "unknown"
+        }
+    }
+
+    /// Aparelho do dono/time — marcado com 7 toques na versão em Ajustes. Sai
+    /// das métricas pela super property `internal_device` e pela person property
+    /// `$internal_or_test_user` (a coorte de teste do PostHog já filtra por ela).
+    static var isInternalDevice: Bool {
+        UserDefaults.standard.bool(forKey: internalDeviceKey)
+    }
+
+    static func setInternalDevice(_ isInternal: Bool) {
+        UserDefaults.standard.set(isInternal, forKey: internalDeviceKey)
+        PostHogSDK.shared.register(["internal_device": isInternal])
+        PostHogSDK.shared.capture("internal_device_set",
+                                  properties: ["internal_device": isInternal],
+                                  userProperties: ["$internal_or_test_user": isInternal])
     }
 
     // MARK: - Lifecycle

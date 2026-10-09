@@ -17,6 +17,12 @@ struct SettingsView: View {
     /// ao PostHog em `CarburanteApp` no launch e aqui na mudança.
     @AppStorage("analyticsEnabled") private var analyticsEnabled = true
 
+    /// Gesto escondido: 7 toques na versão marcam/desmarcam este aparelho como
+    /// interno (dono/time) → sai das métricas. Ver `Analytics.setInternalDevice`.
+    @State private var versionTaps = 0
+    @State private var isInternalDevice = Analytics.isInternalDevice
+    @State private var showInternalAlert = false
+
     var body: some View {
         NavigationStack {
             Form {
@@ -44,12 +50,22 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    LabeledContent("Versão", value: appVersion)
+                    LabeledContent("Versão", value: isInternalDevice ? "\(appVersion) · interno" : appVersion)
+                        .contentShape(Rectangle())
+                        .onTapGesture(perform: countVersionTap)
                 } footer: {
                     Text("Nomes e logotipos de fabricantes de motos são marcas comerciais ou registradas de seus respectivos detentores e aparecem no app só para identificar a sua moto. O Carburante é independente e não tem afiliação, patrocínio ou endosso de nenhum fabricante.")
                 }
             }
             .navigationTitle("Ajustes")
+            .alert(isInternalDevice ? "Aparelho interno" : "Aparelho comum",
+                   isPresented: $showInternalAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(isInternalDevice
+                     ? "Este aparelho não entra mais nas estatísticas de uso."
+                     : "Este aparelho voltou a entrar nas estatísticas de uso.")
+            }
             // Sheet sem botão de fechar dependia só do swipe-down.
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -57,6 +73,16 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func countVersionTap() {
+        versionTaps += 1
+        guard versionTaps >= 7 else { return }
+        versionTaps = 0
+        isInternalDevice.toggle()
+        Analytics.setInternalDevice(isInternalDevice)
+        Haptics.success()
+        showInternalAlert = true
     }
 
     /// Mesma URL informada no App Store Connect (campo Privacy Policy URL).
