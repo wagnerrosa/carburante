@@ -107,6 +107,18 @@ enum Analytics {
                                   userProperties: ["$internal_or_test_user": isInternal])
     }
 
+    // MARK: - Dados
+
+    /// Exportou os próprios dados (Ajustes → "Exportar meus dados"). Mede a
+    /// procura pela exportação — só contagens em faixa, nunca conteúdo.
+    static func dataExported(bikeCount: Int, fuelLogCount: Int, maintenanceCount: Int) {
+        capture("data_exported", [
+            "bike_count": bikeCount,
+            "fuel_log_count_band": countBand(fuelLogCount),
+            "maintenance_count_band": countBand(maintenanceCount),
+        ])
+    }
+
     // MARK: - Lifecycle
 
     static func appVersionUpdated(from: String, to: String) {
