@@ -104,7 +104,10 @@ private struct Benefit: View {
             Image(systemName: symbol)
                 .font(.title3)
                 .foregroundStyle(.tint)
-                .frame(minWidth: 32, alignment: .leading)
+                // Coluna fixa lado a lado (a moto é mais larga que os outros
+                // símbolos e desalinhava os textos); empilhado, largura livre.
+                .frame(width: typeSize.isAccessibilitySize ? nil : 36,
+                       alignment: typeSize.isAccessibilitySize ? .leading : .center)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
