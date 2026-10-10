@@ -1,4 +1,14 @@
 {
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
   "identifier" : "4C1D2E3F",
   "nonRenewingSubscriptions" : [
 
@@ -7,13 +17,19 @@
 
   ],
   "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
     "_developerTeamID" : "77ZLVPX48T",
+    "_disableDialogs" : false,
     "_failTransactionsEnabled" : false,
     "_locale" : "pt_BR",
+    "_renewalBillingIssuesEnabled" : false,
     "_storefront" : "BRA",
     "_storeKitErrors" : [
 
-    ]
+    ],
+    "_timeRate" : 0
   },
   "subscriptionGroups" : [
     {
@@ -31,6 +47,15 @@
           "adHocOffers" : [
 
           ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "9.90",
+              "displayPrice" : "9.90",
+              "internalID" : "A1268C8D",
+              "isEnabled" : true
+            }
+          ],
           "codeOffers" : [
 
           ],
@@ -38,7 +63,9 @@
           "familyShareable" : true,
           "groupNumber" : 1,
           "internalID" : "6821464670",
-          "introductoryOffer" : null,
+          "introductoryOffers" : [
+
+          ],
           "localizations" : [
             {
               "description" : "Motos ilimitadas, custos completos e ícones.",
@@ -59,6 +86,15 @@
           "adHocOffers" : [
 
           ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "79.90",
+              "displayPrice" : "79.90",
+              "internalID" : "D26610A4",
+              "isEnabled" : true
+            }
+          ],
           "codeOffers" : [
 
           ],
@@ -66,7 +102,9 @@
           "familyShareable" : true,
           "groupNumber" : 1,
           "internalID" : "6821464671",
-          "introductoryOffer" : null,
+          "introductoryOffers" : [
+
+          ],
           "localizations" : [
             {
               "description" : "Motos ilimitadas, custos completos e ícones.",
@@ -87,7 +125,7 @@
     }
   ],
   "version" : {
-    "major" : 4,
+    "major" : 5,
     "minor" : 0
   }
 }

@@ -29,6 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		CC5590012FE34F30009BAC75 /* Premium.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstorekit; path = Premium.storekit; sourceTree = "<group>"; };
 		CC558ADC2FE34F24009BAC75 /* Carburante.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Carburante.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC558AEB2FE34F26009BAC75 /* CarburanteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CarburanteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC558AF52FE34F26009BAC75 /* CarburanteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CarburanteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -85,6 +86,7 @@
 				CC558ADE2FE34F24009BAC75 /* Carburante */,
 				CC558AEE2FE34F26009BAC75 /* CarburanteTests */,
 				CC558AF82FE34F26009BAC75 /* CarburanteUITests */,
+				CC5590012FE34F30009BAC75 /* Premium.storekit */,
 				CC558ADD2FE34F24009BAC75 /* Products */,
 			);
 			sourceTree = "<group>";
