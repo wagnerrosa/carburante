@@ -9,6 +9,7 @@
 
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -17,6 +18,10 @@ struct SettingsView: View {
     /// Planilhas geradas por "Exportar meus dados" → folha de compartilhar.
     @State private var export: ExportedFiles?
     @State private var exportFailed = false
+
+    /// Carburante Premium: tela de assinatura / gerenciar (folha da Apple).
+    @State private var showPaywall = false
+    @State private var showManage = false
 
     /// Compartilhar dados de uso (analytics). Default true — analytics de produto
     /// anônimo é opt-out (sem ATT/IDFA). A fonte de verdade do opt-out é aplicada
@@ -33,6 +38,8 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 AccountView()
+
+                PremiumSection(showPaywall: $showPaywall, showManage: $showManage)
 
                 Section {
                     Toggle("Compartilhar dados de uso", isOn: $analyticsEnabled)
@@ -81,6 +88,10 @@ struct SettingsView: View {
                 ActivityView(items: files.urls)
                     .presentationDetents([.medium, .large])
             }
+            .sheet(isPresented: $showPaywall) {
+                PremiumPaywallView()
+            }
+            .manageSubscriptionsSheet(isPresented: $showManage)
             .alert("Não foi possível exportar", isPresented: $exportFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -168,6 +179,32 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .modelContainer(for: Motorcycle.self, inMemory: true)
+}
+
+/// Linha do Carburante Premium: sem assinatura → abre a tela de assinatura;
+/// com assinatura → plano + "Gerenciar assinatura" (folha nativa da Apple,
+/// onde se troca de plano ou cancela).
+private struct PremiumSection: View {
+    private var premium: PremiumService { .shared }
+    @Binding var showPaywall: Bool
+    @Binding var showManage: Bool
+
+    var body: some View {
+        Section {
+            if premium.isPremium {
+                LabeledContent("Plano", value: premium.planName ?? "Ativo")
+                Button("Gerenciar assinatura") { showManage = true }
+            } else {
+                Button("Conhecer o Premium") { showPaywall = true }
+            }
+        } header: {
+            Text("Carburante Premium")
+        } footer: {
+            Text(premium.isPremium
+                 ? "Obrigado por apoiar o Carburante."
+                 : "Garagem ilimitada, custos completos e ícones de conquista. Tudo o que é grátis continua grátis.")
+        }
+    }
 }
 
 /// Planilhas prontas para a folha de compartilhar (`.sheet(item:)` pede Identifiable).

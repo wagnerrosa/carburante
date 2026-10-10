@@ -26,6 +26,8 @@ struct CarburanteApp: App {
         Analytics.setEnabled(analyticsEnabled)
         Analytics.registerInstallProperties()
         Self.trackVersionUpdateIfNeeded()
+        // Assinatura: lê o direito e passa a ouvir o StoreKit desde o launch.
+        PremiumService.shared.start()
     }
 
     /// Compara a versão do build com a última salva; emite `app_version_updated`

@@ -1,0 +1,93 @@
+{
+  "identifier" : "4C1D2E3F",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_developerTeamID" : "77ZLVPX48T",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "pt_BR",
+    "_storefront" : "BRA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21000001",
+      "localizations" : [
+        {
+          "description" : "",
+          "displayName" : "Carburante Premium",
+          "locale" : "pt_BR"
+        }
+      ],
+      "name" : "Carburante Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.90",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "6821464670",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Motos ilimitadas, custos completos e ícones.",
+              "displayName" : "Premium Mensal",
+              "locale" : "pt_BR"
+            }
+          ],
+          "productID" : "carburante.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Mensal",
+          "subscriptionGroupID" : "21000001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "79.90",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "6821464671",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Motos ilimitadas, custos completos e ícones.",
+              "displayName" : "Premium Anual",
+              "locale" : "pt_BR"
+            }
+          ],
+          "productID" : "carburante.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Premium Anual",
+          "subscriptionGroupID" : "21000001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
