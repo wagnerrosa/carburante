@@ -4,8 +4,14 @@
 //
 //  "Ícone do app" (Ajustes): o padrão + um ícone por arte de medalha
 //  (`AppIconCatalog`). Conquistada → toque troca o ícone (o iOS mostra o aviso
-//  dele); bloqueada → arte apagada + cadeado. A trava de Premium entra com o
-//  StoreKit (M4/M5). Também usado pelo atalho no cartão da medalha.
+//  dele); bloqueada → arte apagada + cadeado. Também usado pelo atalho no
+//  cartão da medalha.
+//
+//  Premium (PLAN/premium-mvp.md §3): sem assinatura, tocar num ícone de
+//  conquista abre a tela de assinatura; assinando ali, o ícone escolhido já é
+//  aplicado quando ela fecha. O padrão é sempre livre — inclusive para voltar
+//  a ele depois que a assinatura acaba (o ícone em uso não é trocado sozinho:
+//  o iOS mostraria o aviso de troca a qualquer hora).
 //
 
 import SwiftUI
@@ -45,6 +51,12 @@ enum AppIconChanger {
         AppIconCatalog.option(forIconName: UIApplication.shared.alternateIconName)
     }
 
+    /// Ícone que exige Premium e a pessoa não tem: abre a assinatura em vez de trocar.
+    @MainActor
+    static func needsPremium(_ option: AppIconOption) -> Bool {
+        option != AppIconCatalog.defaultOption && !PremiumService.shared.isPremium
+    }
+
     static func apply(_ option: AppIconOption) async -> Bool {
         guard UIApplication.shared.supportsAlternateIcons else { return false }
         do {
@@ -72,6 +84,9 @@ struct AppIconPickerView: View {
     @Query(filter: Motorcycle.activePredicate) private var motorcycles: [Motorcycle]
     @State private var current = AppIconChanger.current
     @State private var failed = false
+    /// Ícone tocado sem Premium: aplicado se a assinatura sair.
+    @State private var pending: AppIconOption?
+    @State private var showPaywall = false
 
     var body: some View {
         let unlockedArts = unlockedIconArts(motorcycles: motorcycles, context: modelContext)
@@ -89,7 +104,9 @@ struct AppIconPickerView: View {
                         .disabled(!unlocked)
                     }
                 }
-                Text("Cada medalha da Garagem libera um ícone. Os bloqueados aparecem apagados até você conquistar a medalha.")
+                Text(PremiumService.shared.isPremium
+                     ? "Cada medalha da Garagem libera um ícone. Os bloqueados aparecem apagados até você conquistar a medalha."
+                     : "Os ícones de conquista são do Carburante Premium. Cada medalha da Garagem libera um ícone; os bloqueados aparecem apagados até você conquistar a medalha.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -101,6 +118,17 @@ struct AppIconPickerView: View {
         .alert("Não foi possível trocar o ícone", isPresented: $failed) {
             Button("OK", role: .cancel) {}
         }
+        // onDismiss = depois que a folha sumiu: o iOS só troca o ícone (e
+        // mostra o aviso) com a tela livre.
+        .sheet(isPresented: $showPaywall, onDismiss: paywallClosed) {
+            PremiumPaywallView(reason: .icons)
+        }
+    }
+
+    private func paywallClosed() {
+        guard let option = pending else { return }
+        pending = nil
+        if !AppIconChanger.needsPremium(option) { choose(option) }
     }
 
     private func cell(_ option: AppIconOption, unlocked: Bool) -> some View {
@@ -142,6 +170,11 @@ struct AppIconPickerView: View {
 
     private func choose(_ option: AppIconOption) {
         guard option != current else { return }
+        guard !AppIconChanger.needsPremium(option) else {
+            pending = option
+            showPaywall = true
+            return
+        }
         Task {
             if await AppIconChanger.apply(option) {
                 current = option
@@ -156,6 +189,7 @@ struct AppIconPickerView: View {
 struct AppIconShortcut: View {
     let option: AppIconOption
     @State private var current = AppIconChanger.current
+    @State private var showPaywall = false
 
     var body: some View {
         if option == current {
@@ -164,8 +198,10 @@ struct AppIconShortcut: View {
                 .foregroundStyle(.secondary)
         } else {
             Button {
-                Task {
-                    if await AppIconChanger.apply(option) { current = option }
+                if AppIconChanger.needsPremium(option) {
+                    showPaywall = true
+                } else {
+                    apply()
                 }
             } label: {
                 HStack(spacing: 10) {
@@ -174,6 +210,18 @@ struct AppIconShortcut: View {
                 }
             }
             .buttonStyle(.bordered)
+            // Assinou na tela que abriu daqui: aplica o ícone que pediu.
+            .sheet(isPresented: $showPaywall, onDismiss: {
+                if !AppIconChanger.needsPremium(option) { apply() }
+            }) {
+                PremiumPaywallView(reason: .icons)
+            }
+        }
+    }
+
+    private func apply() {
+        Task {
+            if await AppIconChanger.apply(option) { current = option }
         }
     }
 }
