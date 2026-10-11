@@ -293,19 +293,32 @@ final class SyncService {
     }
 
     /// Remove todas as linhas locais de todos os @Model do app. Usado após excluir
-    /// a conta no servidor.
+    /// a conta no servidor e ao sair da conta.
     private static func wipeLocalData(_ context: ModelContext) {
         do {
-            try context.delete(model: FuelLog.self)
-            try context.delete(model: MaintenanceLog.self)
-            try context.delete(model: BadgeAward.self)
-            try context.delete(model: MotorcycleOwnership.self)
-            try context.delete(model: Motorcycle.self)
-            try context.save()
+            try eraseLocalData(in: context)
             PhotoStorage.deleteAllLocal()
         } catch {
             // Falha ao limpar o local não desfaz a exclusão no servidor; só loga.
             Analytics.syncFailed(stage: "delete_account_local", errorCode: SyncService.errorCode(error))
+        }
+    }
+
+    /// Apaga linha por linha. O delete em lote (`context.delete(model:)`) falha
+    /// com "mandatory OTO nullify inverse on FuelLog/motorcycle" (134050) e não
+    /// apaga nada — sair/apagar conta deixava todos os dados no aparelho.
+    static func eraseLocalData(in context: ModelContext) throws {
+        try deleteAll(FuelLog.self, in: context)
+        try deleteAll(MaintenanceLog.self, in: context)
+        try deleteAll(BadgeAward.self, in: context)
+        try deleteAll(MotorcycleOwnership.self, in: context)
+        try deleteAll(Motorcycle.self, in: context)
+        try context.save()
+    }
+
+    private static func deleteAll<T: PersistentModel>(_ type: T.Type, in context: ModelContext) throws {
+        for object in try context.fetch(FetchDescriptor<T>()) {
+            context.delete(object)
         }
     }
 
