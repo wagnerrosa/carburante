@@ -89,8 +89,8 @@
           "billingPlans" : [
             {
               "billingPlanType" : "BILLED_UPFRONT",
-              "commitmentDisplayPrice" : "79.90",
-              "displayPrice" : "79.90",
+              "commitmentDisplayPrice" : "69.90",
+              "displayPrice" : "69.90",
               "internalID" : "D26610A4",
               "isEnabled" : true
             }
@@ -98,7 +98,7 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "79.90",
+          "displayPrice" : "69.90",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "6821464671",
