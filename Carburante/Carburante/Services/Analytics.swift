@@ -115,10 +115,68 @@ enum Analytics {
         capture("app_icon_changed", ["to": icon])
     }
 
+    // MARK: - Assinatura (PLAN/premium-mvp.md §Medição)
+
+    /// Super properties da assinatura: `is_premium` + `premium_plan`. Chamado
+    /// no launch (estado guardado) e a cada mudança do direito — os eventos
+    /// seguintes já saem marcados.
+    static func registerPremium(productID: String?) {
+        PostHogSDK.shared.register([
+            "is_premium": productID != nil,
+            "premium_plan": premiumPlan(for: productID),
+        ])
+    }
+
+    /// O direito mudou: assinou (aqui, em outro aparelho ou pela família),
+    /// trocou de plano, venceu ou foi reembolsado. Também grava na pessoa, para
+    /// a coorte de assinantes valer mesmo sem evento novo.
+    static func premiumStatusChanged(from oldProductID: String?, to newProductID: String?) {
+        let plan = premiumPlan(for: newProductID)
+        PostHogSDK.shared.capture("premium_status_changed",
+                                  properties: ["from": premiumPlan(for: oldProductID), "to": plan],
+                                  userProperties: ["is_premium": newProductID != nil, "premium_plan": plan])
+    }
+
+    /// Plano no analytics: `monthly` / `yearly` / `none` (sem assinatura).
+    static func premiumPlan(for productID: String?) -> String {
+        guard let productID else { return "none" }
+        switch productID {
+        case PremiumEntitlement.monthlyID: return "monthly"
+        case PremiumEntitlement.yearlyID: return "yearly"
+        default: return "unknown"
+        }
+    }
+
+    /// Abriu a tela de assinatura. `trigger` = de onde (`PaywallReason`:
+    /// `settings`, `second_bike`, `read_only_bike`, `costs`, `icons`) — mede
+    /// qual gatilho converte.
+    static func paywallViewed(trigger: String) {
+        capture("paywall_viewed", ["trigger": trigger])
+    }
+
+    /// Resultado de uma compra começada na tela de assinatura. `plan` = o
+    /// produto escolhido; `trigger` = de onde a tela abriu.
+    static func purchaseCompleted(productID: String, trigger: String) {
+        capture("purchase_completed", ["plan": premiumPlan(for: productID), "trigger": trigger])
+    }
+
+    static func purchaseCancelled(productID: String, trigger: String) {
+        capture("purchase_cancelled", ["plan": premiumPlan(for: productID), "trigger": trigger])
+    }
+
+    /// Aguardando aprovação ("Pedir para comprar" da família, banco).
+    static func purchasePending(productID: String, trigger: String) {
+        capture("purchase_pending", ["plan": premiumPlan(for: productID), "trigger": trigger])
+    }
+
+    static func purchaseFailed(productID: String, trigger: String) {
+        capture("purchase_failed", ["plan": premiumPlan(for: productID), "trigger": trigger])
+    }
+
     // MARK: - Custos completos
 
-    /// Abriu a tela Custos (Premium MVP, PLAN/premium-mvp.md §2). Mede a
-    /// procura antes da trava de Premium existir.
+    /// Abriu a tela Custos (Premium MVP, PLAN/premium-mvp.md §2). Com a super
+    /// property `is_premium`, separa quem viu a tela inteira de quem viu a trava.
     static func costsViewed(hasMaintenanceCost: Bool) {
         capture("costs_viewed", ["has_maintenance_cost": hasMaintenanceCost])
     }

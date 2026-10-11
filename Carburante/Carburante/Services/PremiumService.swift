@@ -45,6 +45,7 @@ final class PremiumService {
     /// pendente (ex.: compra aprovada depois pelo "Pedir para comprar").
     func start() {
         guard updatesTask == nil else { return }
+        Analytics.registerPremium(productID: activeProductID)
         updatesTask = Task { [weak self] in
             for await result in Transaction.updates {
                 if case .verified(let transaction) = result {
@@ -71,6 +72,8 @@ final class PremiumService {
         }
         let active = PremiumEntitlement.activeProductID(in: entries, now: .now)
         guard active != activeProductID else { return }
+        Analytics.premiumStatusChanged(from: activeProductID, to: active)
+        Analytics.registerPremium(productID: active)
         activeProductID = active
         UserDefaults.standard.set(active, forKey: Self.cacheKey)
     }
