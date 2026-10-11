@@ -73,6 +73,9 @@ struct PremiumPaywallView: View {
         .subscriptionStorePolicyDestination(url: Self.termsURL, for: .termsOfService)
         .subscriptionStorePolicyDestination(url: SettingsView.privacyPolicyURL, for: .privacyPolicy)
         .onAppear { Analytics.paywallViewed(trigger: reason.rawValue) }
+        .onInAppPurchaseStart { product in
+            Analytics.purchaseStarted(productID: product.id, trigger: reason.rawValue)
+        }
         .onInAppPurchaseCompletion { product, result in
             let trigger = reason.rawValue
             switch result {
@@ -86,9 +89,18 @@ struct PremiumPaywallView: View {
                 Analytics.purchaseCancelled(productID: product.id, trigger: trigger)
             case .success(.pending):
                 Analytics.purchasePending(productID: product.id, trigger: trigger)
-            default:
-                // Erro do StoreKit ou transação que não passou na verificação.
-                Analytics.purchaseFailed(productID: product.id, trigger: trigger)
+            case .success(.success(.unverified)):
+                // Transação que não passou na verificação da Apple: não dá direito.
+                Analytics.purchaseFailed(productID: product.id, trigger: trigger, reason: "unverified")
+            case .failure(let error):
+                if case StoreKitError.userCancelled = error {
+                    Analytics.purchaseCancelled(productID: product.id, trigger: trigger)
+                } else {
+                    Analytics.purchaseFailed(productID: product.id, trigger: trigger,
+                                             reason: Analytics.purchaseFailureReason(error))
+                }
+            @unknown default:
+                Analytics.purchaseFailed(productID: product.id, trigger: trigger, reason: "unknown_result")
             }
         }
         .tint(BrandTheme.carburante)
