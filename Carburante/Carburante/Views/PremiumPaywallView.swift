@@ -127,21 +127,27 @@ struct PremiumPaywallView: View {
     }
 }
 
-/// Arte + título + frase + benefícios. A arte é a parte elástica: cresce com
-/// a sobra de altura (sem buraco em tela grande) e fica no tamanho ideal
-/// pequeno em tela pequena, para os planos caberem sem rolar — quando a tela
-/// rola (texto grande), a altura proposta é nenhuma e vale o ideal, não o
-/// máximo. A frase é a promessa ("Apoie o Carburante") ou, quando a tela
-/// abriu por um limite, o porquê dele.
+/// Arte + título + frase + benefícios. A sobra de altura vira respiro em dois
+/// pontos (topo e antes dos benefícios — antes dos planos o sistema já dá o
+/// seu), nunca um buraco só;
+/// em tela pequena cada um fica no mínimo e a arte encolhe, para os planos
+/// caberem sem rolar. Quando a tela rola (texto grande), a altura proposta é
+/// nenhuma e valem os mínimos e o ideal da arte. A frase é a promessa ("Apoie
+/// o Carburante") ou, quando a tela abriu por um limite, o porquê dele.
 private struct PremiumHeader: View {
     let message: String
 
     var body: some View {
         VStack(spacing: 0) {
+            // Respiro do topo, na linha das pílulas Restaurar / X.
+            Spacer(minLength: 24).frame(maxHeight: 56)
+
             Image("Onboarding/wheel")
                 .resizable()
                 .scaledToFit()
-                .frame(minHeight: 64, idealHeight: 64, maxHeight: 150)
+                .frame(minHeight: 64, idealHeight: 64, maxHeight: 88)
+                // A arte cresce até o máximo antes dos respiros.
+                .layoutPriority(1)
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {
@@ -158,6 +164,8 @@ private struct PremiumHeader: View {
             }
             .padding(.top, 12)
 
+            Spacer(minLength: 20).frame(maxHeight: 48)
+
             // Lista "o que vem junto", padrão iCloud+ / Ajustes: tile colorido
             // + uma linha.
             VStack(alignment: .leading, spacing: 12) {
@@ -169,12 +177,9 @@ private struct PremiumHeader: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.tertiarySystemFill),
                         in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .padding(.top, 20)
         }
-        .padding(.horizontal, 16)
-        // Respiro acima da roda, na linha das pílulas Restaurar / X.
-        .padding(.top, 24)
         .padding(.bottom, 8)
+        .padding(.horizontal, 16)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 }
