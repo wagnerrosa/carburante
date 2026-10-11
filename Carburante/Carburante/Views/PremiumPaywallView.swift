@@ -26,6 +26,8 @@ enum PaywallReason: String {
     case secondBike = "second_bike"
     /// Tentou registrar numa moto só para consulta.
     case readOnlyBike = "read_only_bike"
+    /// Tela Custos sem Premium.
+    case costs
 
     var message: String {
         switch self {
@@ -35,6 +37,8 @@ enum PaywallReason: String {
             "No plano grátis, a garagem tem uma moto ativa. Vai trocar de moto? Coloque a atual à venda e cadastre a nova."
         case .readOnlyBike:
             "No plano grátis, uma moto fica ativa por vez. Esta fica só para consulta, com todo o histórico."
+        case .costs:
+            "O gasto do mês é grátis. Com o Premium, você vê o ano todo, o custo real por km e para onde vai o dinheiro."
         }
     }
 }
