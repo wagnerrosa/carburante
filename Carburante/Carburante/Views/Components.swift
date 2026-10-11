@@ -607,6 +607,11 @@ struct BadgeDetailSheet: View {
                         .padding(.horizontal, 8)
                 }
 
+                // Medalha conquistada com ícone (não vale p/ marca nem Iron Butt).
+                if unlocked, !badge.usesBrandLogo, let option = AppIconCatalog.option(forArt: badge.assetName) {
+                    AppIconShortcut(option: option)
+                }
+
                 Spacer()
             }
             .padding(24)
@@ -617,7 +622,8 @@ struct BadgeDetailSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        // .large: com o atalho do ícone o conteúdo pode passar da metade da tela.
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 }

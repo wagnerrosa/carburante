@@ -18,6 +18,8 @@ struct SettingsView: View {
     /// Planilhas geradas por "Exportar meus dados" → folha de compartilhar.
     @State private var export: ExportedFiles?
     @State private var exportFailed = false
+    /// Ícone em uso — relido ao voltar do seletor (o iOS não avisa a troca).
+    @State private var currentIcon = AppIconChanger.current
 
     /// Carburante Premium: tela de assinatura / gerenciar (folha da Apple).
     @State private var showPaywall = false
@@ -40,6 +42,20 @@ struct SettingsView: View {
                 AccountView()
 
                 PremiumSection(showPaywall: $showPaywall, showManage: $showManage)
+
+                Section {
+                    NavigationLink {
+                        AppIconPickerView()
+                    } label: {
+                        HStack {
+                            Text("Ícone do app")
+                            Spacer()
+                            Text(currentIcon.title)
+                                .foregroundStyle(.secondary)
+                            AppIconPreview(option: currentIcon, size: 28)
+                        }
+                    }
+                }
 
                 Section {
                     Toggle("Compartilhar dados de uso", isOn: $analyticsEnabled)
@@ -84,6 +100,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Ajustes")
+            .onAppear { currentIcon = AppIconChanger.current }
             .sheet(item: $export) { files in
                 ActivityView(items: files.urls)
                     .presentationDetents([.medium, .large])
