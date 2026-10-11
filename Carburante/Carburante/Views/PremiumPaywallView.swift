@@ -60,8 +60,12 @@ struct PremiumPaywallView: View {
         SubscriptionStoreView(productIDs: [PremiumEntitlement.yearlyID, PremiumEntitlement.monthlyID]) {
             PremiumHeader(message: reason.message)
         }
-        // Planos lado a lado: os dois cabem sem rolar.
-        .subscriptionStoreControlStyle(.compactPicker)
+        // Planos em lista, um embaixo do outro, como a tela de assinaturas do
+        // iOS ("Planos disponíveis") — DESIGN.md §0.
+        .subscriptionStoreControlStyle(.picker)
+        // Nome + preço, sem a descrição do produto (o cabeçalho já lista os
+        // benefícios): os dois planos cabem sem rolar.
+        .productDescription(.hidden)
         .subscriptionStoreButtonLabel(.multiline)
         .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .policies)
