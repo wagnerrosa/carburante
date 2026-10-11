@@ -100,25 +100,27 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingFuelLog) {
                 if let moto = motorcycle {
-                    FuelLogFormView(motorcycle: moto, entryPoint: "dashboard")
+                    GarageGated(moto) { FuelLogFormView(motorcycle: moto, entryPoint: "dashboard") }
                 }
             }
             .sheet(isPresented: $showingAddMoto) {
-                MotorcycleFormView(entryPoint: "dashboard")
+                GarageGated(newMotorcycle: { MotorcycleFormView(entryPoint: "dashboard") })
             }
             .sheet(isPresented: $showingMaintenanceForm) {
                 if let moto = motorcycle {
-                    MaintenanceFormView(motorcycle: moto)
+                    GarageGated(moto) { MaintenanceFormView(motorcycle: moto) }
                 }
             }
             .sheet(isPresented: $showingHistoryForm) {
                 if let moto = motorcycle {
-                    MaintenanceFormView(motorcycle: moto, isHistoryEntry: true)
+                    GarageGated(moto) { MaintenanceFormView(motorcycle: moto, isHistoryEntry: true) }
                 }
             }
             .sheet(isPresented: $showingFuelHistory) {
                 if let moto = motorcycle {
-                    FuelLogFormView(motorcycle: moto, entryPoint: "history_invite", isHistoryEntry: true)
+                    GarageGated(moto) {
+                        FuelLogFormView(motorcycle: moto, entryPoint: "history_invite", isHistoryEntry: true)
+                    }
                 }
             }
             .sheet(isPresented: $showingCloudBackup) {

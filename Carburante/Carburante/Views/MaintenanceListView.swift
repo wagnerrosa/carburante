@@ -22,6 +22,7 @@ struct MaintenanceListView: View {
     /// Revisões com itens, aguardando confirmação de exclusão em cascata.
     @State private var pendingDelete: [MaintenanceLog] = []
     @State private var showDeleteConfirm = false
+    @Environment(\.garageAccess) private var garageAccess
 
     /// Histórico mostra só os logs de topo: os filhos de uma Revisão Geral ficam
     /// dentro do pai (linha "Inclui: …"), não como linhas avulsas — uma revisão
@@ -100,6 +101,8 @@ struct MaintenanceListView: View {
                                 .buttonStyle(.plain)
                             }
                             .onDelete { delete($0, in: group.logs) }
+                            // Só para consulta: excluir também é editar.
+                            .deleteDisabled(garageAccess.isReadOnly(motorcycle.id))
                         } header: {
                             MonthHeader(title: group.title, totalCost: group.totalCost)
                         }
@@ -132,20 +135,22 @@ struct MaintenanceListView: View {
             }
         }
         .sheet(isPresented: $showingAdd) {
-            MaintenanceFormView(motorcycle: motorcycle)
+            GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle) }
         }
         .sheet(isPresented: $showingHistory) {
-            MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true)
+            GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true) }
         }
         .sheet(item: $editingLog) { log in
-            MaintenanceFormView(motorcycle: motorcycle, maintenanceLog: log)
+            GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle, maintenanceLog: log) }
         }
         .sheet(item: $scheduledAdd) { status in
-            MaintenanceFormView(
-                motorcycle: motorcycle,
-                initialType: status.type,
-                initialTirePosition: status.position
-            )
+            GarageGated(motorcycle) {
+                MaintenanceFormView(
+                    motorcycle: motorcycle,
+                    initialType: status.type,
+                    initialTirePosition: status.position
+                )
+            }
         }
         .confirmationDialog(
             confirmTitle,

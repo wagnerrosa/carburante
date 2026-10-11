@@ -23,6 +23,7 @@ struct GarageView: View {
     /// Mesma chave do Resumo/RootTabView — fonte única da moto ativa. Aqui é o
     /// único ponto que a SETA explicitamente (antes só caía no fallback `.first`).
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
+    @Environment(\.garageAccess) private var garageAccess
 
     @State private var showingAdd = false
     @State private var showingSettings = false
@@ -81,7 +82,7 @@ struct GarageView: View {
                 }
             }
             .sheet(isPresented: $showingAdd) {
-                MotorcycleFormView(entryPoint: "garage")
+                GarageGated(newMotorcycle: { MotorcycleFormView(entryPoint: "garage") })
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
@@ -152,7 +153,7 @@ struct GarageView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
-                        if let label = moto.status.label {
+                        if let label = garageAccess.label(for: moto) {
                             Text(label)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -189,7 +190,7 @@ struct GarageView: View {
                                 .monospacedDigit()
                         }
                         Spacer()
-                        if let label = moto.status.label {
+                        if let label = garageAccess.label(for: moto) {
                             Text(label)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)

@@ -22,7 +22,14 @@ final class PremiumService {
 
     /// Produto da assinatura ativa (mensal ou anual); nil = grátis.
     private(set) var activeProductID: String?
-    var isPremium: Bool { activeProductID != nil }
+    var isPremium: Bool {
+        #if DEBUG
+        // Simulador sem compra: `-debugPremium YES` (ou NO) força o estado para
+        // conferir as telas com e sem Premium. Fora do build de loja.
+        if let forced = UserDefaults.standard.string(forKey: "debugPremium") { return forced == "YES" }
+        #endif
+        return activeProductID != nil
+    }
     /// "Mensal" / "Anual" para Ajustes.
     var planName: String? { activeProductID.flatMap(PremiumEntitlement.planName(for:)) }
 
