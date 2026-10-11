@@ -7,8 +7,9 @@
 //  renovação automática, "Restaurar compras" e os links de termos e
 //  privacidade que a revisão exige (diretriz 3.1.2). Nosso só o cabeçalho.
 //
-//  Contextual, nunca no launch: abre pela linha em Ajustes (e, nos próximos
-//  passos, na 2ª moto, em Custos completos e nos ícones de conquista).
+//  Contextual, nunca no launch: abre pela linha em Ajustes e no limite da
+//  garagem (moto a mais, moto só para consulta — `GarageGated`); nos próximos
+//  passos, em Custos completos e nos ícones de conquista.
 //  Identidade do Carburante, não da moto — "Apoie o Carburante" fala do app
 //  (DESIGN.md §1, exceção 3, como o onboarding).
 //
@@ -16,7 +17,30 @@
 import SwiftUI
 import StoreKit
 
+/// De onde a tela de assinatura abriu — muda a frase do cabeçalho. O rawValue
+/// é o gatilho do analytics (M8).
+enum PaywallReason: String {
+    /// Linha "Carburante Premium" em Ajustes.
+    case settings
+    /// Tentou cadastrar mais uma moto com a garagem cheia.
+    case secondBike = "second_bike"
+    /// Tentou registrar numa moto só para consulta.
+    case readOnlyBike = "read_only_bike"
+
+    var message: String {
+        switch self {
+        case .settings:
+            "Sem anúncios. Seus dados não são vendidos. O Premium mantém o Carburante."
+        case .secondBike:
+            "No plano grátis, a garagem tem uma moto ativa. Vai trocar de moto? Coloque a atual à venda e cadastre a nova."
+        case .readOnlyBike:
+            "No plano grátis, uma moto fica ativa por vez. Esta fica só para consulta, com todo o histórico."
+        }
+    }
+}
+
 struct PremiumPaywallView: View {
+    var reason: PaywallReason = .settings
     @Environment(\.dismiss) private var dismiss
 
     /// Termos de uso = EULA padrão da Apple (o mesmo link vai na descrição da loja).
@@ -25,7 +49,7 @@ struct PremiumPaywallView: View {
     var body: some View {
         // Anual primeiro: é o plano que já vem marcado.
         SubscriptionStoreView(productIDs: [PremiumEntitlement.yearlyID, PremiumEntitlement.monthlyID]) {
-            PremiumHeader()
+            PremiumHeader(message: reason.message)
         }
         // Planos lado a lado: os dois cabem sem rolar.
         .subscriptionStoreControlStyle(.compactPicker)
@@ -47,9 +71,12 @@ struct PremiumPaywallView: View {
     }
 }
 
-/// Arte + promessa + os três benefícios. Curto: a tela da Apple embaixo já
-/// ocupa metade da altura.
+/// Arte + frase + os três benefícios. Curto: a tela da Apple embaixo já ocupa
+/// metade da altura. A frase é a promessa ("Apoie o Carburante") ou, quando a
+/// tela abriu por um limite, o porquê dele.
 private struct PremiumHeader: View {
+    let message: String
+
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
@@ -60,7 +87,7 @@ private struct PremiumHeader: View {
                     .accessibilityHidden(true)
                 Text("Carburante Premium")
                     .font(.title2.weight(.bold))
-                Text("Sem anúncios. Seus dados não são vendidos. O Premium mantém o Carburante.")
+                Text(message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

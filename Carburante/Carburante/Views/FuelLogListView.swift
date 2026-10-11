@@ -16,6 +16,7 @@ struct FuelLogListView: View {
     @State private var showingAdd = false
     /// "Adicionar histórico": abastecimento antigo (fluxo com data primeiro).
     @State private var showingHistory = false
+    @Environment(\.garageAccess) private var garageAccess
 
     private var logs: [FuelLog] {
         motorcycle.activeFuelLogs.sorted { $0.date > $1.date }
@@ -73,6 +74,8 @@ struct FuelLogListView: View {
                                 .buttonStyle(.plain)
                             }
                             .onDelete { delete($0, in: group.logs) }
+                            // Só para consulta: excluir também é editar.
+                            .deleteDisabled(garageAccess.isReadOnly(motorcycle.id))
                         } header: {
                             MonthHeader(title: group.title, totalCost: group.totalCost)
                         }
@@ -104,13 +107,15 @@ struct FuelLogListView: View {
             }
         }
         .sheet(isPresented: $showingAdd) {
-            FuelLogFormView(motorcycle: motorcycle, entryPoint: "fuel_list")
+            GarageGated(motorcycle) { FuelLogFormView(motorcycle: motorcycle, entryPoint: "fuel_list") }
         }
         .sheet(isPresented: $showingHistory) {
-            FuelLogFormView(motorcycle: motorcycle, entryPoint: "history_fuel_list", isHistoryEntry: true)
+            GarageGated(motorcycle) {
+                FuelLogFormView(motorcycle: motorcycle, entryPoint: "history_fuel_list", isHistoryEntry: true)
+            }
         }
         .sheet(item: $editingLog) { log in
-            FuelLogFormView(motorcycle: motorcycle, fuelLog: log)
+            GarageGated(motorcycle) { FuelLogFormView(motorcycle: motorcycle, fuelLog: log) }
         }
     }
 

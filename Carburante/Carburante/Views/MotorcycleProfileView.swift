@@ -21,6 +21,7 @@ struct MotorcycleProfileView: View {
     @State private var showingFuelHistory = false
     @State private var showDeleteConfirm = false
     @State private var showSoldConfirm = false
+    @Environment(\.garageAccess) private var garageAccess
 
     var body: some View {
         List {
@@ -29,8 +30,8 @@ struct MotorcycleProfileView: View {
                 LabeledContent("Modelo", value: motorcycle.model)
                 LabeledContent("Ano", value: String(motorcycle.year))
                 LabeledContent("País", value: motorcycle.country)
-                // Na garagem não tem rótulo (estado ok = silêncio).
-                if let label = motorcycle.status.label {
+                // Na garagem e livre não tem rótulo (estado ok = silêncio).
+                if let label = garageAccess.label(for: motorcycle) {
                     LabeledContent("Situação", value: label)
                 }
             }
@@ -88,16 +89,18 @@ struct MotorcycleProfileView: View {
             }
         }
         .sheet(isPresented: $showingEdit) {
-            MotorcycleFormView(motorcycle: motorcycle)
+            GarageGated(motorcycle) { MotorcycleFormView(motorcycle: motorcycle) }
         }
         .sheet(isPresented: $showingFuelLog) {
-            FuelLogFormView(motorcycle: motorcycle, entryPoint: "motorcycle_profile")
+            GarageGated(motorcycle) { FuelLogFormView(motorcycle: motorcycle, entryPoint: "motorcycle_profile") }
         }
         .sheet(isPresented: $showingHistory) {
-            MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true)
+            GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true) }
         }
         .sheet(isPresented: $showingFuelHistory) {
-            FuelLogFormView(motorcycle: motorcycle, entryPoint: "history_profile", isHistoryEntry: true)
+            GarageGated(motorcycle) {
+                FuelLogFormView(motorcycle: motorcycle, entryPoint: "history_profile", isHistoryEntry: true)
+            }
         }
         .confirmationDialog(
             motorcycle.deletionConfirmationText,
@@ -130,6 +133,11 @@ struct MotorcycleProfileView: View {
                     IconTile(systemName: "clock.arrow.circlepath")
                     Text("Adicionar histórico")
                 }
+            }
+        } footer: {
+            // Os botões seguem aqui e abrem a assinatura (GarageGated).
+            if garageAccess.isReadOnly(motorcycle.id) {
+                Text("No plano grátis, uma moto fica ativa por vez. Esta fica só para consulta: o histórico continua aqui.")
             }
         }
     }

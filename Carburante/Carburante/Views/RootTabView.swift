@@ -61,7 +61,7 @@ struct RootTabView: View {
             .tint(activeTint)
         }
         .sheet(isPresented: $showRegisterMotorcycle) {
-            MotorcycleFormView(entryPoint: "onboarding")
+            GarageGated(newMotorcycle: { MotorcycleFormView(entryPoint: "onboarding") })
         }
         .task {
             // Sincronização no launch: puxa o que falta (dados de outro device do
@@ -81,6 +81,9 @@ struct RootTabView: View {
                 Analytics.refreshSuperProperties(activeBikeCount: motorcycles.count)
             }
         }
+        // Limite da garagem no plano grátis (GarageGate.swift). Por último na
+        // cadeia: o onboarding e a sheet acima também recebem.
+        .environment(\.garageAccess, GarageLimit.access(for: motorcycles))
     }
 
     /// O cover aparece enquanto o onboarding não foi concluído; o callback de
