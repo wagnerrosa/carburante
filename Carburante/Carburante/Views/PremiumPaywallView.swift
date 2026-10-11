@@ -5,7 +5,8 @@
 //  Tela de assinatura do Carburante Premium (PLAN/premium-mvp.md §4). Tela
 //  nativa da Apple (`SubscriptionStoreView`): ela já traz preço, período,
 //  renovação automática, "Restaurar compras" e os links de termos e
-//  privacidade que a revisão exige (diretriz 3.1.2). Nosso só o cabeçalho.
+//  privacidade que a revisão exige (diretriz 3.1.2). Nosso: o cabeçalho, o X e
+//  o cartão de cada plano (preço cheio riscado + "Economize X%" no anual).
 //
 //  Contextual, nunca no launch: abre pela linha em Ajustes e no limite da
 //  garagem (moto a mais, moto só para consulta — `GarageGated`); nos próximos
@@ -61,15 +62,20 @@ struct PremiumPaywallView: View {
             PremiumHeader(message: reason.message)
         }
         // Planos em lista, um embaixo do outro, como a tela de assinaturas do
-        // iOS ("Planos disponíveis") — DESIGN.md §0.
-        .subscriptionStoreControlStyle(.picker)
-        // Nome + preço, sem a descrição do produto (o cabeçalho já lista os
-        // benefícios): os dois planos cabem sem rolar.
-        .productDescription(.hidden)
-        .subscriptionStoreButtonLabel(.multiline)
+        // iOS ("Planos disponíveis") — DESIGN.md §0 — com o desconto do anual.
+        .subscriptionStoreControlStyle(PlanPickerStyle())
+        // Botão só "Assinar": preço e período já estão no plano marcado, e a
+        // Apple escreve a renovação automática por extenso acima do botão (no
+        // rótulo de duas linhas ela saía em letra miúda dentro dele).
+        .subscriptionStoreButtonLabel(.action)
+        // Termos e privacidade em cinza: link de apoio, não compete com o botão.
+        .subscriptionStorePolicyForegroundStyle(.secondary, .secondary)
         .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .policies)
-        .storeButton(.visible, for: .cancellation)
+        // X nosso, sobreposto: o do sistema reservava uma faixa vazia no topo,
+        // acima da roda. Mesmo visual do sistema (glass no iOS 26).
+        .storeButton(.hidden, for: .cancellation)
+        .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
         .subscriptionStorePolicyDestination(url: Self.termsURL, for: .termsOfService)
         .subscriptionStorePolicyDestination(url: SettingsView.privacyPolicyURL, for: .privacyPolicy)
         .onAppear { Analytics.paywallViewed(trigger: reason.rawValue) }
@@ -107,19 +113,19 @@ struct PremiumPaywallView: View {
     }
 }
 
-/// Arte + frase + os três benefícios. Curto: a tela da Apple embaixo já ocupa
-/// metade da altura. A frase é a promessa ("Apoie o Carburante") ou, quando a
-/// tela abriu por um limite, o porquê dele.
+/// Arte + frase + os três benefícios. Curto: a tela da Apple
+/// embaixo já ocupa metade da altura. A frase é a promessa ("Apoie o
+/// Carburante") ou, quando a tela abriu por um limite, o porquê dele.
 private struct PremiumHeader: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             VStack(spacing: 8) {
                 Image("Onboarding/wheel")
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 72)
+                    .frame(height: 96)
                     .accessibilityHidden(true)
                 Text("Carburante Premium")
                     .font(.title2.weight(.bold))
@@ -131,31 +137,25 @@ private struct PremiumHeader: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                Benefit(symbol: "motorcycle",
-                        title: "Garagem ilimitada",
-                        detail: "Quantas motos quiser.")
-                Benefit(symbol: "chart.bar.xaxis",
-                        title: "Custos completos",
-                        detail: "Gasolina e manutenção, por mês e por km.")
-                Benefit(symbol: "medal",
-                        title: "Ícones de conquista",
-                        detail: "Sua medalha vira o ícone do app.")
+                Benefit(symbol: "motorcycle", text: "Garagem ilimitada")
+                Benefit(symbol: "chart.bar.xaxis", text: "Custos completos, mês a mês")
+                Benefit(symbol: "medal", text: "Sua medalha vira o ícone do app")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 24)
+        // Colado no topo, ao lado do X; a sobra fica acima dos planos.
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
+/// Um benefício = símbolo + uma linha. Tamanhos de acessibilidade: o texto
+/// quebra embaixo do símbolo (lado a lado, o símbolo gigante come a largura).
 private struct Benefit: View {
     let symbol: String
-    let title: String
-    let detail: String
+    let text: String
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// Tamanhos de acessibilidade: ícone em cima do texto (lado a lado, o
-    /// símbolo gigante come a largura do título).
     private var layout: AnyLayout {
         typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
@@ -165,24 +165,143 @@ private struct Benefit: View {
     var body: some View {
         layout {
             Image(systemName: symbol)
-                .font(.title3)
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.tint)
                 // Coluna fixa lado a lado (a moto é mais larga que os outros
                 // símbolos e desalinhava os textos); empilhado, largura livre.
-                .frame(width: typeSize.isAccessibilitySize ? nil : 36,
+                .frame(width: typeSize.isAccessibilitySize ? nil : 32,
                        alignment: typeSize.isAccessibilitySize ? .leading : .center)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            Text(text)
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// X de fechar padrão do sistema: glass no iOS 26, círculo cinza antes.
+private struct CloseButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Button(action: action) {
+                    Image(systemName: "xmark")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .tint(.primary)
+                .accessibilityLabel("Fechar")
+            } else {
+                Button(action: action) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityLabel("Fechar")
             }
         }
+        .padding(16)
+    }
+}
+
+/// Lista de planos da Apple (`SubscriptionStorePicker` + `SubscriptionStoreButton`)
+/// com o nosso cartão: no anual, o preço cheio (12× o mensal) riscado e o
+/// "Economize X%". A compra continua toda na Apple.
+private struct PlanPickerStyle: SubscriptionStoreControlStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let monthlyPrice = configuration.allOptions
+            .first { $0.subscription?.subscriptionPeriod.unit == .month }?.price
+        SubscriptionStorePicker(configuration) { option in
+            PlanRow(option: option, monthlyPrice: monthlyPrice)
+        } confirmation: { option in
+            // Botão da Apple: já traz a renovação automática por extenso, acima.
+            SubscriptionStoreButton(option)
+        }
+    }
+}
+
+private struct PlanRow: View {
+    let option: SubscriptionStoreControlStyleConfiguration.PickerOption
+    let monthlyPrice: Decimal?
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var product: Product { option.subscription }
+
+    /// Tamanhos de acessibilidade: selo embaixo do nome (lado a lado não cabe).
+    private var titleLayout: AnyLayout {
+        typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
+
+    /// Só no anual, e só se ele sair mais barato que 12× o mensal.
+    private var savings: PlanSavings? {
+        guard product.subscription?.subscriptionPeriod.unit == .year,
+              let monthlyPrice else { return nil }
+        return PlanSavings(monthly: monthlyPrice, yearly: product.price)
+    }
+
+    /// "R$ 69,90/ano" — preço da Apple (moeda da loja da conta) + período.
+    static func pricePerPeriod(_ product: Product) -> String {
+        let unit: String
+        switch product.subscription?.subscriptionPeriod.unit {
+        case .year: unit = "/ano"
+        case .month: unit = "/mês"
+        case .week: unit = "/semana"
+        case .day: unit = "/dia"
+        default: unit = ""
+        }
+        return product.displayPrice + unit
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                titleLayout {
+                    Text(product.displayName)
+                        .font(.title3.weight(.semibold))
+                    if let savings {
+                        Text("Economize \(savings.percent)%")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(.tint.opacity(0.15), in: .capsule)
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text(Self.pricePerPeriod(product))
+                    if let savings {
+                        Text(savings.fullYearPrice.formatted(product.priceFormatStyle))
+                            .strikethrough()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .font(.subheadline)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: option.isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title2)
+                .foregroundStyle(option.isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
+                .accessibilityHidden(true)
+        }
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(option.isSelected ? .isSelected : [])
+    }
+
+    private var accessibilityText: String {
+        var text = "\(product.displayName), \(Self.pricePerPeriod(product))"
+        if let savings {
+            text += ", em vez de \(savings.fullYearPrice.formatted(product.priceFormatStyle)). Economize \(savings.percent)%"
+        }
+        return text
     }
 }
 
