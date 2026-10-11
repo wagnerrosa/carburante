@@ -18,7 +18,8 @@ import SwiftUI
 import StoreKit
 
 /// De onde a tela de assinatura abriu — muda a frase do cabeçalho. O rawValue
-/// é o gatilho do analytics (M8).
+/// é o `trigger` do analytics (`paywall_viewed`, `purchase_*`): chave
+/// congelada, não renomear.
 enum PaywallReason: String {
     /// Linha "Carburante Premium" em Ajustes.
     case settings
@@ -67,13 +68,24 @@ struct PremiumPaywallView: View {
         .storeButton(.visible, for: .cancellation)
         .subscriptionStorePolicyDestination(url: Self.termsURL, for: .termsOfService)
         .subscriptionStorePolicyDestination(url: SettingsView.privacyPolicyURL, for: .privacyPolicy)
-        .onInAppPurchaseCompletion { _, result in
-            guard case .success(.success(let verification)) = result,
-                  case .verified(let transaction) = verification else { return }
-            await transaction.finish()
-            await PremiumService.shared.refresh()
-            Haptics.success()
-            dismiss()
+        .onAppear { Analytics.paywallViewed(trigger: reason.rawValue) }
+        .onInAppPurchaseCompletion { product, result in
+            let trigger = reason.rawValue
+            switch result {
+            case .success(.success(.verified(let transaction))):
+                Analytics.purchaseCompleted(productID: transaction.productID, trigger: trigger)
+                await transaction.finish()
+                await PremiumService.shared.refresh()
+                Haptics.success()
+                dismiss()
+            case .success(.userCancelled):
+                Analytics.purchaseCancelled(productID: product.id, trigger: trigger)
+            case .success(.pending):
+                Analytics.purchasePending(productID: product.id, trigger: trigger)
+            default:
+                // Erro do StoreKit ou transação que não passou na verificação.
+                Analytics.purchaseFailed(productID: product.id, trigger: trigger)
+            }
         }
         .tint(BrandTheme.carburante)
     }

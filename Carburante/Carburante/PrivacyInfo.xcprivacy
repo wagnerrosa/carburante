@@ -30,6 +30,22 @@
                 <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
             </array>
         </dict>
+        <!-- Histórico de compras: assinatura do Carburante Premium. O app não
+             vê dados de pagamento (a compra é da Apple); o analytics recebe só
+             o plano (mensal/anual), se assina e de qual tela a compra saiu.
+             NÃO ligado à identidade (sessão anônima), NÃO tracking. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
         <!-- Foto do hodômetro: guardada junto do abastecimento e sincronizada
              no Supabase Storage (bucket privado) para o usuário rever em
              qualquer device. Ligada à conta, não usada para tracking. -->
