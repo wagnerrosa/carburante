@@ -70,12 +70,26 @@ struct PremiumPaywallView: View {
         .subscriptionStoreButtonLabel(.action)
         // Termos e privacidade em cinza: link de apoio, não compete com o botão.
         .subscriptionStorePolicyForegroundStyle(.secondary, .secondary)
-        .storeButton(.visible, for: .restorePurchases)
         .storeButton(.visible, for: .policies)
-        // X nosso, sobreposto: o do sistema reservava uma faixa vazia no topo,
-        // acima da roda. Mesmo visual do sistema (glass no iOS 26).
+        // Restaurar e X nossos, em pílulas no topo: o X do sistema reservava
+        // uma faixa vazia acima da roda, e o Restaurar grande no rodapé tirava
+        // a altura do respiro do topo. Mesmo visual do sistema (glass no iOS 26).
+        .storeButton(.hidden, for: .restorePurchases)
         .storeButton(.hidden, for: .cancellation)
-        .overlay(alignment: .topTrailing) { CloseButton { dismiss() } }
+        .overlay(alignment: .top) {
+            HStack {
+                RestoreButton { dismiss() }
+                Spacer()
+                CloseButton { dismiss() }
+            }
+            .padding(16)
+            // Largura da tela: com texto de acessibilidade a tela da Apple
+            // fica mais larga que o iPhone e as pílulas saíam pelas bordas.
+            .containerRelativeFrame(.horizontal)
+            // Como os botões de barra do sistema: letra limitada, para as
+            // pílulas não engolirem a tela com texto de acessibilidade.
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        }
         .subscriptionStorePolicyDestination(url: Self.termsURL, for: .termsOfService)
         .subscriptionStorePolicyDestination(url: SettingsView.privacyPolicyURL, for: .privacyPolicy)
         .onAppear { Analytics.paywallViewed(trigger: reason.rawValue) }
@@ -116,8 +130,9 @@ struct PremiumPaywallView: View {
 /// Arte + título + frase + benefícios. A arte é a parte elástica: cresce com
 /// a sobra de altura (sem buraco em tela grande) e fica no tamanho ideal
 /// pequeno em tela pequena, para os planos caberem sem rolar — quando a tela
-/// rola (texto grande), a altura proposta é nenhuma e vale o ideal, não o máximo. A frase é a promessa ("Apoie o
-/// Carburante") ou, quando a tela abriu por um limite, o porquê dele.
+/// rola (texto grande), a altura proposta é nenhuma e vale o ideal, não o
+/// máximo. A frase é a promessa ("Apoie o Carburante") ou, quando a tela
+/// abriu por um limite, o porquê dele.
 private struct PremiumHeader: View {
     let message: String
 
@@ -134,6 +149,7 @@ private struct PremiumHeader: View {
                 (Text("Carburante ") + Text("Premium").foregroundStyle(BrandTheme.flame))
                     .font(.title.weight(.bold))
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -156,8 +172,9 @@ private struct PremiumHeader: View {
             .padding(.top, 20)
         }
         .padding(.horizontal, 16)
+        // Respiro acima da roda, na linha das pílulas Restaurar / X.
+        .padding(.top, 24)
         .padding(.bottom, 8)
-        // Colado no topo, ao lado do X.
         .frame(maxHeight: .infinity, alignment: .top)
     }
 }
@@ -212,7 +229,59 @@ private struct CloseButton: View {
                 .accessibilityLabel("Fechar")
             }
         }
-        .padding(16)
+    }
+}
+
+/// Restaurar compras (diretriz 3.1.1) numa pílula, simétrica ao X. Sincroniza
+/// com a App Store; achou assinatura → fecha a tela, senão avisa.
+private struct RestoreButton: View {
+    let onRestored: () -> Void
+    @State private var isRestoring = false
+    @State private var alertMessage: String?
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                button.buttonStyle(.glass)
+            } else {
+                button.buttonStyle(.bordered).buttonBorderShape(.capsule)
+            }
+        }
+        .tint(.primary)
+        .disabled(isRestoring)
+        .alert("Restaurar assinatura",
+               isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(alertMessage ?? "")
+        }
+    }
+
+    private var button: some View {
+        Button { Task { await restore() } } label: {
+            Text("Restaurar")
+                .font(.subheadline.weight(.medium))
+                .frame(height: 32)
+        }
+    }
+
+    private func restore() async {
+        isRestoring = true
+        defer { isRestoring = false }
+        do {
+            try await AppStore.sync()
+        } catch StoreKitError.userCancelled {
+            return  // fechou o login da Apple: nada a dizer
+        } catch {
+            alertMessage = "Não foi possível falar com a App Store agora. Tente de novo."
+            return
+        }
+        await PremiumService.shared.refresh()
+        if PremiumService.shared.isPremium {
+            onRestored()
+        } else {
+            alertMessage = "Nenhuma assinatura do Carburante Premium neste Apple ID."
+        }
     }
 }
 
