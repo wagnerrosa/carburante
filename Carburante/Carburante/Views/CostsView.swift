@@ -6,8 +6,11 @@
 //  verdade, gasolina + manutenção. Mesmo padrão da tela de Consumo (Saúde
 //  "Mostrar todos os dados"): seletor de período, número-herói, gráfico e
 //  cards. Alcançada pelo tile "Gasto este mês" do Resumo e pelo perfil da
-//  moto. Cálculo em `CostCalculator`. A trava de Premium entra com o StoreKit
-//  (M4/M5); até lá a tela abre para todos.
+//  moto. Cálculo em `CostCalculator`.
+//
+//  Sem Premium: o mês fica visível (o gasto do mês já é grátis no Resumo) e o
+//  resto aparece coberto, com o caminho para a assinatura — "mostra o que tem,
+//  cobra o detalhe".
 //
 
 import SwiftUI
@@ -16,6 +19,8 @@ import Charts
 struct CostsView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var period: Period = .year
+    @State private var showPaywall = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Period: String, CaseIterable, Identifiable {
         case month = "Mês"
@@ -30,12 +35,17 @@ struct CostsView: View {
     private var fuel: [FuelEntry] { motorcycle.consumptionEntries }
     private var maintenance: [MaintenanceCost] { motorcycle.maintenanceCosts }
 
+    private var isPremium: Bool { PremiumService.shared.isPremium }
+
+    /// Sem Premium, só o mês.
+    private var shownPeriod: Period { isPremium ? period : .month }
+
     private var hasAnyCost: Bool {
         fuel.contains { $0.totalCost > 0 } || !maintenance.isEmpty
     }
 
     private var interval: DateInterval? {
-        switch period {
+        switch shownPeriod {
         case .month: calendar.dateInterval(of: .month, for: now)
         case .year: calendar.dateInterval(of: .year, for: now)
         case .all: CostCalculator.allTimeInterval(fuel: fuel, maintenance: maintenance, now: now)
@@ -64,26 +74,35 @@ struct CostsView: View {
         .onAppear {
             Analytics.costsViewed(hasMaintenanceCost: !maintenance.isEmpty)
         }
+        .sheet(isPresented: $showPaywall) {
+            PremiumPaywallView(reason: .costs)
+        }
     }
 
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Picker("Período", selection: $period) {
-                    ForEach(Period.allCases) { Text($0.rawValue).tag($0) }
+                if isPremium {
+                    Picker("Período", selection: $period) {
+                        ForEach(Period.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
 
                 header
-                monthlyCard
-                perKmCard
-                if !summary.maintenanceByType.isEmpty {
-                    byTypeCard
-                }
-                switch period {
-                case .year: yearCard
-                case .all: averageCard
-                case .month: EmptyView()
+                if isPremium {
+                    monthlyCard
+                    perKmCard
+                    if !summary.maintenanceByType.isEmpty {
+                        byTypeCard
+                    }
+                    switch period {
+                    case .year: yearCard
+                    case .all: averageCard
+                    case .month: EmptyView()
+                    }
+                } else {
+                    lockedCards
                 }
             }
             .padding()
@@ -114,7 +133,7 @@ struct CostsView: View {
     }
 
     private var periodDescription: String {
-        switch period {
+        switch shownPeriod {
         case .month:
             return now.formatted(.dateTime.month(.wide).year().locale(AppFormat.locale))
         case .year:
@@ -122,6 +141,52 @@ struct CostsView: View {
         case .all:
             guard let start = interval?.start else { return "" }
             return "Desde " + start.formatted(.dateTime.month(.abbreviated).year().locale(AppFormat.locale))
+        }
+    }
+
+    // MARK: - Sem Premium
+
+    /// Os cards do Premium cobertos (os do próprio piloto, não um exemplo) e,
+    /// por cima, o que eles mostram + o caminho para a assinatura. ZStack, não
+    /// overlay: em tamanhos de acessibilidade o aviso pode ficar mais alto que
+    /// os cards.
+    private var lockedCards: some View {
+        ZStack {
+            VStack(spacing: 20) {
+                monthlyCard
+                perKmCard
+            }
+            .blur(radius: 10)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            GroupedCard {
+                VStack(spacing: 12) {
+                    Image(systemName: "lock.fill")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                    Text("Custos completos")
+                        .font(.headline)
+                    Text("O ano todo, o custo real por km e para onde vai o dinheiro da manutenção.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        showPaywall = true
+                    } label: {
+                        Text("Conhecer o Premium")
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            // Recuado sobre os cards cobertos; em tamanhos de acessibilidade a
+            // largura vai toda para o texto.
+            .padding(.horizontal, typeSize.isAccessibilitySize ? 0 : 24)
         }
     }
 
