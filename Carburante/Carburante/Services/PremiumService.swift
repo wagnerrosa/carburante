@@ -4,9 +4,10 @@
 //
 //  Fonte única de "é Premium?" no app (PLAN/premium-mvp.md §Assinatura).
 //  StoreKit 2, só no aparelho — sem servidor no MVP: a compra vale em todo
-//  aparelho com o mesmo Apple ID (e na família, via Family Sharing). Lê
-//  `Transaction.currentEntitlements` no launch e escuta `Transaction.updates`
-//  (renovação, reembolso, compra feita em outro aparelho ou pela família).
+//  aparelho com o mesmo Apple ID. Lê `Transaction.currentEntitlements` no
+//  launch e escuta `Transaction.updates` (renovação, reembolso, compra feita em
+//  outro aparelho). Family Sharing está desligado no ASC; se for ligado, as
+//  compras da família já chegam por esses mesmos dois caminhos, sem mudança.
 //
 //  O último estado fica guardado: o 1º frame (e o app offline) já sabe quem
 //  assina, sem piscar "grátis" até o StoreKit responder.
