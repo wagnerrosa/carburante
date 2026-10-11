@@ -154,6 +154,13 @@ enum Analytics {
         capture("paywall_viewed", ["trigger": trigger])
     }
 
+    /// Tocou em Assinar (antes da folha da Apple). Compra começada sem
+    /// `purchase_completed/_cancelled/_pending/_failed` depois = travou no
+    /// caminho (folha que não abre, senha da conta).
+    static func purchaseStarted(productID: String, trigger: String) {
+        capture("purchase_started", ["plan": premiumPlan(for: productID), "trigger": trigger])
+    }
+
     /// Resultado de uma compra começada na tela de assinatura. `plan` = o
     /// produto escolhido; `trigger` = de onde a tela abriu.
     static func purchaseCompleted(productID: String, trigger: String) {
@@ -169,8 +176,36 @@ enum Analytics {
         capture("purchase_pending", ["plan": premiumPlan(for: productID), "trigger": trigger])
     }
 
-    static func purchaseFailed(productID: String, trigger: String) {
-        capture("purchase_failed", ["plan": premiumPlan(for: productID), "trigger": trigger])
+    /// `reason` = `purchaseFailureReason` (chave estável, nunca a mensagem crua).
+    static func purchaseFailed(productID: String, trigger: String, reason: String) {
+        capture("purchase_failed", ["plan": premiumPlan(for: productID), "trigger": trigger,
+                                    "reason": reason])
+    }
+
+    /// Erro do StoreKit → chave do `purchase_failed`. Erro de outra origem vira
+    /// "domínio#código", como o `sync_failed`.
+    static func purchaseFailureReason(_ error: Error) -> String {
+        if let error = error as? StoreKitError {
+            switch error {
+            case .userCancelled: return "user_cancelled"
+            case .networkError: return "network_error"
+            case .systemError: return "system_error"
+            case .notAvailableInStorefront: return "not_available_in_storefront"
+            case .notEntitled: return "not_entitled"
+            case .unknown: return "storekit_unknown"
+            default: return "storekit_other"
+            }
+        }
+        if let error = error as? Product.PurchaseError {
+            switch error {
+            case .productUnavailable: return "product_unavailable"
+            case .purchaseNotAllowed: return "purchase_not_allowed"
+            case .ineligibleForOffer: return "ineligible_for_offer"
+            default: return "purchase_error_other"
+            }
+        }
+        let ns = error as NSError
+        return "\(ns.domain)#\(ns.code)"
     }
 
     // MARK: - Custos completos
