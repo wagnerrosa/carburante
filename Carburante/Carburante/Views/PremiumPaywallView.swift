@@ -113,44 +113,57 @@ struct PremiumPaywallView: View {
     }
 }
 
-/// Arte + frase + os três benefícios. Curto: a tela da Apple
-/// embaixo já ocupa metade da altura. A frase é a promessa ("Apoie o
+/// Arte + título + frase + benefícios. A arte é a parte elástica: cresce com
+/// a sobra de altura (sem buraco em tela grande) e fica no tamanho ideal
+/// pequeno em tela pequena, para os planos caberem sem rolar — quando a tela
+/// rola (texto grande), a altura proposta é nenhuma e vale o ideal, não o máximo. A frase é a promessa ("Apoie o
 /// Carburante") ou, quando a tela abriu por um limite, o porquê dele.
 private struct PremiumHeader: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
+            Image("Onboarding/wheel")
+                .resizable()
+                .scaledToFit()
+                .frame(minHeight: 64, idealHeight: 64, maxHeight: 150)
+                .accessibilityHidden(true)
+
             VStack(spacing: 8) {
-                Image("Onboarding/wheel")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 96)
-                    .accessibilityHidden(true)
-                Text("Carburante Premium")
-                    .font(.title2.weight(.bold))
+                // "Premium" em chama, como o fim do título do onboarding.
+                (Text("Carburante ") + Text("Premium").foregroundStyle(BrandTheme.flame))
+                    .font(.title.weight(.bold))
+                    .multilineTextAlignment(.center)
                 Text(message)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .padding(.top, 12)
 
+            // Lista "o que vem junto", padrão iCloud+ / Ajustes: tile colorido
+            // + uma linha.
             VStack(alignment: .leading, spacing: 12) {
                 Benefit(symbol: "motorcycle", text: "Garagem ilimitada")
                 Benefit(symbol: "chart.bar.xaxis", text: "Custos completos, mês a mês")
                 Benefit(symbol: "medal", text: "Sua medalha vira o ícone do app")
             }
+            .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.tertiarySystemFill),
+                        in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .padding(.top, 20)
         }
-        .padding(.horizontal, 24)
-        // Colado no topo, ao lado do X; a sobra fica acima dos planos.
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        // Colado no topo, ao lado do X.
         .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
-/// Um benefício = símbolo + uma linha. Tamanhos de acessibilidade: o texto
-/// quebra embaixo do símbolo (lado a lado, o símbolo gigante come a largura).
+/// Um benefício = tile + uma linha. Tamanhos de acessibilidade: o texto
+/// quebra embaixo do tile (lado a lado, o tile gigante come a largura).
 private struct Benefit: View {
     let symbol: String
     let text: String
@@ -158,22 +171,16 @@ private struct Benefit: View {
 
     private var layout: AnyLayout {
         typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+            : AnyLayout(HStackLayout(spacing: 12))
     }
 
     var body: some View {
         layout {
-            Image(systemName: symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.tint)
-                // Coluna fixa lado a lado (a moto é mais larga que os outros
-                // símbolos e desalinhava os textos); empilhado, largura livre.
-                .frame(width: typeSize.isAccessibilitySize ? nil : 32,
-                       alignment: typeSize.isAccessibilitySize ? .leading : .center)
+            IconTile(systemName: symbol, tint: BrandTheme.carburante, size: 30)
                 .accessibilityHidden(true)
             Text(text)
-                .font(.body)
+                .font(.body.weight(.medium))
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -229,16 +236,7 @@ private struct PlanRow: View {
     let option: SubscriptionStoreControlStyleConfiguration.PickerOption
     let monthlyPrice: Decimal?
 
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     private var product: Product { option.subscription }
-
-    /// Tamanhos de acessibilidade: selo embaixo do nome (lado a lado não cabe).
-    private var titleLayout: AnyLayout {
-        typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
-            : AnyLayout(HStackLayout(spacing: 8))
-    }
 
     /// Só no anual, e só se ele sair mais barato que 12× o mensal.
     private var savings: PlanSavings? {
@@ -260,20 +258,31 @@ private struct PlanRow: View {
         return product.displayPrice + unit
     }
 
+    private var name: some View {
+        Text(product.displayName)
+            .font(.title3.weight(.semibold))
+    }
+
+    @ViewBuilder private var badge: some View {
+        if let savings {
+            Text("Economize \(savings.percent)%")
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .fixedSize()
+                .foregroundStyle(.tint)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(.tint.opacity(0.15), in: .capsule)
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                titleLayout {
-                    Text(product.displayName)
-                        .font(.title3.weight(.semibold))
-                    if let savings {
-                        Text("Economize \(savings.percent)%")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tint)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(.tint.opacity(0.15), in: .capsule)
-                    }
+                // Selo ao lado do nome; sem largura (texto grande), embaixo.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { name; badge }
+                    VStack(alignment: .leading, spacing: 4) { name; badge }
                 }
                 HStack(spacing: 6) {
                     Text(Self.pricePerPeriod(product))
