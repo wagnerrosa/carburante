@@ -22,9 +22,9 @@ enum GarageLimit {
     /// ⚠️ ATUALIZAR no envio da 1.1 para o dia do arquivo enviado à revisão
     /// (checklist em PLAN/app-store/envio.md). Antes disso o revisor cadastraria
     /// a 2ª moto "antes do lançamento" e nunca veria o limite; muito depois,
-    /// motos criadas na 1.1 escapariam do limite. 20/10/2026 00:00 BRT
-    /// (provisório).
-    static let premiumLaunch = Date(timeIntervalSince1970: 1_792_465_200)
+    /// motos criadas na 1.1 escapariam do limite. 15/10/2026 00:00 BRT = dia
+    /// do arquivo 1.1 (16), o reenviado após a revisão pedir a EULA.
+    static let premiumLaunch = Date(timeIntervalSince1970: 1_792_033_200)
 
     /// Moto à venda segue aceitando registro por este tempo depois que a nova
     /// chega: troca de moto não é Premium.
