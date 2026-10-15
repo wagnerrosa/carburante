@@ -4,9 +4,9 @@
 //
 //  Tela de assinatura do Carburante Premium (PLAN/premium-mvp.md §4). Tela
 //  nativa da Apple (`SubscriptionStoreView`): ela já traz preço, período,
-//  renovação automática, "Restaurar compras" e os links de termos e
-//  privacidade que a revisão exige (diretriz 3.1.2). Nosso: o cabeçalho, o X e
-//  o cartão de cada plano (preço cheio riscado + "Economize X%" no anual).
+//  renovação automática e a compra. Nosso: o cabeçalho, o X, o Restaurar, o
+//  cartão de cada plano (preço cheio riscado + "Economize X%" no anual) e os
+//  links de Termos de Uso (EULA) e privacidade sob o botão (diretriz 3.1.2).
 //
 //  Contextual, nunca no launch: abre pela linha em Ajustes e no limite da
 //  garagem (moto a mais, moto só para consulta — `GarageGated`); nos próximos
@@ -68,9 +68,11 @@ struct PremiumPaywallView: View {
         // Apple escreve a renovação automática por extenso acima do botão (no
         // rótulo de duas linhas ela saía em letra miúda dentro dele).
         .subscriptionStoreButtonLabel(.action)
-        // Termos e privacidade em cinza: link de apoio, não compete com o botão.
-        .subscriptionStorePolicyForegroundStyle(.secondary, .secondary)
-        .storeButton(.visible, for: .policies)
+        // Termos e privacidade: links nossos sob o botão (`PolicyLinks`). A
+        // linha do sistema ("Termos de Serviço e Política de Privacidade", uma
+        // frase cinza entre os benefícios e os planos) não foi reconhecida
+        // como link para a EULA na revisão da 1.1 (3.1.2(c), 2026-10-15).
+        .storeButton(.hidden, for: .policies)
         // Restaurar e X nossos, em pílulas no topo: o X do sistema reservava
         // uma faixa vazia acima da roda, e o Restaurar grande no rodapé tirava
         // a altura do respiro do topo. Mesmo visual do sistema (glass no iOS 26).
@@ -90,8 +92,6 @@ struct PremiumPaywallView: View {
             // pílulas não engolirem a tela com texto de acessibilidade.
             .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         }
-        .subscriptionStorePolicyDestination(url: Self.termsURL, for: .termsOfService)
-        .subscriptionStorePolicyDestination(url: SettingsView.privacyPolicyURL, for: .privacyPolicy)
         .onAppear { Analytics.paywallViewed(trigger: reason.rawValue) }
         .onInAppPurchaseStart { product in
             Analytics.purchaseStarted(productID: product.id, trigger: reason.rawValue)
@@ -131,29 +131,48 @@ struct PremiumPaywallView: View {
 /// pontos (topo e antes dos benefícios — antes dos planos o sistema já dá o
 /// seu), nunca um buraco só;
 /// em tela pequena cada um fica no mínimo e a arte encolhe, para os planos
-/// caberem sem rolar. Quando a tela rola (texto grande), a altura proposta é
-/// nenhuma e valem os mínimos e o ideal da arte. A frase é a promessa ("Apoie
-/// o Carburante") ou, quando a tela abriu por um limite, o porquê dele.
+/// caberem sem rolar. Tela baixa demais (iPhone SE; app de iPhone no iPad, que
+/// roda nesse tamanho — foi onde a revisão da 1.1 não achou a EULA): sai a
+/// arte e o cartão aperta; se ainda faltar, sai o cartão — os planos, o
+/// Assinar e os links de Termos e Privacidade (3.1.2) seguem à vista. Quando a
+/// tela rola (texto grande), a altura proposta é nenhuma e vale a versão
+/// completa. A frase é a promessa ("Apoie o Carburante") ou, quando a tela
+/// abriu por um limite, o porquê dele.
 private struct PremiumHeader: View {
     let message: String
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Respiro do topo, na linha das pílulas Restaurar / X.
-            Spacer(minLength: 24).frame(maxHeight: 56)
+        ViewThatFits(in: .vertical) {
+            layout(art: true, benefits: true)
+            layout(art: false, benefits: true)
+            layout(art: false, benefits: false)
+        }
+    }
 
-            Image("Onboarding/wheel")
-                .resizable()
-                .scaledToFit()
-                .frame(minHeight: 64, idealHeight: 64, maxHeight: 88)
-                // A arte cresce até o máximo antes dos respiros.
-                .layoutPriority(1)
-                .accessibilityHidden(true)
+    private func layout(art: Bool, benefits: Bool) -> some View {
+        VStack(spacing: 0) {
+            if art {
+                // Respiro do topo, na linha das pílulas Restaurar / X.
+                Spacer(minLength: 24).frame(maxHeight: 56)
+
+                Image("Onboarding/wheel")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(minHeight: 64, idealHeight: 64, maxHeight: 88)
+                    // A arte cresce até o máximo antes dos respiros.
+                    .layoutPriority(1)
+                    .accessibilityHidden(true)
+                    .padding(.bottom, 12)
+            } else {
+                // Sem a arte, o título desce para baixo das pílulas (glass
+                // de ~44 pt, a 16 do topo).
+                Spacer(minLength: 64).frame(maxHeight: 72)
+            }
 
             VStack(spacing: 8) {
                 // "Premium" em chama, como o fim do título do onboarding.
                 (Text("Carburante ") + Text("Premium").foregroundStyle(BrandTheme.flame))
-                    .font(.title.weight(.bold))
+                    .font((art ? Font.title : .title2).weight(.bold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(message)
@@ -162,21 +181,22 @@ private struct PremiumHeader: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, 12)
 
-            Spacer(minLength: 20).frame(maxHeight: 48)
+            if benefits {
+                Spacer(minLength: art ? 20 : 12).frame(maxHeight: 48)
 
-            // Lista "o que vem junto", padrão iCloud+ / Ajustes: tile colorido
-            // + uma linha.
-            VStack(alignment: .leading, spacing: 12) {
-                Benefit(symbol: "motorcycle", text: "Garagem ilimitada")
-                Benefit(symbol: "chart.bar.xaxis", text: "Custos completos, mês a mês")
-                Benefit(symbol: "medal", text: "Sua medalha vira o ícone do app")
+                // Lista "o que vem junto", padrão iCloud+ / Ajustes: tile
+                // colorido + uma linha. Sem a arte (tela baixa), mais justa.
+                VStack(alignment: .leading, spacing: art ? 12 : 6) {
+                    Benefit(symbol: "motorcycle", text: "Garagem ilimitada", compact: !art)
+                    Benefit(symbol: "chart.bar.xaxis", text: "Custos completos, mês a mês", compact: !art)
+                    Benefit(symbol: "medal", text: "Sua medalha vira o ícone do app", compact: !art)
+                }
+                .padding(art ? 14 : 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.tertiarySystemFill),
+                            in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.tertiarySystemFill),
-                        in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         }
         .padding(.bottom, 8)
         .padding(.horizontal, 16)
@@ -189,6 +209,7 @@ private struct PremiumHeader: View {
 private struct Benefit: View {
     let symbol: String
     let text: String
+    var compact = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var layout: AnyLayout {
@@ -199,10 +220,10 @@ private struct Benefit: View {
 
     var body: some View {
         layout {
-            IconTile(systemName: symbol, tint: BrandTheme.carburante, size: 30)
+            IconTile(systemName: symbol, tint: BrandTheme.carburante, size: compact ? 22 : 30)
                 .accessibilityHidden(true)
             Text(text)
-                .font(.body.weight(.medium))
+                .font((compact ? Font.subheadline : .body).weight(.medium))
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -301,8 +322,32 @@ private struct PlanPickerStyle: SubscriptionStoreControlStyle {
             PlanRow(option: option, monthlyPrice: monthlyPrice)
         } confirmation: { option in
             // Botão da Apple: já traz a renovação automática por extenso, acima.
-            SubscriptionStoreButton(option)
+            VStack(spacing: 12) {
+                SubscriptionStoreButton(option)
+                PolicyLinks()
+            }
         }
+    }
+}
+
+/// Termos de Uso (EULA) e Política de Privacidade, com cara de link, logo
+/// abaixo do Assinar — onde a revisão procura (diretriz 3.1.2(c)). Texto
+/// grande: um embaixo do outro.
+private struct PolicyLinks: View {
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 20) { links }
+            VStack(spacing: 8) { links }
+        }
+        .font(.footnote)
+        .multilineTextAlignment(.center)
+        // Sem isso herdam o estilo do botão da loja (cápsula cheia).
+        .buttonStyle(.borderless)
+    }
+
+    @ViewBuilder private var links: some View {
+        Link("Termos de Uso (EULA)", destination: PremiumPaywallView.termsURL)
+        Link("Política de Privacidade", destination: SettingsView.privacyPolicyURL)
     }
 }
 

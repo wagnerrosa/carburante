@@ -214,6 +214,9 @@ private struct PremiumSection: View {
             } else {
                 Button("Conhecer o Premium") { showPaywall = true }
             }
+            // Diretriz 3.1.2(c): EULA acessível de dentro do app, além da tela de
+            // assinatura (a política fica na seção Privacidade).
+            Link("Termos de uso (EULA)", destination: PremiumPaywallView.termsURL)
         } header: {
             Text("Carburante Premium")
         } footer: {
