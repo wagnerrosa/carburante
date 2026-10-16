@@ -64,7 +64,7 @@
     'q.kicker': 'Questions',
     'q.title': 'Before you ask.',
     'q1.q': 'Is it free?',
-    'q1.a': 'Yes. It’s free on the App Store, with no ads.',
+    'q1.a': 'Yes. The app is free on the App Store and has no ads, subscribed or not. If you want more, there’s the optional Carburante Premium subscription: several bikes in the garage, full costs and achievement app icons.',
     'q2.q': 'Is there an Android version?',
     'q2.a': 'Not for now. Carburante is native to iPhone on purpose: fast, light and at home in the system.',
     'q9.q': 'Is it available outside Brazil?',
