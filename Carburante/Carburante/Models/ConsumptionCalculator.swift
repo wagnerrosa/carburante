@@ -122,7 +122,20 @@ extension Motorcycle {
     /// progresso por categoria nas medalhas — reflete uso real, não só os
     /// trechos full-to-full. Nunca negativo.
     var distanceSinceBaseline: Double {
-        max(0, currentOdometer - odometerBaseline)
+        max(0, currentOdometer - badgeDistanceStart)
+    }
+
+    /// De onde o km das medalhas começa a contar. Cadastro com hodômetro = essa
+    /// leitura. Cadastro vazio (baseline 0) = 1º registro NA HORA (abastecimento
+    /// ou manutenção): partir do zero dava todo o km de antes do app no 1º
+    /// abastecimento (moto com 19.000 km → medalha de 5.000 na hora). Histórico
+    /// não define a partida — não conta para conquistas. Sem registro na hora,
+    /// parte do hodômetro atual (0 km).
+    private var badgeDistanceStart: Double {
+        guard odometerBaseline <= 0 else { return odometerBaseline }
+        let fuel = activeFuelLogs.filter { !$0.isHistorical }.map(\.odometer)
+        let maintenance = activeMaintenanceLogs.filter { !$0.isHistorical }.map(\.mileage)
+        return (fuel + maintenance).filter { $0 > 0 }.min() ?? currentOdometer
     }
 
     // MARK: - Totais vitalícios (Garagem)
