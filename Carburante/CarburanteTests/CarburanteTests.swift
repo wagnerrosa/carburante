@@ -1697,6 +1697,22 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(moto.distanceSinceBaseline, 1_000, "parte do 1º na hora, não do histórico")
     }
 
+    /// Editar o hodômetro da moto para cima regrava a baseline, mas não zera o
+    /// km das medalhas: a partida fica na 1ª leitura (antes, voltava a 0 km).
+    func testBadgeKm_editingOdometerUpKeepsProgress() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.fuelLogs = [
+            fuelLog(19_000, 10, date: day(2026, 10, 18), created: day(2026, 10, 18)),
+            fuelLog(22_000, 10, date: day(2026, 10, 25), created: day(2026, 10, 25)),
+        ]
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 3_000)
+
+        moto.applyEditedOdometer(22_300, loaded: 22_000)
+        XCTAssertEqual(moto.odometerBaseline, 22_300)
+        XCTAssertEqual(moto.distanceSinceBaseline, 3_300)
+    }
+
     /// Cadastro vazio: manutenção na hora também é leitura de partida.
     func testBadgeKm_emptyRegistrationStartsAtFirstMaintenance() {
         let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
