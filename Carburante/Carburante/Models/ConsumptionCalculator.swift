@@ -125,17 +125,19 @@ extension Motorcycle {
         max(0, currentOdometer - badgeDistanceStart)
     }
 
-    /// De onde o km das medalhas começa a contar. Cadastro com hodômetro = essa
-    /// leitura. Cadastro vazio (baseline 0) = 1º registro NA HORA (abastecimento
-    /// ou manutenção): partir do zero dava todo o km de antes do app no 1º
-    /// abastecimento (moto com 19.000 km → medalha de 5.000 na hora). Histórico
-    /// não define a partida — não conta para conquistas. Sem registro na hora,
-    /// parte do hodômetro atual (0 km).
+    /// De onde o km das medalhas começa a contar: a MENOR leitura entre o
+    /// hodômetro do cadastro e os registros NA HORA (abastecimento ou
+    /// manutenção). Cadastro vazio (baseline 0) não entra: partir do zero dava
+    /// todo o km de antes do app no 1º abastecimento (moto com 19.000 km →
+    /// medalha de 5.000 na hora). O mínimo segura a partida quando o usuário
+    /// edita o hodômetro da moto para cima (regrava a baseline): sem ele, o
+    /// progresso rumo ao próximo nível zerava. Histórico não define a partida —
+    /// não conta para conquistas. Sem leitura nenhuma, parte do hodômetro
+    /// atual (0 km).
     private var badgeDistanceStart: Double {
-        guard odometerBaseline <= 0 else { return odometerBaseline }
         let fuel = activeFuelLogs.filter { !$0.isHistorical }.map(\.odometer)
         let maintenance = activeMaintenanceLogs.filter { !$0.isHistorical }.map(\.mileage)
-        return (fuel + maintenance).filter { $0 > 0 }.min() ?? currentOdometer
+        return ([odometerBaseline] + fuel + maintenance).filter { $0 > 0 }.min() ?? currentOdometer
     }
 
     // MARK: - Totais vitalícios (Garagem)
