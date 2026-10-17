@@ -234,7 +234,7 @@ struct BadgeFleetContext {
     let beatsCategoryAverage: Bool
     /// Categorias que o usuário já cadastrou (ao menos 1 moto) → o que fica VISÍVEL.
     let presentCategories: Set<MotorcycleCategory>
-    /// Km rodados por categoria (soma de `currentOdometer − odometerBaseline`)
+    /// Km rodados por categoria (soma de `Motorcycle.distanceSinceBaseline`)
     /// → decide os níveis II/III.
     let kmByCategory: [MotorcycleCategory: Double]
     /// Marcas (chave normalizada, do catálogo) já cadastradas → badge de marca.

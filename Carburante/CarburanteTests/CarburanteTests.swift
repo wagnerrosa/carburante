@@ -1655,6 +1655,59 @@ final class CarburanteTests: XCTestCase {
         XCTAssertTrue(ctx.hasMaintenanceLog, "manutenção na hora conta")
     }
 
+    // MARK: - Km das medalhas: parte do cadastro, não do zero
+
+    /// Moto cadastrada com 19.000 km: a medalha de 20.000 só aos 39.000.
+    func testBadgeKm_countsFromRegistrationOdometer() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil",
+                              currentOdometer: 19_000)
+        moto.fuelLogs = [fuelLog(39_000, 10, date: day(2026, 10, 18), created: day(2026, 10, 18))]
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 20_000)
+    }
+
+    /// Cadastro sem hodômetro: o km de antes do app não conta — parte do 1º
+    /// abastecimento (antes, 19.000 no 1º abastecimento = 19.000 km rodados).
+    func testBadgeKm_emptyRegistrationStartsAtFirstFuelUp() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        XCTAssertEqual(moto.distanceSinceBaseline, 0, "sem registro → 0 km")
+
+        moto.fuelLogs = [fuelLog(19_000, 10, date: day(2026, 10, 18), created: day(2026, 10, 18))]
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 0, "1º abastecimento é só a partida")
+
+        moto.fuelLogs.append(fuelLog(24_000, 10, date: day(2026, 10, 25), created: day(2026, 10, 25)))
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 5_000)
+        XCTAssertEqual([moto].badgeFleetContext.kmByCategory[.other], 5_000)
+    }
+
+    /// Cadastro vazio: histórico não define a partida (não conta p/ conquistas).
+    func testBadgeKm_emptyRegistrationIgnoresHistoryAsStart() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.fuelLogs = [fuelLog(5_000, 10, date: day(2025, 7, 1), created: day(2026, 10, 20))]
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 0, "só histórico → 0 km")
+
+        moto.fuelLogs += [
+            fuelLog(19_000, 10, date: day(2026, 10, 20), created: day(2026, 10, 20)),
+            fuelLog(20_000, 10, date: day(2026, 10, 27), created: day(2026, 10, 27)),
+        ]
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 1_000, "parte do 1º na hora, não do histórico")
+    }
+
+    /// Cadastro vazio: manutenção na hora também é leitura de partida.
+    func testBadgeKm_emptyRegistrationStartsAtFirstMaintenance() {
+        let moto = Motorcycle(make: "Honda", model: "CG", year: 2020, country: "Brasil")
+        moto.maintenanceLogs = [
+            MaintenanceLog(date: day(2026, 10, 18), mileage: 18_500, type: .oleo, createdAt: day(2026, 10, 18)),
+        ]
+        moto.fuelLogs = [fuelLog(19_000, 10, date: day(2026, 10, 20), created: day(2026, 10, 20))]
+        moto.reconcileOdometer()
+        XCTAssertEqual(moto.distanceSinceBaseline, 500)
+    }
+
     /// Convite de histórico: moto rodada (≥ 1.000 km na 1ª leitura) sem histórico.
     func testHistoryInvite_looksUsedAndHistory() {
         let zero = Motorcycle(make: "Honda", model: "CG", year: 2026, country: "Brasil")
