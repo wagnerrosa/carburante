@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=35">
+  <link rel="stylesheet" href="style.css?v=36">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -71,13 +71,12 @@
      tanque: enche com a leitura da página. -->
 <header class="capsule" id="top">
   <a class="capsule__brand" href="#top" aria-label="Carburante">
-    <img src="assets/icon-64.webp" alt="" width="32" height="32">
     <span>Carburante</span>
   </a>
   <p class="capsule__chapter" aria-hidden="true"><span></span></p>
   <div class="capsule__actions">
     <button class="lang" type="button" id="lang-toggle" aria-label="EN, switch to English">EN</button>
-    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><span data-i18n="cta.nav">Baixar grátis</span></a>
+    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="assets/icon-64.webp" alt="" width="32" height="32"><span data-i18n="cta.nav">Baixar grátis</span></a>
   </div>
   <span class="capsule__fuel" aria-hidden="true"><i></i></span>
 </header>
@@ -495,6 +494,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>

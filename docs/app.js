@@ -489,6 +489,116 @@
     chapterTimer = setTimeout(function () { chapterSpan.textContent = t; chapterEl.classList.remove('is-swap'); }, 200);
   };
 
+  // Baixar (cápsula): uma chama corre a borda como um cometa, com rastro do vermelho ao branco.
+  // Traços SVG empilhados (cada um mais curto e mais quente) num contorno arredondado: velocidade
+  // e rastro constantes ao longo da borda (conic-gradient dispara nos cantos). É um motor: dá a
+  // partida quando a página acende, acelera com a rolagem e no hover, e o rastro cresce com a
+  // rotação. Uma segunda brasa, mais lenta, é ultrapassada de tempos em tempos.
+  var cta = capsule && capsule.querySelector('.capsule__cta');
+  if (cta && document.createElementNS) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var fireSvg = function (cls) {
+      var s = document.createElementNS(NS, 'svg');
+      s.setAttribute('class', 'cta__fire ' + cls);
+      s.setAttribute('aria-hidden', 'true');
+      s.setAttribute('focusable', 'false');
+      cta.insertBefore(s, cta.firstChild);
+      return s;
+    };
+    var glowSvg = fireSvg('cta__fire--glow'), lineSvg = fireSvg('cta__fire--line');
+    var mix = function (stops, t) { // stops: [[t, r, g, b]]
+      for (var i = 1; i < stops.length; i++) if (t <= stops[i][0]) {
+        var a = stops[i - 1], b = stops[i], k = (t - a[0]) / (b[0] - a[0]);
+        return 'rgb(' + [1, 2, 3].map(function (c) { return Math.round(a[c] + (b[c] - a[c]) * k); }).join(',') + ')';
+      }
+    };
+    var FLAME = [[0, 255, 45, 26], [.45, 255, 106, 0], [.75, 255, 176, 0], [.92, 255, 226, 122], [1, 255, 246, 224]];
+    var EMBER = [[0, 255, 45, 26], [.6, 255, 106, 0], [1, 255, 176, 0]];
+    var layers = [];
+    // len = fração do contorno (na marcha lenta); c = cometa (0 chama, 1 brasa)
+    var addLayer = function (svg, c, len, width, color, op, round) {
+      var el = document.createElementNS(NS, 'path');
+      el.setAttribute('stroke', color);
+      el.setAttribute('stroke-width', width);
+      el.setAttribute('stroke-opacity', op);
+      if (round) el.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(el);
+      layers.push({ el: el, c: c, len: len });
+    };
+    addLayer(glowSvg, 1, .12, 6, '#ff3b30', .6);
+    addLayer(glowSvg, 0, .28, 7, '#ff5a00', .9);
+    addLayer(glowSvg, 0, .06, 10, '#ffb347', 1, true);
+    for (var e = 0; e < 3; e++) {
+      var te = e / 2;
+      addLayer(lineSvg, 1, .015 + .13 * Math.pow(1 - te, 1.5), 1 + .6 * te, mix(EMBER, te), .25 + .45 * te);
+    }
+    for (var f = 0; f < 7; f++) {
+      var tf = f / 6;
+      addLayer(lineSvg, 0, .012 + .3 * Math.pow(1 - tf, 1.5), 1.2 + 1.1 * tf, mix(FLAME, tf), .35 + .65 * tf, tf > .8);
+    }
+
+    var P = 0, pos = [.1, .6], rv = 0, rvSet = -1;
+    var shape = function () {
+      var w = cta.offsetWidth, h = cta.offsetHeight, r = Math.min(13, h / 2);
+      if (!w) return;
+      P = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * Math.PI * r;
+      var arc = ' A' + r + ' ' + r + ' 0 0 1 ';
+      var d = 'M' + r + ' 0H' + (w - r) + arc + w + ' ' + r + 'V' + (h - r) + arc + (w - r) + ' ' + h +
+        'H' + r + arc + '0 ' + (h - r) + 'V' + r + arc + r + ' 0Z';
+      layers.forEach(function (l) { l.el.setAttribute('d', d); });
+    };
+    var draw = function () {
+      var grow = 1 + .9 * rv;
+      layers.forEach(function (l) {
+        var L = Math.min(l.len * grow, .9) * P, head = pos[l.c] * P;
+        l.el.setAttribute('stroke-dasharray', L.toFixed(1) + ' ' + (P - L).toFixed(1));
+        l.el.setAttribute('stroke-dashoffset', (L - head).toFixed(1));
+      });
+      if (Math.abs(rv - rvSet) > .004) { rvSet = rv; cta.style.setProperty('--rev', rv.toFixed(3)); }
+    };
+    shape();
+    if ('ResizeObserver' in window) new ResizeObserver(function () { shape(); draw(); }).observe(cta);
+    else window.addEventListener('resize', function () { shape(); draw(); });
+
+    if (!motion) { cta.style.setProperty('--heat', '1'); draw(); }
+    else {
+      var IDLE = .2, MAX = 1.6; // voltas por segundo
+      var v = 0, heat = 0, heatSet = -1, revving = false, started = 0, lastT = 0, lastY = window.scrollY, sv = 0, revTimer = 0;
+      var revOn = function () { clearTimeout(revTimer); revving = true; };
+      var revOff = function () { revving = false; };
+      cta.addEventListener('pointerenter', function (ev) { if (ev.pointerType !== 'touch') revOn(); });
+      cta.addEventListener('pointerleave', function (ev) { if (ev.pointerType !== 'touch') revOff(); });
+      cta.addEventListener('pointerdown', function (ev) { if (ev.pointerType === 'touch') { revOn(); revTimer = setTimeout(revOff, 1200); } });
+      cta.addEventListener('focus', revOn);
+      cta.addEventListener('blur', revOff);
+      var tick = function (t) {
+        var dt = lastT ? Math.min((t - lastT) / 1000, .05) : 0;
+        lastT = t;
+        var y = window.scrollY;
+        if (dt) sv += (Math.abs(y - lastY) / dt - sv) * (1 - Math.exp(-6 * dt));
+        lastY = y;
+        // partida: um tranco forte quando a cápsula desce, que assenta na marcha lenta
+        if (!started && document.documentElement.classList.contains('is-lit')) started = t;
+        var on = started && t - started > 450;
+        if (on && !heat) v = 1.3;
+        var target = !on ? 0 : revving ? MAX : IDLE + (MAX - IDLE) * .75 * Math.min(sv / 2400, 1);
+        v += (target - v) * (1 - Math.exp(-(target > v ? 5 : 1.4) * dt));
+        heat += ((on ? 1 : 0) - heat) * (1 - Math.exp(-2.6 * dt));
+        if (on && heat < .001) heat = .001;
+        pos[0] = (pos[0] + v * dt) % 1;
+        pos[1] = (pos[1] + v * .62 * dt) % 1;
+        rv = clamp((v - IDLE) / (MAX - IDLE), 0, 1);
+        if (Math.abs(heat - heatSet) > .004 || (heat > .995 && heatSet < 1)) {
+          heatSet = heat > .995 ? 1 : heat;
+          cta.style.setProperty('--heat', heatSet.toFixed(3));
+        }
+        draw();
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
+  }
+
   // Hero: o celular endireita conforme o hero sai (--tilt 1 → 0, até 16°) e segue o cursor (--px/--py)
   var hero = document.querySelector('[data-hero]');
   var heroPhone = hero && hero.querySelector('.phone--hero');

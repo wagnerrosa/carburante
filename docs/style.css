@@ -152,7 +152,6 @@ body::after {
 .brand::after, .lang::after, .btn--nav::after { content: ""; position: absolute; inset: -8px -3px; }
 
 /* ---------- Cápsula (menu flutuante da landing) ---------- */
-@property --spin { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 .capsule {
   position: fixed; z-index: 60; top: 12px; left: 50%; translate: -50% 0;
   width: min(660px, calc(100% - 24px)); height: 58px; padding: 0 8px 0 10px;
@@ -163,39 +162,43 @@ body::after {
   transition: opacity .9s ease .15s, translate 1.1s cubic-bezier(.16, 1, .3, 1) .15s;
 }
 .motion:not(.is-lit) .capsule { opacity: 0; translate: -50% -24px; }
-.capsule__brand { position: relative; display: flex; align-items: center; gap: 10px; flex: none; text-decoration: none; font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
-.capsule__brand img { width: 32px; height: 32px; border-radius: 8px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .08); }
+/* Marca: só o nome, desenhado como logotipo (o ícone do app vive no botão de baixar) */
+.capsule__brand { position: relative; display: flex; align-items: center; flex: none; padding-left: 8px; text-decoration: none; font-family: var(--display); font-size: 20px; font-weight: 700; letter-spacing: -.04em; }
 .capsule__brand::after { content: ""; position: absolute; inset: -8px -4px; }
 /* Capítulo: troca com um fade curto (JS liga .is-swap enquanto o texto muda) */
 .capsule__chapter { flex: 1; min-width: 0; margin: 0; text-align: center; font-size: 13px; font-weight: 500; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .capsule__chapter span { display: inline-block; transition: opacity .22s ease, translate .32s cubic-bezier(.16, 1, .3, 1); }
 .capsule__chapter.is-swap span { opacity: 0; translate: 0 7px; }
 .capsule__actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
-/* Baixar: só o texto (o ícone já está na marca, à esquerda) + borda de chama girando (conic-gradient mascarado só na borda) */
+/* Baixar: ícone do app + uma chama que corre a borda (traços SVG desenhados pelo JS, ver app.js).
+   --heat (0→1) acende na partida; --rev (0→1) sobe com a rolagem e no hover. Sem JS: só o contorno. */
 .capsule__cta {
-  position: relative; isolation: isolate; display: flex; align-items: center; height: 42px; padding: 0 18px;
-  border-radius: 13px; text-decoration: none; font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: #f5f5f7; background: #0b0b0d;
+  position: relative; isolation: isolate; display: flex; align-items: center; gap: 9px; height: 42px; padding: 0 16px 0 5px;
+  border-radius: 13px; text-decoration: none; font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: #f5f5f7;
+  background: #0b0b0d; box-shadow: inset 0 0 0 1px rgba(255, 140, 60, .18);
   transition: transform .2s;
 }
 .capsule__cta:hover { transform: translateY(-1px); }
-.capsule__cta::before, .capsule__cta::after {
-  content: ""; position: absolute; inset: -1.5px; border-radius: 14.5px; z-index: -1; pointer-events: none;
-  background: conic-gradient(from var(--spin), #ff3b30, #ff7a00, #ffc400, #ff7a00 50%, #ff3b30 62%, rgba(255, 59, 48, 0) 70%, rgba(255, 59, 48, 0) 92%, #ff3b30);
-  animation: spin 3.6s linear infinite;
+.capsule__cta img, .capsule__cta span { position: relative; z-index: 2; }
+.capsule__cta img { width: 32px; height: 32px; border-radius: 9px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .08); transition: transform .45s var(--ease); }
+.capsule__cta:hover img, .capsule__cta:focus-visible img { transform: rotate(-6deg) scale(1.06); }
+/* Brasa por dentro: sobe da base e esquenta com a rotação */
+.capsule__cta::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(85% 130% at 50% 135%, rgba(255, 106, 0, .6), rgba(255, 59, 48, .14) 55%, transparent 78%);
+  opacity: calc(var(--heat, 0) * (.3 + .7 * var(--rev, 0)));
 }
-.capsule__cta::before { -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; padding: 1.5px; }
-.capsule__cta::after { filter: blur(10px); opacity: .45; inset: 2px; }
-.capsule__cta:hover::after { opacity: .8; }
-@keyframes spin { to { --spin: 360deg; } }
+.cta__fire { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; fill: none; }
+.cta__fire--glow { z-index: -1; filter: blur(5px); opacity: calc(var(--heat, 0) * (.55 + .45 * var(--rev, 0))); }
+.cta__fire--line { z-index: 1; opacity: var(--heat, 0); }
 /* Tanque: a linha da base enche conforme a página desce (--fuel, JS) */
 .capsule__fuel { position: absolute; left: 18px; right: 18px; bottom: 0; height: 2px; border-radius: 2px; overflow: hidden; background: rgba(255, 255, 255, .06); pointer-events: none; }
 .capsule__fuel i { display: block; height: 100%; background: var(--flame); transform-origin: left; transform: scaleX(var(--fuel, 0)); }
 @media (max-width: 600px) {
   .capsule { top: 8px; width: calc(100% - 16px); height: 54px; }
   .capsule__chapter { display: none; }
-  .capsule__brand span { font-size: 16px; }
+  .capsule__brand { font-size: 19px; padding-left: 6px; }
 }
-@media (prefers-reduced-motion: reduce) { .capsule__cta::before, .capsule__cta::after { animation: none; } }
 
 /* ---------- Buttons ---------- */
 .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
@@ -362,10 +365,12 @@ body::after {
 .cluster { grid-area: cluster; }
 .steps { grid-area: steps; align-self: start; }
 
-/* Sticky: a seção é alta e o palco fica parado enquanto a rolagem avança a história. */
+/* Sticky: a seção é alta e o palco fica parado enquanto a rolagem avança a história.
+   Palcos em lvh (tela com a barra do Safari recolhida, que é como ela fica ao rolar para baixo):
+   em svh sobrava uma faixa vazia de ~160px embaixo no iPhone. Fixo, não pula quando a barra mexe. */
 .motion .measure { height: 440vh; }
 .motion .measure__stage {
-  position: sticky; top: 0; height: 100vh; height: 100svh;
+  position: sticky; top: 0; height: 100vh; height: 100lvh;
   display: flex; align-items: center; padding: 64px 0 24px; overflow: hidden;
 }
 
@@ -521,7 +526,7 @@ body::after {
 }
 
 .motion .reel { height: 340vh; }
-.motion .reel__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; display: flex; align-items: center; }
+.motion .reel__stage { position: sticky; top: 0; height: 100vh; height: 100lvh; overflow: hidden; display: flex; align-items: center; }
 .motion .features { grid-template-areas: "f"; gap: 0; padding: 0; }
 .motion .feature { grid-area: f; }
 .motion .feature__media { opacity: 0; scale: .96; transition: opacity .5s ease, scale .7s var(--ease); }
@@ -530,7 +535,7 @@ body::after {
 .motion .feature.is-past .feature__copy { transform: translateY(-40px); }
 .motion .feature.is-active .feature__copy { opacity: 1; transform: none; transition-delay: .12s; pointer-events: auto; }
 /* Celular cabe na altura da tela (moldura ≈ largura × 2,17) */
-.motion .reel .phone { width: min(300px, calc((76svh - 20px) / 2.17)); max-width: none; }
+.motion .reel .phone { width: min(300px, calc((76lvh - 20px) / 2.17)); max-width: none; }
 .reel__ticks { display: none; }
 /* Posicionado no palco (sticky), não no .wrap: fica no rodapé da tela */
 .motion .reel__ticks {
@@ -542,7 +547,7 @@ body::after {
 @media (max-width: 879px) {
   .feature__media { order: -1; }
   .motion .feature { align-content: center; gap: 24px; }
-  .motion .reel .phone { width: min(240px, calc((54svh - 20px) / 2.17)); }
+  .motion .reel .phone { width: min(250px, calc((56lvh - 20px) / 2.17)); }
   .motion .feature__copy { text-align: center; }
   .motion .feature__copy p:not(.kicker) { margin: 0 auto; font-size: 16px; }
   .motion .feature__copy h3 { font-size: clamp(24px, 6.6vw, 32px); margin-bottom: 10px; }
