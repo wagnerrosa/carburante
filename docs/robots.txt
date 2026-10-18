@@ -1,0 +1,5 @@
+# Carburante — tudo liberado, inclusive para buscadores e assistentes de IA.
+User-agent: *
+Allow: /
+
+Sitemap: https://carburante.motorcycles/sitemap.xml
