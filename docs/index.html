@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Carburante · Quanto sua moto faz de verdade?</title>
-  <meta name="description" content="Fotografe o hodômetro e o cupom: o Carburante calcula o consumo real da sua moto, de tanque cheio a tanque cheio, e avisa antes da troca de óleo. Grátis para iPhone, sem cadastro e sem anúncios.">
+  <meta name="description" content="Fotografe o hodômetro no posto: o Carburante calcula o consumo real da sua moto, de tanque cheio a tanque cheio, e avisa antes da troca de óleo. Grátis para iPhone, sem cadastro e sem anúncios.">
   <link rel="canonical" href="https://carburante.motorcycles/">
   <meta name="author" content="Wagner Rosa">
   <meta name="publish_date" property="og:publish_date" content="2026-09-27T00:00:00-03:00">
@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=29">
+  <link rel="stylesheet" href="style.css?v=30">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -90,7 +90,7 @@
     <div class="wrap">
       <div class="hero__copy">
         <h1 data-rise data-i18n="hero.title">Quanto sua moto faz <em class="accent flame-text">de&nbsp;verdade?</em></h1>
-        <p class="hero__lede" data-i18n="hero.lede">Fotografe o hodômetro e o cupom. O Carburante calcula a média real e avisa antes da troca de óleo. Até sem sinal.</p>
+        <p class="hero__lede" data-i18n="hero.lede">Fotografe o hodômetro no posto. O&nbsp;Carburante calcula a média real e avisa antes da troca de óleo. Até sem sinal.</p>
         <div class="cta-row">
           <a class="store-badge js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.badge"><img src="assets/store/app-store-pt-br.svg" alt="Baixar na App Store" width="144" height="48"></a>
           <a class="btn btn--ghost" href="#consumo" data-i18n="cta.how">Ver a conta</a>
@@ -190,7 +190,7 @@
       <div class="wrap reel__wrap">
         <div class="features">
           <div class="feature is-active">
-            <!-- Objetos do posto: o cupom (a linha de leitura passa e marca valor e litros, como as
+            <!-- Objetos do posto: o comprovante (a linha de leitura passa e marca valor e litros, como as
                  caixas do Vision) e o visor da bomba em 7 segmentos. Números = os do clipe. -->
             <div class="feature__media feature__media--scan" data-scan><figure class="receipt" aria-hidden="true">
                 <div class="receipt__paper">
@@ -209,7 +209,7 @@
             <div class="feature__copy">
               <p class="kicker" data-i18n="f1.k">Registro</p>
               <h3 data-i18n="f1.t">Fotografou, registrou.</h3>
-              <p data-i18n="f1.d">O iPhone lê o hodômetro e o cupom. Você só confere.</p>
+              <p data-i18n="f1.d">O iPhone lê o hodômetro, depois a bomba ou o comprovante. Você só confere.</p>
             </div>
           </div>
 
@@ -245,15 +245,13 @@
     </div>
   </section>
 
-  <!-- MANIFESTO: o que o app não pede. Cinco linhas de letreiro, uma de cada vez; "código aberto"
-       é a prova que dá para conferir. -->
+  <!-- MANIFESTO: o que o app não pede. Quatro linhas de letreiro, uma de cada vez. -->
   <section class="manifesto" data-chapter="Manifesto">
     <div class="wrap">
       <ul class="manifesto__list">
         <li data-rise data-i18n="x1"><span class="dim">Sem</span> cadastro.</li>
         <li data-rise data-i18n="x2"><span class="dim">Sem</span> senha.</li>
         <li data-rise data-i18n="x3"><span class="dim">Sem</span> anúncios.</li>
-        <li data-rise data-i18n="x5"><span class="dim">Sem</span> segredo: <a class="mf-link" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">código aberto.</a></li>
         <li data-rise data-i18n="x4"><span class="dim">Sem</span> sinal? <em class="accent flame-text">Sem problema.</em></li>
       </ul>
     </div>
@@ -389,11 +387,11 @@
         </details>
         <details>
           <summary data-i18n="q7.q">O que acontece com as fotos?</summary>
-          <p data-i18n="q7.a">A leitura acontece no próprio iPhone. A foto do cupom não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem.</p>
+          <p data-i18n="q7.a">A leitura acontece no próprio iPhone. A foto da bomba ou do comprovante não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem.</p>
         </details>
         <details>
           <summary data-i18n="q8.q">Lê o display da bomba?</summary>
-          <p data-i18n="q8.a">Lê, mas ainda não acerta 100%. Reflexo, ângulo e display de segmentos atrapalham. Por isso o app sempre mostra o que leu antes de salvar: você confere e corrige o que precisar. O cupom impresso costuma sair mais preciso.</p>
+          <p data-i18n="q8.a">Lê, mas ainda não acerta 100%. Reflexo, ângulo e display de segmentos atrapalham. Por isso o app sempre mostra o que leu antes de salvar: você confere e corrige o que precisar. O comprovante impresso costuma sair mais preciso.</p>
         </details>
       </div>
     </div>
@@ -438,6 +436,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=33"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>
