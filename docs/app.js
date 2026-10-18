@@ -6,8 +6,8 @@
   // lido do próprio DOM na carga e restaurado ao voltar.
   var EN = {
     'skip': 'Skip to content',
-    'hero.title': 'See your bike’s <span class="flame-text">real fuel economy.</span>',
-    'hero.lede': 'Log the fuel-up at the pump, even with no signal. Carburante measures consumption from full tank to full tank and warns you before the next service is due.',
+    'hero.title': 'Your bike’s fuel economy. <em class="accent flame-text">For real.</em>',
+    'hero.lede': 'Log a fuel-up in seconds, even with no signal. We handle the rest: the right average and a heads-up before your next service.',
     'cta.store': 'Download on the App Store',
     'cta.badge': '<img src="assets/store/app-store-en-us.svg" alt="Download on the App Store" width="144" height="48">',
     'cta.nav': 'Download',
@@ -18,9 +18,9 @@
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
     'alt.maintenance': 'An oil change notification arrives on the iPhone and opens the scheduled maintenance list',
     'alt.garage': 'Garage with three bikes, records, totals and the achievement level',
-    'br.text': 'Fuel-ups take seconds. Consumption doesn’t lie. Maintenance never catches you off guard.',
+    'br.text': 'Less time at the pump. <em class="accent">More time on the road.</em>',
     'm.kicker': 'How we measure',
-    'm.title': 'Full tank to full tank.<br>The method that doesn’t lie.',
+    'm.title': 'Full tank to full tank. <em class="accent">The math that doesn’t lie.</em>',
     'alt.cluster': 'Bike dashboard: the odometer goes from 22,039 to 22,391 km, 6.0 L go in on a partial fill-up and 11.3 L on the next full tank. 352 km ÷ 17.3 L = 20.3 km/l.',
     'ev1': 'Full tank · starting point',
     'ev2': '+6.0 L · partial',
@@ -28,35 +28,31 @@
     'avg.label': 'Stretch average',
     'avg.math': '352 km ÷ 17.3 L',
     'avg.n': '20.3',
-    'm1.t': 'Fill it up',
-    'm1.d': 'Your first full tank is the starting point. No average yet, and the app shows how many fuel-ups are left.',
-    'm2.t': 'Ride as usual',
-    'm2.d': 'Only topped up a bit? Switch off “Full tank”. Those liters still count toward the stretch.',
-    'm3.t': 'Fill up again',
-    'm3.d': 'Distance ridden ÷ liters added over the stretch. With a full tank at both ends, the math adds up.',
-    'm.note': 'Dividing each fuel-up by the previous one looks simpler, but it’s wrong every time the tank isn’t full. That’s where inflated averages come from.',
+    'm1.t': 'Fill up.',
+    'm1.d': 'Your first full tank is the starting point.',
+    'm2.t': 'Ride.',
+    'm2.d': 'Only topped up a bit? Switch off “Full tank” and those liters still count.',
+    'm3.t': 'Fill up again.',
+    'm3.d': 'Distance ÷ liters over the stretch. Done: your real average.',
+    'm.note': 'Doing the math at every fill-up is easier. It’s also wrong whenever the tank isn’t full.',
     'f.kicker': 'Features',
     'f.title': 'Built for riding, not for typing.',
     'f1.k': 'Logging',
-    'f1.t': 'Three steps. Zero wasted fields.',
-    'f1.d': 'Snap the odometer and the number is read right on your iPhone. Cost and liters come from a photo of the receipt or the pump, and you check them before saving.',
+    'f1.t': 'Snap it. Logged.',
+    'f1.d': 'Your iPhone reads the odometer and the receipt. You just check.',
     'f2.k': 'Consumption',
-    'f2.t': 'Twisties or traffic? The chart shows.',
-    'f2.d': 'Tank-by-tank chart, period average and an estimated benchmark for your bike’s category and engine size, if you enter both.',
+    'f2.t': 'Twisties or traffic? The chart tells.',
+    'f2.d': 'Tank by tank, with the period average and an estimated benchmark for bikes like yours.',
     'f3.k': 'Maintenance',
-    'f3.t': 'Every part on its own schedule.',
-    'f3.d': 'Intervals by distance and by months. A notification arrives before it’s due, and every service stays on record with date, mileage and cost.',
+    'f3.t': 'It remembers. You ride.',
+    'f3.d': 'Oil, tires, chain and brakes, by distance or by date. The reminder arrives before it’s due.',
     'f4.k': 'Garage',
-    'f4.t': 'Your garage, every bike kept apart.',
-    'f4.d': 'Track consumption and maintenance for each bike separately. Records and totals add up the whole garage.',
-    'x1.t': 'Works offline',
-    'x1.d': 'No signal at a roadside station? It saves on the device and syncs later.',
-    'x2.t': 'Private by default',
-    'x2.d': 'Photos are read on your iPhone. No ads, no selling your data.',
-    'x3.t': 'No sign-up',
-    'x3.d': 'Open it and go. No account to create, no password.',
-    'x4.t': 'Gentle reminders',
-    'x4.d': 'Nudges you about the oil change and reminds you to log if you go quiet.',
+    'f4.t': 'One garage. Zero mix-ups.',
+    'f4.d': 'Each bike keeps its own consumption and maintenance. Records add them all up.',
+    'x1': '<span>No</span> sign-up.',
+    'x2': '<span>No</span> password.',
+    'x3': '<span>No</span> ads.',
+    'x4': '<span>No</span> signal? <em class="accent flame-text">No problem.</em>',
     'bt.title': 'Use it at your next fuel-up.',
     'bt.d': 'Free on the Brazilian App Store. Requires an iPhone with iOS 18 or later; the app is in Portuguese for now.',
     'bt.mail': 'Questions or ideas? <a href="mailto:beta@carburante.motorcycles?subject=Carburante">beta@carburante.motorcycles</a>',
@@ -78,28 +74,27 @@
     'q8.a': 'It does, but it isn’t 100% accurate yet. Glare, angle and segmented displays get in the way. That’s why the app always shows what it read before you save: you check it and fix anything that’s off. Printed receipts tend to come out more accurate.',
     'b.kicker': 'Achievements',
     'b.title': 'Riding is collecting, too.',
-    'b.lede': '25 badges weighted by difficulty and levels that actually mean something. Recognition only: no feature is ever locked behind a badge.',
+    'b.lede': '25 badges. No feature locked behind any of them.',
     'bd.fuel': 'First fuel-up',
     'bd.maint': 'First service',
     'bd.best': 'Above average',
     'bd.cc': '500cc Club',
     'bd.iron': 'Iron Butt · later',
-    'r.kicker': 'Roadmap',
-    'r.title': 'Today, a logbook. On the horizon, your bike’s passport.',
-    'r.quote': '“The bike carries its events. You keep your story.”',
-    'r.lede': 'The idea is for the history to belong to the motorcycle, not the owner: in a sale, services, mileage and consumption would go with it. None of this has a date. What comes next depends on real-world use.',
+    'r.kicker': 'On the horizon',
+    'r.quote': 'The bike carries its events. <em class="accent">You keep your story.</em>',
+    'r.lede': 'Today, a logbook. Next, the bike’s passport. None of it has a date.',
     'st.done': 'Shipped',
     'st.now': 'Now',
     'st.planned': 'Planned',
     'st.ideas': 'Ideas',
     'r1.t': 'Logbook',
-    'r1.d': 'Fast fuel logging, real consumption, receipt reading, scheduled maintenance, a multi-bike garage, badges and a cloud copy of your records.',
+    'r1.d': 'Consumption, maintenance, garage and badges.',
     'r2.t': 'On the App Store',
-    'r2.d': 'Available on the Brazilian App Store. This is where you come in: every fuel-up logged helps decide what comes next.',
+    'r2.d': 'This is where you come in.',
     'r3.t': 'Digital passport',
-    'r3.d': 'The history starts belonging to the bike, keeping the author of each record.',
+    'r3.d': 'The history becomes the bike’s.',
     'r6.t': 'Beyond the pump',
-    'r6.d': 'Real consumption vs. factory figures, weather at each fuel-up, a ride diary and trips, long-distance challenges like the Iron Butt and, someday, community.',
+    'r6.d': 'Trips, weather and Iron Butt.',
     's.kicker': 'Behind the scenes',
     's.title': 'Made by someone who rides, too.',
     's.lede': 'I’m <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer and rider for over two decades. I built Carburante for a simple reason: logging a fuel-up has to fit in a gas-station stop.',
@@ -456,11 +451,26 @@
   // Ponte: cada palavra vira <span class="w"> e acende conforme a frase sobe na tela
   var words = document.querySelector('[data-words]');
   var wordEls = [];
+  // Percorre os nós e embrulha só o texto: o <em class="accent"> continua em volta das palavras dele.
+  var wrapWords = function (node) {
+    Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+      if (n.nodeType === 1) { wrapWords(n); return; }
+      if (n.nodeType !== 3) return;
+      var frag = document.createDocumentFragment();
+      n.textContent.split(/(\s+)/).forEach(function (t) {
+        if (!t) return;
+        if (/^\s+$/.test(t)) { frag.appendChild(document.createTextNode(t)); return; }
+        var w = document.createElement('span');
+        w.className = 'w';
+        w.textContent = t;
+        frag.appendChild(w);
+      });
+      node.replaceChild(frag, n);
+    });
+  };
   var splitWords = function () {
     if (!words || !motion) return;
-    words.innerHTML = words.textContent.split(/(\s+)/).map(function (t) {
-      return /^\s+$/.test(t) || !t ? t : '<span class="w">' + t + '</span>';
-    }).join('');
+    wrapWords(words);
     wordEls = Array.prototype.slice.call(words.querySelectorAll('.w'));
   };
   splitWords();
@@ -578,6 +588,51 @@
   var navLang = (navigator.language || 'pt').toLowerCase();
   apply(param || (saved === 'en' || saved === 'pt' ? saved : (navLang.indexOf('pt') === 0 ? 'pt' : 'en')));
   frame();
+
+
+  // COMPARAÇÃO (só no localhost; sair antes do PR): troca a fonte dos títulos e o destaque
+  // em serifa sem recarregar. A escolha vale a sessão (o <head> lê na próxima carga).
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    var root = document.documentElement;
+    var bar = document.createElement('div');
+    bar.className = 'font-dev';
+    var group = function (label, attr, keyName, opts) {
+      var b = document.createElement('b');
+      b.textContent = label;
+      bar.appendChild(b);
+      opts.forEach(function (o) {
+        var a = document.createElement('a');
+        a.href = '#';
+        a.textContent = o[1];
+        a.classList.toggle('is-on', root.dataset[attr] === o[0]);
+        a.addEventListener('click', function (e) {
+          e.preventDefault();
+          root.dataset[attr] = o[0];
+          try { sessionStorage.setItem(keyName, o[0]); } catch (err) { /* sem storage */ }
+          bar.querySelectorAll('[data-g="' + attr + '"]').forEach(function (x) { x.classList.toggle('is-on', x === a); });
+          if (document.fonts) document.fonts.ready.then(function () { fitMark(); frame(); }); else fitMark();
+        });
+        a.setAttribute('data-g', attr);
+        bar.appendChild(a);
+      });
+    };
+    group('Fonte', 'font', 'lp-font', [['sf', 'SF'], ['geist', 'Geist'], ['clash', 'Clash'], ['archivo', 'Archivo (v1)']]);
+    group('Destaque', 'accent', 'lp-accent', [['serif', 'Serifa'], ['sans', 'Sans']]);
+    document.body.appendChild(bar);
+  }
+
+  // Nome do rodapé do tamanho da largura, qualquer que seja a fonte: mede em 100px e escala.
+  var mark = document.querySelector('.footer__mark');
+  var fitMark = function () {
+    if (!mark) return;
+    var span = mark.firstElementChild;
+    mark.style.fontSize = '100px';
+    var w = span.getBoundingClientRect().width;
+    if (w) mark.style.fontSize = (100 * mark.clientWidth * .96 / w).toFixed(1) + 'px';
+  };
+  fitMark();
+  window.addEventListener('resize', fitMark, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitMark);
 
   // Reveal on scroll.
   var items = document.querySelectorAll('.reveal');
