@@ -20,7 +20,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=40">
+  <link rel="stylesheet" href="/style.css?v=42">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -131,11 +131,21 @@
 </header>
 
 <main id="main" class="legal help">
-  <div class="wrap wrap--narrow">
+  <div class="help__layout">
+    <aside class="help__side" aria-label="Páginas da Ajuda">
+      <a class="help__side-home" href="/ajuda/">Ajuda do Carburante</a>
+      <p class="help__side-label">Primeiros passos</p><ul><li><a href="/ajuda/cadastrar-moto/">Cadastrar sua moto</a></li><li><a href="/ajuda/registrar-abastecimento/">Registrar um abastecimento</a></li></ul><p class="help__side-label">Consumo</p><ul><li><a href="/ajuda/consumo/">Como o consumo é calculado</a></li><li><a href="/ajuda/primeira-media/">Por que o consumo ainda não aparece</a></li></ul><p class="help__side-label">Abastecimentos</p><ul><li><a href="/ajuda/leitura-da-foto/">Leitura da foto</a></li><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento</a></li><li class="is-current"><a href="/ajuda/abastecimento-antigo/" aria-current="page">Lançar abastecimentos e manutenções antigos</a><ol class="help__toc"><li><a href="#onde-encontrar">Onde encontrar</a></li><li><a href="#abastecimento-antigo-passo-a-passo">Abastecimento antigo, passo a passo</a></li><li><a href="#manutencao-antiga">Manutenção antiga</a></li><li><a href="#o-que-conta-como-historico">O que conta como histórico</a></li></ol></li></ul><p class="help__side-label">Manutenção</p><ul><li><a href="/ajuda/manutencao/">Troca de óleo e manutenções</a></li></ul><p class="help__side-label">Garagem e Premium</p><ul><li><a href="/ajuda/trocar-de-moto/">Vendi minha moto ou comprei outra</a></li><li><a href="/ajuda/premium/">Carburante Premium</a></li></ul><p class="help__side-label">Conta e dados</p><ul><li><a href="/ajuda/outro-iphone/">Guardar dados e trocar de iPhone</a></li></ul>
+    </aside>
+    <div class="help__main">
+    <details class="help__menu">
+      <summary>Índice da Ajuda</summary>
+      <nav aria-label="Páginas da Ajuda"><p class="help__side-label">Primeiros passos</p><ul><li><a href="/ajuda/cadastrar-moto/">Cadastrar sua moto</a></li><li><a href="/ajuda/registrar-abastecimento/">Registrar um abastecimento</a></li></ul><p class="help__side-label">Consumo</p><ul><li><a href="/ajuda/consumo/">Como o consumo é calculado</a></li><li><a href="/ajuda/primeira-media/">Por que o consumo ainda não aparece</a></li></ul><p class="help__side-label">Abastecimentos</p><ul><li><a href="/ajuda/leitura-da-foto/">Leitura da foto</a></li><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento</a></li><li class="is-current"><a href="/ajuda/abastecimento-antigo/" aria-current="page">Lançar abastecimentos e manutenções antigos</a><ol class="help__toc"><li><a href="#onde-encontrar">Onde encontrar</a></li><li><a href="#abastecimento-antigo-passo-a-passo">Abastecimento antigo, passo a passo</a></li><li><a href="#manutencao-antiga">Manutenção antiga</a></li><li><a href="#o-que-conta-como-historico">O que conta como histórico</a></li></ol></li></ul><p class="help__side-label">Manutenção</p><ul><li><a href="/ajuda/manutencao/">Troca de óleo e manutenções</a></li></ul><p class="help__side-label">Garagem e Premium</p><ul><li><a href="/ajuda/trocar-de-moto/">Vendi minha moto ou comprei outra</a></li><li><a href="/ajuda/premium/">Carburante Premium</a></li></ul><p class="help__side-label">Conta e dados</p><ul><li><a href="/ajuda/outro-iphone/">Guardar dados e trocar de iPhone</a></li></ul></nav>
+    </details>
     <nav class="help__crumbs" aria-label="Você está em"><a href="/ajuda/">Ajuda</a> <span aria-hidden="true">›</span> Abastecimentos</nav>
     <article>
       <h1>Como lançar abastecimentos e manutenções antigos</h1>
       <p class="legal__updated">Atualizado em 18 de outubro de 2026 · Carburante 1.1 para iPhone</p>
+      <div class="help__body">
 <p class="help__lead"><strong>Resposta curta:</strong> vá em <strong>Garagem</strong>, toque na moto e em <strong>Adicionar histórico</strong>. Escolha o dia primeiro e depois o km daquele dia. Abastecimentos e manutenções antigos entram no consumo, nos gastos e nas próximas manutenções, mas não contam para as conquistas.</p>
 <h2 id="onde-encontrar">Onde encontrar</h2>
 <ul><li><strong>Garagem</strong> › sua moto › <strong>Adicionar histórico</strong>.</li><li>No fim da lista de <strong>Abastecimentos</strong> ou de <strong>Manutenções</strong> da moto: <strong>Adicionar histórico</strong>.</li><li>No <strong>Resumo</strong>, o card <strong>Sua moto já tem histórico?</strong> › <strong>Registrar histórico</strong>, com as opções <strong>Abastecimento antigo</strong> e <strong>Manutenção antiga</strong>. Ele aparece para motos usadas que ainda não têm histórico.</li></ul>
@@ -145,12 +155,14 @@
 <p>Escolha <strong>Manutenção antiga</strong>, informe a data em que foi feita, o tipo, o km e o custo. O app recalcula a próxima manutenção a partir dela. Veja <a href="/ajuda/manutencao/">Como acompanhar a troca de óleo e outras manutenções</a>.</p>
 <h2 id="o-que-conta-como-historico">O que conta como histórico</h2>
 <p>Um registro feito mais de 7 dias depois da data dele é tratado como histórico. Ele entra em tudo que mede a moto (consumo, gastos, km rodados, manutenção), mas não libera medalhas, pontos nem recordes: as conquistas premiam o uso real, registrado na hora.</p>
+      </div>
       <aside class="help__related" aria-labelledby="veja-tambem"><h2 id="veja-tambem">Veja também</h2><ul><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento. E agora?</a></li><li><a href="/ajuda/manutencao/">Como acompanhar a troca de óleo e outras manutenções</a></li><li><a href="/ajuda/consumo/">Como o Carburante calcula o consumo da moto</a></li></ul></aside>
       <div class="help__contact">
         <p>Não achou o que procurava? Escreva para <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
         <a class="btn btn--flame js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener">Baixar o Carburante grátis</a>
       </div>
     </article>
+    </div>
   </div>
 </main>
 
@@ -178,6 +190,22 @@
     var a = e.target.closest ? e.target.closest('a.js-store') : null;
     if (a && typeof window.gtag === 'function') window.gtag('event', 'generate_lead', { method: 'app_store', event_location: 'help' });
   });
+</script>
+<script>
+  (function () {
+    var links = [].slice.call(document.querySelectorAll('.help__side .help__toc a'));
+    var heads = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+    if (!links.length) return;
+    var tick = false;
+    var spy = function () {
+      tick = false;
+      var cur = 0;
+      heads.forEach(function (h, i) { if (h && h.getBoundingClientRect().top < innerHeight * .35) cur = i; });
+      links.forEach(function (a, i) { a.classList.toggle('is-active', i === cur); });
+    };
+    addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(spy); } }, { passive: true });
+    spy();
+  })();
 </script>
 </body>
 </html>

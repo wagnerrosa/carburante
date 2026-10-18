@@ -20,7 +20,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=40">
+  <link rel="stylesheet" href="/style.css?v=42">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -131,11 +131,21 @@
 </header>
 
 <main id="main" class="legal help">
-  <div class="wrap wrap--narrow">
+  <div class="help__layout">
+    <aside class="help__side" aria-label="Páginas da Ajuda">
+      <a class="help__side-home" href="/ajuda/">Ajuda do Carburante</a>
+      <p class="help__side-label">Primeiros passos</p><ul><li class="is-current"><a href="/ajuda/cadastrar-moto/" aria-current="page">Cadastrar sua moto</a><ol class="help__toc"><li><a href="#passo-a-passo">Passo a passo</a></li><li><a href="#para-que-servem-os-detalhes-opcionais">Para que servem os detalhes opcionais</a></li><li><a href="#a-cor-do-app-muda-com-a-marca">A cor do app muda com a marca</a></li><li><a href="#mais-de-uma-moto">Mais de uma moto</a></li></ol></li><li><a href="/ajuda/registrar-abastecimento/">Registrar um abastecimento</a></li></ul><p class="help__side-label">Consumo</p><ul><li><a href="/ajuda/consumo/">Como o consumo é calculado</a></li><li><a href="/ajuda/primeira-media/">Por que o consumo ainda não aparece</a></li></ul><p class="help__side-label">Abastecimentos</p><ul><li><a href="/ajuda/leitura-da-foto/">Leitura da foto</a></li><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento</a></li><li><a href="/ajuda/abastecimento-antigo/">Lançar abastecimentos e manutenções antigos</a></li></ul><p class="help__side-label">Manutenção</p><ul><li><a href="/ajuda/manutencao/">Troca de óleo e manutenções</a></li></ul><p class="help__side-label">Garagem e Premium</p><ul><li><a href="/ajuda/trocar-de-moto/">Vendi minha moto ou comprei outra</a></li><li><a href="/ajuda/premium/">Carburante Premium</a></li></ul><p class="help__side-label">Conta e dados</p><ul><li><a href="/ajuda/outro-iphone/">Guardar dados e trocar de iPhone</a></li></ul>
+    </aside>
+    <div class="help__main">
+    <details class="help__menu">
+      <summary>Índice da Ajuda</summary>
+      <nav aria-label="Páginas da Ajuda"><p class="help__side-label">Primeiros passos</p><ul><li class="is-current"><a href="/ajuda/cadastrar-moto/" aria-current="page">Cadastrar sua moto</a><ol class="help__toc"><li><a href="#passo-a-passo">Passo a passo</a></li><li><a href="#para-que-servem-os-detalhes-opcionais">Para que servem os detalhes opcionais</a></li><li><a href="#a-cor-do-app-muda-com-a-marca">A cor do app muda com a marca</a></li><li><a href="#mais-de-uma-moto">Mais de uma moto</a></li></ol></li><li><a href="/ajuda/registrar-abastecimento/">Registrar um abastecimento</a></li></ul><p class="help__side-label">Consumo</p><ul><li><a href="/ajuda/consumo/">Como o consumo é calculado</a></li><li><a href="/ajuda/primeira-media/">Por que o consumo ainda não aparece</a></li></ul><p class="help__side-label">Abastecimentos</p><ul><li><a href="/ajuda/leitura-da-foto/">Leitura da foto</a></li><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento</a></li><li><a href="/ajuda/abastecimento-antigo/">Lançar abastecimentos e manutenções antigos</a></li></ul><p class="help__side-label">Manutenção</p><ul><li><a href="/ajuda/manutencao/">Troca de óleo e manutenções</a></li></ul><p class="help__side-label">Garagem e Premium</p><ul><li><a href="/ajuda/trocar-de-moto/">Vendi minha moto ou comprei outra</a></li><li><a href="/ajuda/premium/">Carburante Premium</a></li></ul><p class="help__side-label">Conta e dados</p><ul><li><a href="/ajuda/outro-iphone/">Guardar dados e trocar de iPhone</a></li></ul></nav>
+    </details>
     <nav class="help__crumbs" aria-label="Você está em"><a href="/ajuda/">Ajuda</a> <span aria-hidden="true">›</span> Primeiros passos</nav>
     <article>
       <h1>Como cadastrar sua moto no Carburante</h1>
       <p class="legal__updated">Atualizado em 18 de outubro de 2026 · Carburante 1.1 para iPhone</p>
+      <div class="help__body">
 <p class="help__lead"><strong>Resposta curta:</strong> na primeira vez que abrir o app, toque em <strong>Cadastrar minha moto</strong>. Só marca e modelo são obrigatórios; o hodômetro atual ajuda o app a conferir os próximos registros. O resto é opcional e pode ficar para depois. Não precisa criar conta.</p>
 <h2 id="passo-a-passo">Passo a passo</h2>
 <ol><li>Abra o Carburante e toque em <strong>Cadastrar minha moto</strong>. Se pulou a apresentação, vá em <strong>Garagem</strong> e toque em <strong>Adicionar moto</strong>.</li><li>Em <strong>Marca</strong>, escolha na lista: Honda, Yamaha, BMW, Suzuki, Harley-Davidson, Royal Enfield, Ducati, Kawasaki, Triumph ou KTM. Se a sua não estiver, escolha <strong>Outra…</strong> e digite o nome.</li><li>Digite o <strong>Modelo</strong> e escolha o <strong>Ano</strong>.</li><li>Em <strong>Hodômetro</strong>, informe a quilometragem atual.</li><li>Se quiser, preencha <strong>Detalhes (opcional)</strong>: categoria, cilindrada e país.</li><li>Toque em <strong>Salvar</strong>.</li></ol>
@@ -145,12 +155,14 @@
 <p>O Carburante assume a cor da marca da moto ativa: vermelho para Honda, verde para Kawasaki, e assim por diante. Marcas fora da lista usam a cor padrão do app.</p>
 <h2 id="mais-de-uma-moto">Mais de uma moto</h2>
 <p>No plano grátis, a garagem tem uma moto ativa por vez. Para trocar de moto sem pagar nada, veja <a href="/ajuda/trocar-de-moto/">Vendi minha moto ou comprei outra</a>. Para ter várias motos ativas ao mesmo tempo, veja o <a href="/ajuda/premium/">Carburante Premium</a>.</p>
+      </div>
       <aside class="help__related" aria-labelledby="veja-tambem"><h2 id="veja-tambem">Veja também</h2><ul><li><a href="/ajuda/registrar-abastecimento/">Como registrar um abastecimento no Carburante</a></li><li><a href="/ajuda/trocar-de-moto/">Vendi minha moto ou comprei outra. Como faço no Carburante?</a></li><li><a href="/ajuda/premium/">Carburante Premium: o que inclui e como assinar, restaurar ou cancelar</a></li></ul></aside>
       <div class="help__contact">
         <p>Não achou o que procurava? Escreva para <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
         <a class="btn btn--flame js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener">Baixar o Carburante grátis</a>
       </div>
     </article>
+    </div>
   </div>
 </main>
 
@@ -178,6 +190,22 @@
     var a = e.target.closest ? e.target.closest('a.js-store') : null;
     if (a && typeof window.gtag === 'function') window.gtag('event', 'generate_lead', { method: 'app_store', event_location: 'help' });
   });
+</script>
+<script>
+  (function () {
+    var links = [].slice.call(document.querySelectorAll('.help__side .help__toc a'));
+    var heads = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+    if (!links.length) return;
+    var tick = false;
+    var spy = function () {
+      tick = false;
+      var cur = 0;
+      heads.forEach(function (h, i) { if (h && h.getBoundingClientRect().top < innerHeight * .35) cur = i; });
+      links.forEach(function (a, i) { a.classList.toggle('is-active', i === cur); });
+    };
+    addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(spy); } }, { passive: true });
+    spy();
+  })();
 </script>
 </body>
 </html>

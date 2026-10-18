@@ -20,7 +20,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="/style.css?v=40">
+  <link rel="stylesheet" href="/style.css?v=42">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -131,11 +131,21 @@
 </header>
 
 <main id="main" class="legal help">
-  <div class="wrap wrap--narrow">
+  <div class="help__layout">
+    <aside class="help__side" aria-label="Páginas da Ajuda">
+      <a class="help__side-home" href="/ajuda/">Ajuda do Carburante</a>
+      <p class="help__side-label">Primeiros passos</p><ul><li><a href="/ajuda/cadastrar-moto/">Cadastrar sua moto</a></li><li><a href="/ajuda/registrar-abastecimento/">Registrar um abastecimento</a></li></ul><p class="help__side-label">Consumo</p><ul><li><a href="/ajuda/consumo/">Como o consumo é calculado</a></li><li><a href="/ajuda/primeira-media/">Por que o consumo ainda não aparece</a></li></ul><p class="help__side-label">Abastecimentos</p><ul><li><a href="/ajuda/leitura-da-foto/">Leitura da foto</a></li><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento</a></li><li><a href="/ajuda/abastecimento-antigo/">Lançar abastecimentos e manutenções antigos</a></li></ul><p class="help__side-label">Manutenção</p><ul><li><a href="/ajuda/manutencao/">Troca de óleo e manutenções</a></li></ul><p class="help__side-label">Garagem e Premium</p><ul><li class="is-current"><a href="/ajuda/trocar-de-moto/" aria-current="page">Vendi minha moto ou comprei outra</a><ol class="help__toc"><li><a href="#passo-a-passo">Passo a passo</a></li><li><a href="#o-que-acontece-com-a-moto-antiga">O que acontece com a moto antiga</a></li><li><a href="#e-se-eu-quiser-as-duas-motos-ativas">E se eu quiser as duas motos ativas?</a></li></ol></li><li><a href="/ajuda/premium/">Carburante Premium</a></li></ul><p class="help__side-label">Conta e dados</p><ul><li><a href="/ajuda/outro-iphone/">Guardar dados e trocar de iPhone</a></li></ul>
+    </aside>
+    <div class="help__main">
+    <details class="help__menu">
+      <summary>Índice da Ajuda</summary>
+      <nav aria-label="Páginas da Ajuda"><p class="help__side-label">Primeiros passos</p><ul><li><a href="/ajuda/cadastrar-moto/">Cadastrar sua moto</a></li><li><a href="/ajuda/registrar-abastecimento/">Registrar um abastecimento</a></li></ul><p class="help__side-label">Consumo</p><ul><li><a href="/ajuda/consumo/">Como o consumo é calculado</a></li><li><a href="/ajuda/primeira-media/">Por que o consumo ainda não aparece</a></li></ul><p class="help__side-label">Abastecimentos</p><ul><li><a href="/ajuda/leitura-da-foto/">Leitura da foto</a></li><li><a href="/ajuda/abasteci-sem-registrar/">Esqueci de registrar um abastecimento</a></li><li><a href="/ajuda/abastecimento-antigo/">Lançar abastecimentos e manutenções antigos</a></li></ul><p class="help__side-label">Manutenção</p><ul><li><a href="/ajuda/manutencao/">Troca de óleo e manutenções</a></li></ul><p class="help__side-label">Garagem e Premium</p><ul><li class="is-current"><a href="/ajuda/trocar-de-moto/" aria-current="page">Vendi minha moto ou comprei outra</a><ol class="help__toc"><li><a href="#passo-a-passo">Passo a passo</a></li><li><a href="#o-que-acontece-com-a-moto-antiga">O que acontece com a moto antiga</a></li><li><a href="#e-se-eu-quiser-as-duas-motos-ativas">E se eu quiser as duas motos ativas?</a></li></ol></li><li><a href="/ajuda/premium/">Carburante Premium</a></li></ul><p class="help__side-label">Conta e dados</p><ul><li><a href="/ajuda/outro-iphone/">Guardar dados e trocar de iPhone</a></li></ul></nav>
+    </details>
     <nav class="help__crumbs" aria-label="Você está em"><a href="/ajuda/">Ajuda</a> <span aria-hidden="true">›</span> Garagem e Premium</nav>
     <article>
       <h1>Vendi minha moto ou comprei outra. Como faço no Carburante?</h1>
       <p class="legal__updated">Atualizado em 18 de outubro de 2026 · Carburante 1.1 para iPhone</p>
+      <div class="help__body">
 <p class="help__lead"><strong>Resposta curta:</strong> em <strong>Garagem</strong>, toque na moto atual e em <strong>Colocar à venda</strong>. Depois cadastre a nova. Trocar de moto é grátis: a moto à venda continua aceitando registros por 30 dias depois que a nova chega e, quando você <strong>Marcar como vendida</strong>, ela sai da garagem com o histórico guardado para consulta.</p>
 <h2 id="passo-a-passo">Passo a passo</h2>
 <ol><li>Abra <strong>Garagem</strong> e toque na moto que vai vender.</li><li>Toque em <strong>Colocar à venda</strong>. Ela continua sua até vender.</li><li>Cadastre a moto nova: <strong>Garagem</strong> › <strong>Adicionar moto</strong>. Veja <a href="/ajuda/cadastrar-moto/">Como cadastrar sua moto</a>.</li><li>Vendeu? Abra a moto antiga e toque em <strong>Marcar como vendida</strong>.</li></ol>
@@ -143,12 +153,14 @@
 <ul><li><strong>À venda:</strong> segue na garagem e aceita registros por 30 dias depois que a nova chega, para você lançar os últimos abastecimentos.</li><li><strong>Vendida:</strong> sai da garagem e do Resumo e vai para <strong>Motos que já tive</strong>. O histórico fica guardado, só para consulta.</li><li><strong>Desistiu da venda?</strong> Toque em <strong>Tirar da venda</strong> ou, numa moto vendida, em <strong>Voltar para a garagem</strong>.</li></ul>
 <h2 id="e-se-eu-quiser-as-duas-motos-ativas">E se eu quiser as duas motos ativas?</h2>
 <p>No plano grátis, a garagem tem uma moto ativa por vez; as outras ficam só para consulta (dá para ver histórico, gráfico e custos, e exportar). Para registrar em várias motos ao mesmo tempo, assine o <a href="/ajuda/premium/">Carburante Premium</a>. Com mais de uma moto ativa, troque a moto do <strong>Resumo</strong> tocando no nome dela, no alto da tela.</p>
+      </div>
       <aside class="help__related" aria-labelledby="veja-tambem"><h2 id="veja-tambem">Veja também</h2><ul><li><a href="/ajuda/premium/">Carburante Premium: o que inclui e como assinar, restaurar ou cancelar</a></li><li><a href="/ajuda/cadastrar-moto/">Como cadastrar sua moto no Carburante</a></li><li><a href="/ajuda/outro-iphone/">Como guardar seus dados e levar para outro iPhone</a></li></ul></aside>
       <div class="help__contact">
         <p>Não achou o que procurava? Escreva para <a href="mailto:contato@wagnerrosa.com">contato@wagnerrosa.com</a>.</p>
         <a class="btn btn--flame js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener">Baixar o Carburante grátis</a>
       </div>
     </article>
+    </div>
   </div>
 </main>
 
@@ -176,6 +188,22 @@
     var a = e.target.closest ? e.target.closest('a.js-store') : null;
     if (a && typeof window.gtag === 'function') window.gtag('event', 'generate_lead', { method: 'app_store', event_location: 'help' });
   });
+</script>
+<script>
+  (function () {
+    var links = [].slice.call(document.querySelectorAll('.help__side .help__toc a'));
+    var heads = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+    if (!links.length) return;
+    var tick = false;
+    var spy = function () {
+      tick = false;
+      var cur = 0;
+      heads.forEach(function (h, i) { if (h && h.getBoundingClientRect().top < innerHeight * .35) cur = i; });
+      links.forEach(function (a, i) { a.classList.toggle('is-active', i === cur); });
+    };
+    addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(spy); } }, { passive: true });
+    spy();
+  })();
 </script>
 </body>
 </html>

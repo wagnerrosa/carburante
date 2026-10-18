@@ -1220,9 +1220,9 @@ html:not(.motion) .manifesto { --heat: 1; }
 .help h1 { text-wrap: balance; }
 .help h2 { scroll-margin-top: 72px; }
 .help .help__lead { font-size: 18px; line-height: 1.55; padding: 18px 20px; margin: 0 0 8px; border-radius: 16px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); }
-.help ol { margin: 8px 0 0; padding-left: 24px; }
-.help ol li { padding-left: 4px; }
-.help ol li + li { margin-top: 8px; }
+.help__body ol { margin: 8px 0 0; padding-left: 24px; }
+.help__body ol li { padding-left: 4px; }
+.help__body ol li + li { margin-top: 8px; }
 .help li::marker { color: var(--text-2); }
 .help strong { font-weight: 600; color: #fff; }
 .help__note { margin: 18px 0; padding: 14px 18px; border-left: 3px solid #ff7a00; border-radius: 0 12px 12px 0; background: rgba(255, 122, 0, .08); }
@@ -1235,6 +1235,37 @@ html:not(.motion) .manifesto { --heat: 1; }
 .help__contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 40px; padding: 20px 22px; border-radius: 16px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); }
 .help__contact p { margin: 0; color: var(--text-2); }
 .help .help__contact .btn { color: #1a0500; }
+/* Menu da Ajuda (ref. unclerudy.app): todas as páginas por tema num trilho à esquerda; a atual
+   acende em laranja e abre as próprias seções, que acompanham a rolagem. No celular, o mesmo
+   conteúdo vira o "Índice da Ajuda" recolhível no topo. */
+.help__layout { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+.help__side { display: none; }
+.help .help__side-home { display: block; margin-bottom: 4px; font-size: 15px; font-weight: 600; color: var(--text); text-decoration: none; }
+.help__side-label { margin: 22px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); }
+.help__side ul, .help__menu ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+.help__side li + li, .help__menu li + li { margin: 0; }
+.help__side ul a, .help__menu ul a { position: relative; display: block; padding: 6px 0 6px 14px; font-size: 14px; line-height: 1.35; color: var(--text-2); text-decoration: none; transition: color .2s; }
+.help__side ul a:hover, .help__menu ul a:hover { color: var(--text); }
+.help__side .is-current > a, .help__menu .is-current > a { color: #fff; font-weight: 600; }
+.help__side .is-current > a::before, .help__menu .is-current > a::before { content: ""; position: absolute; left: -1px; top: 4px; bottom: 4px; width: 2px; border-radius: 2px; background: #ff7a00; }
+.help .help__toc { list-style: none; margin: 2px 0 8px; padding: 0 0 0 14px; }
+.help .help__toc li + li { margin: 0; }
+.help__toc a { display: block; padding: 4px 0 4px 12px; border-left: 1px solid var(--line); font-size: 13px; line-height: 1.35; color: var(--text-3); text-decoration: none; transition: color .2s, border-color .2s; }
+.help__toc a:hover { color: var(--text-2); }
+.help__toc a.is-active { color: var(--text); border-left-color: var(--text); }
+.help__menu { margin: 0 0 20px; border-radius: 14px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); }
+.help__menu summary { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; font-size: 15px; font-weight: 600; cursor: pointer; list-style: none; }
+.help__menu summary::-webkit-details-marker { display: none; }
+.help__menu summary::after { content: ""; width: 8px; height: 8px; margin-right: 4px; border-right: 2px solid var(--text-2); border-bottom: 2px solid var(--text-2); transform: rotate(45deg) translateY(-2px); transition: transform .25s var(--ease); }
+.help__menu[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
+.help__menu nav { padding: 0 16px 14px; }
+.help__menu .help__side-label:first-child { margin-top: 4px; }
+@media (min-width: 1000px) {
+  .help__layout { grid-template-columns: 232px minmax(0, 680px); column-gap: 72px; justify-content: center; }
+  .help__side { display: block; position: sticky; top: 88px; align-self: start; max-height: calc(100vh - 112px); overflow-y: auto; padding: 4px 8px 24px 0; scrollbar-width: thin; }
+  .help__menu { display: none; }
+}
+
 /* Índice: um bloco por tema, cada pergunta com a resposta em uma linha */
 .help__group h2 { font-size: 15px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--text-2); margin: 40px 0 8px; }
 .help__group ul { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }

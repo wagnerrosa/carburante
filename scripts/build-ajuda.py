@@ -49,6 +49,7 @@ def load(path):
     meta['related'] = [s.strip() for s in meta.get('related', '').split(',') if s.strip()]
     meta['body'] = body.strip()
     meta['url'] = f'{SITE}/ajuda/{meta["slug"]}/'
+    meta.setdefault('nav', meta['title'])
     assert meta['section'] in SECTIONS, (path.name, meta['section'])
     assert len(meta['description']) <= 165, (path.name, len(meta['description']))
     return meta
@@ -177,7 +178,7 @@ def jsonld(graph):
     return '  <script type="application/ld+json">\n' + '\n'.join('  ' + l for l in body.split('\n')) + '\n  </script>'
 
 
-def page(title, description, url, main, ld):
+def page(title, description, url, main, ld, layout='wrap wrap--narrow', script=''):
     return f"""<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -224,7 +225,7 @@ def page(title, description, url, main, ld):
 </header>
 
 <main id="main" class="legal help">
-  <div class="wrap wrap--narrow">
+  <div class="{layout}">
 {main}
   </div>
 </main>
@@ -247,28 +248,82 @@ def page(title, description, url, main, ld):
   </div>
 </footer>
 
-{TRACK}
+{TRACK}{script}
 </body>
 </html>
 """
 
 
-def article_html(a, by_slug):
+def headings(md):
+    return [(slugify(l[3:]), l[3:]) for l in md.splitlines() if l.startswith('## ')]
+
+
+def side_groups(arts, current):
+    out = []
+    for sec in SECTIONS:
+        items = [a for a in arts if a['section'] == sec]
+        if not items:
+            continue
+        lis = []
+        for a in items:
+            if a is current:
+                toc = ''.join(f'<li><a href="#{i}">{inline(t)}</a></li>' for i, t in headings(a['body']))
+                lis.append(f'<li class="is-current"><a href="/ajuda/{a["slug"]}/" aria-current="page">{html.escape(a["nav"])}</a>'
+                           + (f'<ol class="help__toc">{toc}</ol>' if toc else '') + '</li>')
+            else:
+                lis.append(f'<li><a href="/ajuda/{a["slug"]}/">{html.escape(a["nav"])}</a></li>')
+        out.append(f'<p class="help__side-label">{html.escape(sec)}</p><ul>{"".join(lis)}</ul>')
+    return ''.join(out)
+
+
+# Seção atual acende conforme a rolagem (sem JS, os links continuam funcionando)
+SPY = """<script>
+  (function () {
+    var links = [].slice.call(document.querySelectorAll('.help__side .help__toc a'));
+    var heads = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+    if (!links.length) return;
+    var tick = false;
+    var spy = function () {
+      tick = false;
+      var cur = 0;
+      heads.forEach(function (h, i) { if (h && h.getBoundingClientRect().top < innerHeight * .35) cur = i; });
+      links.forEach(function (a, i) { a.classList.toggle('is-active', i === cur); });
+    };
+    addEventListener('scroll', function () { if (!tick) { tick = true; requestAnimationFrame(spy); } }, { passive: true });
+    spy();
+  })();
+</script>"""
+
+
+def article_html(a, by_slug, arts):
     rel = [by_slug[s] for s in a['related']]
     related = ''
     if rel:
         items = ''.join(f'<li><a href="/ajuda/{r["slug"]}/">{html.escape(r["title"])}</a></li>' for r in rel)
         related = f'\n      <aside class="help__related" aria-labelledby="veja-tambem"><h2 id="veja-tambem">Veja também</h2><ul>{items}</ul></aside>'
-    main = f"""    <nav class="help__crumbs" aria-label="Você está em"><a href="/ajuda/">Ajuda</a> <span aria-hidden="true">›</span> {html.escape(a['section'])}</nav>
+    groups = side_groups(arts, a)
+    main = f"""    <aside class="help__side" aria-label="Páginas da Ajuda">
+      <a class="help__side-home" href="/ajuda/">Ajuda do Carburante</a>
+      {groups}
+    </aside>
+    <div class="help__main">
+    <details class="help__menu">
+      <summary>Índice da Ajuda</summary>
+      <nav aria-label="Páginas da Ajuda">{groups}</nav>
+    </details>
+    <nav class="help__crumbs" aria-label="Você está em"><a href="/ajuda/">Ajuda</a> <span aria-hidden="true">›</span> {html.escape(a['section'])}</nav>
     <article>
       <h1>{html.escape(a['title'])}</h1>
       <p class="legal__updated">Atualizado em {pt_date(a['updated'])} · {APP}</p>
-{render(a['body'])}{related}
+      <div class="help__body">
+{render(a['body'])}
+      </div>{related}
       <div class="help__contact">
         <p>Não achou o que procurava? Escreva para <a href="mailto:{CONTACT}">{CONTACT}</a>.</p>
         <a class="btn btn--flame js-store" href="{STORE}" target="_blank" rel="noopener">Baixar o Carburante grátis</a>
       </div>
-    </article>"""
+    </article>
+    </div>"""
     ld = [
         ORG,
         {'@type': 'TechArticle', '@id': a['url'] + '#article', 'headline': a['title'], 'description': a['description'],
@@ -281,7 +336,8 @@ def article_html(a, by_slug):
             {'@type': 'ListItem', 'position': 2, 'name': 'Ajuda', 'item': f'{SITE}/ajuda/'},
             {'@type': 'ListItem', 'position': 3, 'name': a['title'], 'item': a['url']}]},
     ]
-    return page(f'{a["title"]} · Ajuda do Carburante', a['description'], a['url'], main, ld)
+    return page(f'{a["title"]} · Ajuda do Carburante', a['description'], a['url'], main, ld,
+                layout='help__layout', script='\n' + SPY)
 
 
 INDEX_TITLE = 'Ajuda do Carburante'
@@ -341,7 +397,7 @@ def main():
             d.rmdir()
     for a in arts:
         (OUT / a['slug']).mkdir(parents=True, exist_ok=True)
-        (OUT / a['slug'] / 'index.html').write_text(article_html(a, by_slug), encoding='utf-8')
+        (OUT / a['slug'] / 'index.html').write_text(article_html(a, by_slug, arts), encoding='utf-8')
     idx, updated = index_html(arts)
     (OUT / 'index.html').write_text(idx, encoding='utf-8')
 
