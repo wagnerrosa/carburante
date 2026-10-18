@@ -11,7 +11,7 @@
   <meta name="robots" content="index,follow">
   <link rel="icon" type="image/png" href="../assets/favicon.png">
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="../style.css?v=21">
+  <link rel="stylesheet" href="../style.css?v=29">
 
   <!-- Mesmo GA4 + Clarity da landing (descritos na seção "Este site" abaixo).
        Desligado em localhost, com localStorage.dev_mode = 'true' ou ?preview=dev. -->
@@ -53,7 +53,7 @@
       <span>Carburante</span>
     </a>
     <div class="nav__actions">
-      <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
+      <button class="lang" type="button" id="lang-toggle" aria-label="EN, switch to English">EN</button>
     </div>
   </div>
 </header>
@@ -256,8 +256,8 @@
     var toggle = document.getElementById('lang-toggle');
     var current = 'pt';
     var META = {
-      pt: { html: 'pt-BR', title: 'Política de Privacidade · Carburante', toggle: 'EN', label: 'Switch to English', skip: 'Pular para o conteúdo' },
-      en: { html: 'en', title: 'Privacy Policy · Carburante', toggle: 'PT', label: 'Mudar para português', skip: 'Skip to content' }
+      pt: { html: 'pt-BR', title: 'Política de Privacidade · Carburante', toggle: 'EN', label: 'EN, switch to English', skip: 'Pular para o conteúdo' },
+      en: { html: 'en', title: 'Privacy Policy · Carburante', toggle: 'PT', label: 'PT, mudar para português', skip: 'Skip to content' }
     };
     function store(l) { try { localStorage.setItem('carburante-lang', l); } catch (e) { /* bloqueado */ } }
     function stored() { try { return localStorage.getItem('carburante-lang'); } catch (e) { return null; } }

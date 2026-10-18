@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Carburante · Quanto sua moto faz de verdade</title>
-  <meta name="description" content="Registre o abastecimento na parada do posto, veja o consumo real da sua moto, de tanque cheio a tanque cheio, e receba aviso antes da manutenção. App grátis para iPhone, na App Store.">
+  <title>Carburante · Quanto sua moto faz de verdade?</title>
+  <meta name="description" content="Fotografe o hodômetro e o cupom: o Carburante calcula o consumo real da sua moto, de tanque cheio a tanque cheio, e avisa antes da troca de óleo. Grátis para iPhone, sem cadastro e sem anúncios.">
   <link rel="canonical" href="https://carburante.motorcycles/">
   <meta name="author" content="Wagner Rosa">
   <meta name="publish_date" property="og:publish_date" content="2026-09-27T00:00:00-03:00">
@@ -16,7 +16,7 @@
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Carburante">
-  <meta property="og:title" content="Carburante · Quanto sua moto faz de verdade">
+  <meta property="og:title" content="Carburante · Quanto sua moto faz de verdade?">
   <meta property="og:description" content="Consumo real, de tanque cheio a tanque cheio, e manutenção em dia. App grátis para iPhone, na App Store.">
   <meta property="og:url" content="https://carburante.motorcycles/">
   <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=5">
@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=28">
+  <link rel="stylesheet" href="style.css?v=29">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -76,26 +76,26 @@
   </a>
   <p class="capsule__chapter" aria-hidden="true"><span></span></p>
   <div class="capsule__actions">
-    <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
-    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="assets/icon-64.webp" alt="" width="32" height="32"><span data-i18n="cta.nav">Baixar</span></a>
+    <button class="lang" type="button" id="lang-toggle" aria-label="EN, switch to English">EN</button>
+    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="assets/icon-64.webp" alt="" width="32" height="32"><span data-i18n="cta.nav">Baixar grátis</span></a>
   </div>
   <span class="capsule__fuel" aria-hidden="true"><i></i></span>
 </header>
 
 <main id="main">
 
-  <!-- HERO: título colossal centralizado; o celular nasce deitado embaixo dele e se levanta
-       conforme a página rola (ref. tara.com / ugly.cash) -->
+  <!-- HERO: o título pergunta, a tela do app responde ("Sua moto faz em média 20,3 km/l").
+       O celular já aparece na primeira tela, levemente inclinado, e endireita ao rolar. -->
   <section class="hero" data-hero>
     <div class="wrap">
       <div class="hero__copy">
-        <h1 data-rise data-i18n="hero.title">Quanto sua moto faz <em class="accent flame-text">de&nbsp;verdade.</em></h1>
-        <p class="hero__lede" data-i18n="hero.lede">Registre o abastecimento em segundos, até sem sinal. O resto é com a gente: a média certa e o aviso antes da manutenção.</p>
+        <h1 data-rise data-i18n="hero.title">Quanto sua moto faz <em class="accent flame-text">de&nbsp;verdade?</em></h1>
+        <p class="hero__lede" data-i18n="hero.lede">Fotografe o hodômetro e o cupom. O Carburante calcula a média real e avisa antes da troca de óleo. Até sem sinal.</p>
         <div class="cta-row">
           <a class="store-badge js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.badge"><img src="assets/store/app-store-pt-br.svg" alt="Baixar na App Store" width="144" height="48"></a>
-          <a class="btn btn--ghost" href="#consumo" data-i18n="cta.how">Como funciona</a>
+          <a class="btn btn--ghost" href="#consumo" data-i18n="cta.how">Ver a conta</a>
         </div>
-        <p class="hero__meta" data-i18n="hero.meta">Grátis · iOS 18+ · Em português</p>
+        <p class="hero__meta" data-i18n="hero.meta">Grátis · Sem cadastro · Sem anúncios · iOS 18+</p>
       </div>
     </div>
     <div class="hero__visual">
@@ -171,7 +171,7 @@
     </div>
   </section>
   <div class="wrap">
-    <p class="measure__note reveal" data-i18n="m.note">Fazer a conta a cada abastecimento é mais fácil. E erra sempre que o tanque não enche.</p>
+    <p class="measure__note reveal" data-i18n="m.note">Dividir km por litros a cada parada erra sempre que o tanque não enche. Por isso o Carburante só fecha a conta no cheio.</p>
   </div>
 
   <!-- RECURSOS: um celular parado; a rolagem troca a tela e a frase ao lado. Cada recurso
@@ -218,7 +218,7 @@
             <div class="feature__copy">
               <p class="kicker" data-i18n="f2.k">Consumo</p>
               <h3 data-i18n="f2.t">Serra ou trânsito? O gráfico conta.</h3>
-              <p data-i18n="f2.d">Tanque a tanque, com a média do período e uma referência estimada para motos como a sua.</p>
+              <p data-i18n="f2.d">Cada tanque, uma barra. Ao lado, uma referência estimada para motos como a sua.</p>
             </div>
           </div>
 
@@ -235,8 +235,8 @@
             <div class="feature__media"><div class="phone" role="img" data-i18n-alt="alt.garage" aria-label="Garagem com três motos, recordes, totais e o nível de conquistas"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/garagem.webp" data-still="assets/clips/garagem-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/garagem.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/garagem.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f4.k">Garagem</p>
-              <h3 data-i18n="f4.t">Uma garagem. Nenhuma confusão.</h3>
-              <p data-i18n="f4.d">Cada moto com seu consumo e sua manutenção. Os recordes somam todas.</p>
+              <h3 data-i18n="f4.t">Duas motos, duas médias. Nada se mistura.</h3>
+              <p data-i18n="f4.d">Cada moto com seu consumo e sua manutenção. No Carburante Premium.</p>
             </div>
           </div>
         </div>
@@ -245,13 +245,15 @@
     </div>
   </section>
 
-  <!-- MANIFESTO: o que o app não pede. Quatro linhas de letreiro, uma de cada vez. -->
+  <!-- MANIFESTO: o que o app não pede. Cinco linhas de letreiro, uma de cada vez; "código aberto"
+       é a prova que dá para conferir. -->
   <section class="manifesto" data-chapter="Manifesto">
     <div class="wrap">
       <ul class="manifesto__list">
         <li data-rise data-i18n="x1"><span class="dim">Sem</span> cadastro.</li>
         <li data-rise data-i18n="x2"><span class="dim">Sem</span> senha.</li>
         <li data-rise data-i18n="x3"><span class="dim">Sem</span> anúncios.</li>
+        <li data-rise data-i18n="x5"><span class="dim">Sem</span> segredo: <a class="mf-link" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">código aberto.</a></li>
         <li data-rise data-i18n="x4"><span class="dim">Sem</span> sinal? <em class="accent flame-text">Sem problema.</em></li>
       </ul>
     </div>
@@ -263,7 +265,7 @@
       <header class="section__head">
         <p class="kicker" data-chapter data-i18n="b.kicker">Conquistas</p>
         <h2 data-rise data-i18n="b.title">Rodar também é colecionar.</h2>
-        <p class="section__lede reveal" data-i18n="b.lede">25 medalhas. Nenhuma função trancada atrás delas.</p>
+        <p class="section__lede reveal" data-i18n="b.lede">25 medalhas. Todas se ganham rodando.</p>
       </header>
     </div>
     <!-- Vitrine: a fileira corre para o lado conforme a página desce (sem prender a rolagem) -->
@@ -291,8 +293,8 @@
     <div class="wrap">
       <header class="section__head">
         <p class="kicker" data-chapter data-i18n="r.kicker">No horizonte</p>
-        <h2 class="roadmap__quote" data-rise data-i18n="r.quote">A moto leva seus eventos. <em class="accent">Você mantém sua história.</em></h2>
-        <p class="section__lede reveal" data-i18n="r.lede">Hoje, um diário de bordo. Depois, o passaporte da moto. Nada disso tem data.</p>
+        <h2 class="roadmap__quote" data-rise data-i18n="r.quote">Hoje, o diário da moto. <em class="accent">Amanhã, o passaporte dela.</em></h2>
+        <p class="section__lede reveal" data-i18n="r.lede">Quando a moto mudar de dono, o histórico vai junto. Ainda sem data.</p>
       </header>
 
       <ol class="track reveal">
@@ -362,6 +364,10 @@
           <p data-i18n="q1.a">Sim. O app é grátis na App Store e não tem anúncios, assinando ou não. Quem quiser mais pode assinar o Carburante Premium (opcional): várias motos na garagem, custos completos e ícones de conquista.</p>
         </details>
         <details>
+          <summary data-i18n="q11.q">Serve para a minha moto?</summary>
+          <p data-i18n="q11.a">Qualquer marca e modelo. Se a sua não estiver na lista, é só digitar.</p>
+        </details>
+        <details>
           <summary data-i18n="q2.q">Tem para Android?</summary>
           <p data-i18n="q2.a">Não por enquanto. O Carburante é nativo de iPhone de propósito: rápido, leve e com a cara do sistema.</p>
         </details>
@@ -372,6 +378,10 @@
         <details>
           <summary data-i18n="q3.q">Preciso criar conta?</summary>
           <p data-i18n="q3.a">Não. Abriu, usou: o app funciona sem criar conta e sem senha.</p>
+        </details>
+        <details>
+          <summary data-i18n="q10.q">Esqueci de registrar um abastecimento. E agora?</summary>
+          <p data-i18n="q10.a">Sem problema. Quando o km salta demais, o app pergunta. Você toca em “Abasteci sem registrar”: a média recomeça dali e os km rodados continuam contando.</p>
         </details>
         <details>
           <summary data-i18n="q4.q">Onde ficam meus dados?</summary>
@@ -403,7 +413,7 @@
           </div>
         </div>
         <h2 data-i18n="bt.title">Use no seu próximo abastecimento.</h2>
-        <p data-i18n="bt.d">Grátis na App Store do Brasil. Precisa de um iPhone com iOS 18 ou mais recente.</p>
+        <p data-i18n="bt.d">Grátis e sem cadastro. Cabe na parada do posto. iPhone com iOS 18 ou mais recente.</p>
         <a class="btn btn--flame btn--lg js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.store">Baixar na App Store</a>
         <p class="beta__mail" data-i18n="bt.mail">Dúvidas ou sugestões? <a href="mailto:beta@carburante.motorcycles?subject=Carburante">beta@carburante.motorcycles</a></p>
       </div>
@@ -415,7 +425,7 @@
 <footer class="footer">
   <div class="wrap footer__inner">
     <div class="footer__row">
-      <p class="footer__by" data-i18n="ft.by">Feito com <span class="footer__moto" role="img" aria-label="scooter">🛵</span> por <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a></p>
+      <p class="footer__by" data-i18n="ft.by">Feito com <span class="footer__moto" role="img" aria-label="moto">🏍️</span> por <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a></p>
       <nav class="footer__links" aria-label="Links">
         <a href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">GitHub</a>
         <a href="mailto:contato@wagnerrosa.com">Email</a>
@@ -428,6 +438,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

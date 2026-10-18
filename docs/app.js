@@ -6,13 +6,13 @@
   // lido do próprio DOM na carga e restaurado ao voltar.
   var EN = {
     'skip': 'Skip to content',
-    'hero.title': 'Your bike’s fuel economy. <em class="accent flame-text">For real.</em>',
-    'hero.lede': 'Log a fuel-up in seconds, even with no signal. We handle the rest: the right average and a heads-up before your next service.',
+    'hero.title': 'How much does your bike <em class="accent flame-text">really&nbsp;burn?</em>',
+    'hero.lede': 'Snap the odometer and the receipt. Carburante works out your real average and warns you before the next oil change. Even with no signal.',
     'cta.store': 'Download on the App Store',
     'cta.badge': '<img src="assets/store/app-store-en-us.svg" alt="Download on the App Store" width="144" height="48">',
-    'cta.nav': 'Download',
-    'cta.how': 'How it works',
-    'hero.meta': 'Free · iOS 18+ · Brazil only, Portuguese UI for now',
+    'cta.nav': 'Get it free',
+    'cta.how': 'See the math',
+    'hero.meta': 'Free · No sign-up · No ads · iOS 18+ · Brazil only, in Portuguese for now',
     'alt.hero': 'Carburante Summary screen with a Harley-Davidson: 20.3 km/l average, cost per km and monthly spend. The app switches bikes and changes color.',
     'alt.fuel': 'Logging a fuel-up: the odometer photo is read (22,039 km), the pump photo brings cost and liters (R$ 28.49 and 4.135 L) and the review shows 20.1 km/l for this tank',
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
@@ -34,7 +34,7 @@
     'm2.d': 'Only topped up a bit? Switch off “Full tank” and those liters still count.',
     'm3.t': 'Fill up again.',
     'm3.d': 'Distance ÷ liters over the stretch. Done: your real average.',
-    'm.note': 'Doing the math at every fill-up is easier. It’s also wrong whenever the tank isn’t full.',
+    'm.note': 'Dividing km by liters at every stop is wrong whenever the tank isn’t full. That’s why Carburante only closes the math on a full tank.',
     'f.kicker': 'Features',
     'f.title': 'Built for riding, not for typing.',
     'f1.k': 'Logging',
@@ -42,30 +42,35 @@
     'f1.d': 'Your iPhone reads the odometer and the receipt. You just check.',
     'f2.k': 'Consumption',
     'f2.t': 'Twisties or traffic? The chart tells.',
-    'f2.d': 'Tank by tank, with the period average and an estimated benchmark for bikes like yours.',
+    'f2.d': 'One bar per tank. Next to it, an estimated benchmark for bikes like yours.',
     'f3.k': 'Maintenance',
     'f3.t': 'It remembers. You ride.',
     'f3.d': 'Oil, tires, chain and brakes, by distance or by date. The reminder arrives before it’s due.',
     'f4.k': 'Garage',
-    'f4.t': 'One garage. Zero mix-ups.',
-    'f4.d': 'Each bike keeps its own consumption and maintenance. Records add them all up.',
+    'f4.t': 'Two bikes, two averages. Nothing mixes.',
+    'f4.d': 'Each bike keeps its own consumption and maintenance. Part of Carburante Premium.',
     'x1': '<span class="dim">No</span> sign-up.',
     'x2': '<span class="dim">No</span> password.',
     'x3': '<span class="dim">No</span> ads.',
+    'x5': '<span class="dim">No</span> secrets: <a class="mf-link" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">open source.</a>',
     'x4': '<span class="dim">No</span> signal? <em class="accent flame-text">No problem.</em>',
     'bt.title': 'Use it at your next fuel-up.',
-    'bt.d': 'Free on the Brazilian App Store. Requires an iPhone with iOS 18 or later; the app is in Portuguese for now.',
+    'bt.d': 'Free, no sign-up. It fits in a gas-station stop. iPhone with iOS 18 or later; the app is in Portuguese for now.',
     'bt.mail': 'Questions or ideas? <a href="mailto:beta@carburante.motorcycles?subject=Carburante">beta@carburante.motorcycles</a>',
     'q.kicker': 'Questions',
     'q.title': 'Before you ask.',
     'q1.q': 'Is it free?',
     'q1.a': 'Yes. The app is free on the App Store and has no ads, subscribed or not. If you want more, there’s the optional Carburante Premium subscription: several bikes in the garage, full costs and achievement app icons.',
+    'q11.q': 'Will it work with my bike?',
+    'q11.a': 'Any make and model. If yours isn’t on the list, just type it in.',
     'q2.q': 'Is there an Android version?',
     'q2.a': 'Not for now. Carburante is native to iPhone on purpose: fast, light and at home in the system.',
     'q9.q': 'Is it available outside Brazil?',
     'q9.a': 'For now it’s only on the Brazilian App Store, and the app is in Portuguese. Other countries and languages are in the plans.',
     'q3.q': 'Do I need an account?',
     'q3.a': 'No. Open it and go: the app works with no account to create and no password.',
+    'q10.q': 'I forgot to log a fuel-up. Now what?',
+    'q10.a': 'No problem. When the odometer jumps too far, the app asks. Tap “Abasteci sem registrar” (“I filled up without logging”): the average restarts from there and the distance keeps counting.',
     'q4.q': 'Where does my data live?',
     'q4.a': 'On your iPhone first, with a cloud copy isolated to your account. Usage stats are anonymous and can be turned off in Settings. Details in the <a href="privacidade/">privacy policy</a>.',
     'q7.q': 'What happens to my photos?',
@@ -74,15 +79,15 @@
     'q8.a': 'It does, but it isn’t 100% accurate yet. Glare, angle and segmented displays get in the way. That’s why the app always shows what it read before you save: you check it and fix anything that’s off. Printed receipts tend to come out more accurate.',
     'b.kicker': 'Achievements',
     'b.title': 'Riding is collecting, too.',
-    'b.lede': '25 badges. No feature locked behind any of them.',
+    'b.lede': '25 badges. Every one earned riding.',
     'bd.fuel': 'First fuel-up',
     'bd.maint': 'First service',
     'bd.best': 'Above average',
     'bd.cc': '500cc Club',
     'bd.iron': 'Iron Butt · later',
     'r.kicker': 'On the horizon',
-    'r.quote': 'The bike carries its events. <em class="accent">You keep your story.</em>',
-    'r.lede': 'Today, a logbook. Next, the bike’s passport. None of it has a date.',
+    'r.quote': 'Today, the bike’s logbook. <em class="accent">Tomorrow, its passport.</em>',
+    'r.lede': 'When the bike changes hands, its history goes with it. No date yet.',
     'st.done': 'Shipped',
     'st.now': 'Now',
     'st.planned': 'Planned',
@@ -100,7 +105,7 @@
     's.lede': 'I’m <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer and rider for over two decades. I built Carburante for a simple reason: logging a fuel-up has to fit in a gas-station stop.',
     'alt.wagner': 'Wagner Rosa riding on a mountain road',
     's.code': 'Read the code',
-    'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="scooter">🛵</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
+    'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="motorcycle">🏍️</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
     'ft.copy': '© 2026 Carburante. All rights reserved.',
     'ft.privacy': 'Privacy',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
@@ -109,11 +114,11 @@
   var META = {
     pt: {
       title: document.title,
-      toggle: 'EN', toggleLabel: 'Switch to English', html: 'pt-BR'
+      toggle: 'EN', toggleLabel: 'EN, switch to English', html: 'pt-BR'
     },
     en: {
-      title: 'Carburante · Your bike’s real fuel economy',
-      toggle: 'PT', toggleLabel: 'Mudar para português', html: 'en'
+      title: 'Carburante · How much does your bike really burn?',
+      toggle: 'PT', toggleLabel: 'PT, mudar para português', html: 'en'
     }
   };
 
@@ -463,7 +468,7 @@
     chapterTimer = setTimeout(function () { chapterSpan.textContent = t; chapterEl.classList.remove('is-swap'); }, 200);
   };
 
-  // Hero: o celular endireita conforme o hero sai (--tilt 1 → 0) e segue o cursor (--px/--py)
+  // Hero: o celular endireita conforme o hero sai (--tilt 1 → 0, até 16°) e segue o cursor (--px/--py)
   var hero = document.querySelector('[data-hero]');
   var heroPhone = hero && hero.querySelector('.phone--hero');
   var heroVisual = hero && hero.querySelector('.hero__visual');

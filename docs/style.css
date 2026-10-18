@@ -262,22 +262,22 @@ body::after {
 }
 
 /* ---------- Hero ---------- */
-/* Título colossal no centro; embaixo, o celular nasce deitado (rotateX, pivô na base) e se
-   levanta conforme sobe na tela (--tilt 1 → 0, JS); --px/--py seguem o cursor. A base do
-   celular some no preto (máscara) e emenda na próxima seção. */
+/* O título pergunta, a tela do app responde: título em duas linhas e celular já na primeira
+   tela (fonte e folgas também pela altura, para caber em notebook de 768 px). O celular nasce
+   levemente inclinado (rotateX) e endireita ao subir (--tilt 1 → 0, JS); --px/--py seguem o
+   cursor. A base do celular some no preto (máscara) e emenda na próxima seção. */
 .hero {
-  position: relative; overflow: hidden; text-align: center; padding: 128px 0 0;
+  position: relative; overflow: hidden; text-align: center; padding: clamp(92px, 12vh, 132px) 0 0;
   background: radial-gradient(1100px 760px at 50% 96%, rgba(255, 80, 0, .2), transparent 66%), var(--bg);
 }
-@media (min-width: 960px) { .hero { padding-top: 150px; } }
-.hero h1 { font-size: clamp(50px, 9.2vw, 148px); line-height: .9; margin: 0 auto 34px; max-width: 10em; }
+.hero h1 { font-size: clamp(44px, min(7.6vw, 11.5vh), 120px); line-height: .9; margin: 0 auto 26px; max-width: 11em; }
 .hero h1 .accent { display: block; }
 .flame-text { background: var(--flame); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero__lede { font-size: clamp(18px, 1.6vw, 21px); line-height: 1.5; color: rgba(245, 245, 247, .7); max-width: 30em; margin: 0 auto 36px; }
+.hero__lede { font-size: clamp(18px, 1.6vw, 21px); line-height: 1.5; color: rgba(245, 245, 247, .7); max-width: 30em; margin: 0 auto 28px; text-wrap: balance; }
 .hero .cta-row { justify-content: center; }
-.hero__meta { margin-top: 20px; font-size: 14px; color: rgba(245, 245, 247, .48); }
+.hero__meta { margin-top: 18px; text-wrap: balance; font-size: 14px; color: rgba(245, 245, 247, .48); }
 .hero__visual {
-  position: relative; display: flex; justify-content: center; margin-top: 44px; padding-bottom: 24px;
+  position: relative; display: flex; justify-content: center; margin-top: 32px; padding-bottom: 24px;
   perspective: 1500px; perspective-origin: 50% 0%;
   -webkit-mask-image: linear-gradient(#000 72%, transparent 98%); mask-image: linear-gradient(#000 72%, transparent 98%);
 }
@@ -285,9 +285,9 @@ body::after {
 .phone--hero {
   width: min(340px, 70vw); max-width: none; transform-origin: 50% 35%;
   transform:
-    rotateX(calc(34deg * var(--tilt, .4) - var(--py, 0) * 3deg))
+    rotateX(calc(16deg * var(--tilt, .4) - var(--py, 0) * 3deg))
     rotateY(calc(var(--px, 0) * 8deg))
-    scale(calc(1 - .08 * var(--tilt, .4)));
+    scale(calc(1 - .05 * var(--tilt, .4)));
   will-change: transform;
 }
 
@@ -611,6 +611,13 @@ html:not(.motion) .manifesto { --heat: 1; }
 .manifesto__list li:first-child { border-top: 1px solid var(--line); }
 .manifesto__list .dim { color: var(--text-3); transition: color .5s ease; }
 .manifesto__list .accent { display: block; }
+/* "código aberto": link que segue a cor da linha (branco no escuro, quase preto na chama) */
+.manifesto__list .mf-link {
+  display: block; width: fit-content; color: inherit; text-decoration: underline;
+  text-decoration-thickness: .045em; text-underline-offset: .12em;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); transition: text-decoration-color .3s ease;
+}
+.manifesto__list .mf-link:hover, .manifesto__list .mf-link:focus-visible { text-decoration-color: currentColor; }
 
 /* ---------- Conquistas ---------- */
 /* Vitrine: cada medalha num pedestal com foco de luz. Com movimento, a fileira (mais larga que a
@@ -808,7 +815,7 @@ html:not(.motion) .manifesto { --heat: 1; }
 #beta.is-rev .beta__body { animation: rev-rumble .1s linear infinite; }
 @keyframes rev-rumble { 0%, 100% { translate: 0 0; } 25% { translate: .7px -.6px; } 50% { translate: -.6px .5px; } 75% { translate: .5px .7px; } }
 .beta h2 { font-size: clamp(30px, 4.6vw, 52px); max-width: 15em; margin: 0 auto 16px; }
-.beta p { color: rgba(245, 245, 247, .72); max-width: 34em; margin: 0 auto 32px; font-size: 18px; }
+.beta p { color: rgba(245, 245, 247, .72); max-width: 34em; text-wrap: balance; margin: 0 auto 32px; font-size: 18px; }
 .beta .beta__mail { margin: 16px auto 0; font-size: 14px; color: rgba(245, 245, 247, .6); }
 
 /* ---------- FAQ ---------- */
