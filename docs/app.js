@@ -35,7 +35,7 @@
     'm3.d': 'Distance ÷ liters over the stretch. Done: your real average.',
     'm.note': 'Dividing km by liters at every stop is wrong whenever the tank isn’t full. That’s why Carburante only closes the math on a full tank.',
     'f.kicker': 'Features',
-    'f.title': 'Built for riding, not for typing.',
+    'f.title': 'Built for <em class="accent">riding,</em><br> <span class="ride__dim">not for</span> <span class="ride__x">typing.</span>',
     'f1.k': 'Logging',
     'f1.t': 'Snap it. Logged.',
     'f1.d': 'Your iPhone reads the odometer, then the pump or the receipt. You just check.',
@@ -991,6 +991,20 @@
     } else sim.classList.add('is-on');
   })();
 
+  // Estrada (abertura dos Recursos): faixas do meio em perspectiva. Cada faixa está a uma
+  // distância z (1 = perto); na tela, y = 400/z e a largura encolhe junto. A rolagem anda com a
+  // moto: z diminui, a faixa desce e cresce; a que passa por baixo volta lá no horizonte.
+  var road = document.querySelector('.ride__road');
+  var roadDash = road ? Array.prototype.slice.call(road.querySelectorAll('.ride__dash polygon')) : [];
+  var drawRoad = function (o) {
+    var P = 1.4, n = roadDash.length, span = n * P;
+    roadDash.forEach(function (poly, i) {
+      var z = 1 + ((i * P - o) % span + span) % span;
+      var ya = 400 / z, yb = 400 / (z + .6), wa = 8 * ya / 400, wb = 8 * yb / 400;
+      poly.setAttribute('points', (500 - wa).toFixed(1) + ',' + ya.toFixed(1) + ' ' + (500 + wa).toFixed(1) + ',' + ya.toFixed(1) + ' ' +
+        (500 + wb).toFixed(1) + ',' + yb.toFixed(1) + ' ' + (500 - wb).toFixed(1) + ',' + yb.toFixed(1));
+    });
+  };
   var manifesto = document.querySelector('.manifesto');
   var rail = document.querySelector('[data-rail]');
   var railTrack = rail && rail.querySelector('.badge-grid');
@@ -1030,6 +1044,7 @@
       manifesto.style.setProperty('--heat', heat.toFixed(3));
       manifesto.classList.toggle('is-hot', heat > .8);
     }
+    if (road && inView(road)) drawRoad(y * .012);
     if (railTrack && inView(rail)) {
       var rr = rail.getBoundingClientRect();
       var over = Math.max(0, railTrack.scrollWidth - rail.clientWidth);

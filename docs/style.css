@@ -477,9 +477,33 @@ body::after {
 }
 .measure__note { text-align: center; max-width: 640px; margin: 0 auto; padding: 40px 0 0; font-size: clamp(17px, 1.6vw, 19px); color: var(--text-2); }
 
-/* ---------- Recursos: o carretel ---------- */
-#recursos .section__head { margin-bottom: 0; padding-top: 120px; }
+/* ---------- Recursos: abertura ---------- */
+/* "Feito para quem roda": a palavra que importa em chama; "digita" apagado e riscado por uma linha
+   de chama quando o título sobe. Embaixo, a estrada à noite em perspectiva:
+   a faixa do meio corre com a rolagem, como quem está rodando, e o farol esquenta o asfalto perto
+   de quem olha. Leva o olho até o simulador. A estrada é SVG 2D com a perspectiva calculada
+   (y = 400/z), não um plano 3D: leve no iPhone e igual em todo navegador. Sem movimento: parada. */
+#recursos .section__head { max-width: none; margin-bottom: 0; padding-top: 120px; }
 @media (min-width: 960px) { #recursos .section__head { padding-top: 184px; } }
+#recursos h2 { font-size: clamp(40px, 6.6vw, 104px); line-height: .96; max-width: none; margin: 0 auto; }
+.ride__dim, .ride__x { color: var(--text-3); }
+.ride__x { position: relative; }
+.ride__x::after {
+  content: ""; position: absolute; left: -.04em; right: .3em; top: 52%; height: .07em; border-radius: .04em;
+  background: var(--flame); box-shadow: 0 0 .35em rgba(255, 110, 0, .55);
+  transform: scaleX(0); transform-origin: left; transition: transform .75s cubic-bezier(.6, 0, .2, 1) 1.15s;
+}
+.is-in .ride__x::after, html:not(.motion) .ride__x::after { transform: none; }
+.ride__road {
+  height: clamp(220px, 42vh, 460px); margin-top: -8px; pointer-events: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 58%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 22%, #000 58%, transparent);
+}
+.ride__road svg { display: block; width: 100%; height: 100%; }
+.ride__dash { fill: #ffc882; }
+@media (max-width: 719px) { .ride__road { height: auto; aspect-ratio: 5 / 2; } }
+
+/* ---------- Recursos: o carretel ---------- */
 
 .features { display: grid; gap: 96px; padding: 64px 0; }
 .feature { display: grid; gap: 32px; align-items: center; }
@@ -526,8 +550,8 @@ body::after {
    celular ou toca. A tela são quadros reais do app empilhados; a "câmera" é uma folha que sobe
    por cima. Dentro da tela tudo é medido em --u (1% da largura da tela, em px), então escala junto
    com o celular. Sem container query de propósito: no Safari ela fazia a tela piscar. */
-.sim { padding: 64px 0 104px; }
-@media (min-width: 960px) { .sim { padding: 88px 0 152px; } }
+.sim { padding: 32px 0 104px; }
+@media (min-width: 960px) { .sim { padding: 40px 0 152px; } }
 .sim__head { text-align: center; max-width: 760px; margin: 0 auto; }
 .sim__head h3 {
   font-family: var(--display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
@@ -606,7 +630,8 @@ html:not(.js) .sim__prop { cursor: default; }
 .gauge__num, .gauge__unit { font: 700 14px/1 Georgia, "Times New Roman", serif; fill: #f1e4c8; text-anchor: middle; }
 .gauge__unit { font-size: 10px; }
 .gauge__km { font: 700 5.5px/1 var(--font); fill: #2a1200; }
-.gauge__d { font: italic 700 13.5px/1 "DSEG7", ui-monospace, monospace; fill: #2a1200; text-anchor: end; }
+/* largura dos dígitos travada (textLength): o Safari desenha o DSEG7 mais largo e cobria o "KM" */
+.gauge__d { font: italic 700 13.5px/1 "DSEG7", ui-monospace, monospace; fill: #2a1200; }
 .gauge__d--off { fill: rgba(42, 18, 0, .12); }
 .gauge__needle { transform-box: view-box; transform-origin: 120px 120px; transform: rotate(-135deg); }
 .gauge__glow { transition: opacity .7s ease .5s; }
@@ -785,7 +810,7 @@ html:not(.motion) .sim__view { filter: none; scale: 1; }
 /* Celular: o celular em cima, os três objetos numa fileira embaixo */
 @media (max-width: 719px) {
   .sim__steps { gap: 8px; margin-top: 28px; }
-  .sim__steps li { font-size: 13px; column-gap: 6px; }
+  .sim__steps li { flex-direction: column; align-items: center; font-size: 13px; }
   .sim__bench { grid-template-columns: auto auto; grid-template-areas: "phone phone" "a b"; justify-content: center; column-gap: 14px; row-gap: 64px; margin-top: 32px; }
   .sim__phone { --pw: min(250px, 66vw); grid-area: phone; justify-self: center; }
   .sim__side--a { grid-area: a; justify-self: center; align-self: end; }
