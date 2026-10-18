@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=27">
+  <link rel="stylesheet" href="style.css?v=28">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -71,13 +71,13 @@
      tanque: enche com a leitura da página. -->
 <header class="capsule" id="top">
   <a class="capsule__brand" href="#top" aria-label="Carburante">
-    <img src="assets/icon-256.png" alt="" width="32" height="32">
+    <img src="assets/icon-64.webp" alt="" width="32" height="32">
     <span>Carburante</span>
   </a>
   <p class="capsule__chapter" aria-hidden="true"><span></span></p>
   <div class="capsule__actions">
     <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
-    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="assets/icon-256.png" alt="" width="32" height="32"><span data-i18n="cta.nav">Baixar</span></a>
+    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="assets/icon-64.webp" alt="" width="32" height="32"><span data-i18n="cta.nav">Baixar</span></a>
   </div>
   <span class="capsule__fuel" aria-hidden="true"><i></i></span>
 </header>
@@ -100,8 +100,8 @@
     </div>
     <div class="hero__visual">
         <div class="glow" aria-hidden="true"></div>
-        <div class="phone phone--hero">
-          <video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/hero.webp" data-still="assets/clips/hero-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.hero" aria-label="Tela Resumo do Carburante com uma Harley-Davidson: consumo médio de 20,3 km/l, custo por km e gasto do mês. O app troca de moto e muda de cor."><source src="assets/clips/hero.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/hero.mp4" type="video/mp4"></video>
+        <div class="phone phone--hero" role="img" data-i18n-alt="alt.hero" aria-label="Tela Resumo do Carburante com uma Harley-Davidson: consumo médio de 20,3 km/l, custo por km e gasto do mês. O app troca de moto e muda de cor.">
+          <video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/hero.webp" data-still="assets/clips/hero-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/hero.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/hero.mp4" type="video/mp4"></video>
       </div>
     </div>
   </section>
@@ -205,7 +205,7 @@
               </figure><div class="pump" aria-hidden="true">
                 <span class="pump__label">R$</span><span class="pump__num ocr"><i>88.88</i><b data-pump="28.49" data-dec="2">28.49</b></span>
                 <span class="pump__label">L</span><span class="pump__num ocr"><i>8.888</i><b data-pump="4.135" data-dec="3">4.135</b></span>
-              </div><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
+              </div><div class="phone" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f1.k">Registro</p>
               <h3 data-i18n="f1.t">Fotografou, registrou.</h3>
@@ -214,7 +214,7 @@
           </div>
 
           <div class="feature">
-            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/consumo.webp" data-still="assets/clips/consumo-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.consumption" aria-label="Gráfico de consumo tanque a tanque da Harley-Davidson, com média de 20,3 km/l e comparação com a categoria"><source src="assets/clips/consumo.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/consumo.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__media"><div class="phone" role="img" data-i18n-alt="alt.consumption" aria-label="Gráfico de consumo tanque a tanque da Harley-Davidson, com média de 20,3 km/l e comparação com a categoria"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/consumo.webp" data-still="assets/clips/consumo-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/consumo.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/consumo.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f2.k">Consumo</p>
               <h3 data-i18n="f2.t">Serra ou trânsito? O gráfico conta.</h3>
@@ -223,7 +223,7 @@
           </div>
 
           <div class="feature">
-            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/manutencao.webp" data-still="assets/clips/manutencao-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.maintenance" aria-label="Notificação de troca de óleo chega no iPhone e abre a lista de manutenções programadas"><source src="assets/clips/manutencao.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/manutencao.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__media"><div class="phone" role="img" data-i18n-alt="alt.maintenance" aria-label="Notificação de troca de óleo chega no iPhone e abre a lista de manutenções programadas"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/manutencao.webp" data-still="assets/clips/manutencao-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/manutencao.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/manutencao.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f3.k">Manutenção</p>
               <h3 data-i18n="f3.t">O app lembra. Você só troca.</h3>
@@ -232,7 +232,7 @@
           </div>
 
           <div class="feature">
-            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/garagem.webp" data-still="assets/clips/garagem-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.garage" aria-label="Garagem com três motos, recordes, totais e o nível de conquistas"><source src="assets/clips/garagem.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/garagem.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__media"><div class="phone" role="img" data-i18n-alt="alt.garage" aria-label="Garagem com três motos, recordes, totais e o nível de conquistas"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/garagem.webp" data-still="assets/clips/garagem-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/garagem.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/garagem.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f4.k">Garagem</p>
               <h3 data-i18n="f4.t">Uma garagem. Nenhuma confusão.</h3>
@@ -428,6 +428,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=30"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>

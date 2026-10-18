@@ -135,7 +135,8 @@
     var en = lang === 'en';
     nodes.forEach(function (el) {
       var key = el.getAttribute('data-i18n');
-      el.innerHTML = en && EN[key] ? EN[key] : el.dataset.pt;
+      var html = en && EN[key] ? EN[key] : el.dataset.pt;
+      if (el.innerHTML !== html) el.innerHTML = html; // na carga em PT não repinta nada (LCP)
     });
     altNodes.forEach(function (el) {
       var key = el.getAttribute('data-i18n-alt');
@@ -391,6 +392,15 @@
     var p = v.play();
     if (p && p.catch) p.catch(function () {});
   };
+  // Capas dos clipes abaixo da dobra só baixam perto da tela: não disputam a carga com o hero.
+  var lazyPosters = Array.prototype.slice.call(document.querySelectorAll('video[data-poster]'));
+  var showPoster = function (v) { if (!v.dataset.failed && !v.poster) v.poster = v.dataset.poster; };
+  if ('IntersectionObserver' in window) {
+    var posterIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { showPoster(e.target); posterIO.unobserve(e.target); } });
+    }, { rootMargin: '1200px 0px' });
+    lazyPosters.forEach(function (v) { posterIO.observe(v); });
+  } else lazyPosters.forEach(showPoster);
   Array.prototype.forEach.call(document.querySelectorAll('video.clip'), function (v) {
     if (!clipsOk) { toStill(v); return; }
     // Erro de rede/decodificação chega no último <source>, não no <video>.
