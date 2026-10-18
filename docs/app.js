@@ -11,7 +11,6 @@
     'cta.store': 'Download on the App Store',
     'cta.badge': '<img src="assets/store/app-store-en-us.svg" alt="Download on the App Store" width="144" height="48">',
     'cta.nav': 'Get it free',
-    'cta.how': 'See the math',
     'hero.meta': 'Free · No sign-up · No ads · iOS 18+ · Brazil only, in Portuguese for now',
     'alt.hero': 'Carburante Summary screen with a Harley-Davidson: 20.3 km/l average, cost per km and monthly spend. The app switches bikes and changes color.',
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
@@ -99,7 +98,7 @@
     'bd.best': 'Above average',
     'bd.cc': '500cc Club',
     'bd.iron': 'Iron Butt · later',
-    'r.kicker': 'On the horizon',
+    'r.kicker': 'Roadmap',
     'r.quote': 'Today, the bike’s logbook. <em class="accent">Tomorrow, its passport.</em>',
     'r.lede': 'When the bike changes hands, its history goes with it. No date yet.',
     'st.done': 'Shipped',
@@ -241,6 +240,8 @@
   // pisca de tempos em tempos mostrando uma fresta do 3D. Toque (sem hover): revela
   // sozinho quando o cartão chega ao meio da tela; tocar alterna.
   var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  // O Safari do iPhone só aplica :active (botão afundando no toque) se houver um ouvinte de toque
+  document.addEventListener('touchstart', function () {}, { passive: true });
   var rider = document.querySelector('[data-rider]');
   if (rider) {
     var stage = rider.querySelector('.story__stage');
@@ -384,9 +385,15 @@
         }
       };
       var cta = beta.querySelector('.btn--flame');
+      // No toque, pointerleave chega junto com o dedo saindo: a roda segue acelerando um instante
+      var revOff = 0;
       [cta, wheel].forEach(function (el) {
-        el.addEventListener('pointerenter', function () { rev(true); });
-        el.addEventListener('pointerleave', function () { rev(false); });
+        el.addEventListener('pointerenter', function () { clearTimeout(revOff); rev(true); });
+        el.addEventListener('pointerleave', function (e) {
+          clearTimeout(revOff);
+          if (e.pointerType === 'touch') revOff = setTimeout(function () { rev(false); }, 1100);
+          else rev(false);
+        });
       });
       cta.addEventListener('focus', function () { rev(true); });
       cta.addEventListener('blur', function () { rev(false); });
@@ -720,6 +727,7 @@
     var dropT = sim.querySelector('.sim__drop-t');
     var arrowTs = Array.prototype.slice.call(sim.querySelectorAll('.sim__arrow-t'));
     var hint = sim.querySelector('.sim__hint');
+    var foot = sim.querySelector('.sim__foot');
     var stepEls = Array.prototype.slice.call(sim.querySelectorAll('.sim__steps li'));
     var props = {};
     Array.prototype.forEach.call(sim.querySelectorAll('[data-prop]'), function (b) { props[b.getAttribute('data-prop')] = b; });
@@ -870,6 +878,11 @@
       secs = Math.max(1, Math.round((performance.now() - t0) / 1000));
       setShot(5, 'dismiss');
       setStep('saved');
+      // Baixar / Fazer de novo têm de aparecer: se ficaram abaixo da dobra, a página sobe só o que falta
+      later(function () {
+        var r = foot.getBoundingClientRect(), gap = r.bottom - window.innerHeight + 20;
+        if (gap > 0 && r.top - gap > 0) window.scrollBy({ top: gap, behavior: quick ? 'auto' : 'smooth' });
+      }, quick ? 0 : 420);
       track('site_interaction', { event_category: 'ui', event_label: 'sim_saved', event_location: 'registro', value: secs });
     };
     // O objeto voa até a tela (de onde estiver: parado ou no meio do arrasto) e some nela
@@ -1015,7 +1028,8 @@
       var fuelMax = document.documentElement.scrollHeight - vh;
       capsule.style.setProperty('--fuel', clamp(fuelMax > 0 ? y / fuelMax : 0, 0, 1).toFixed(4));
       var chap = '';
-      chapters.forEach(function (c) { if (c.getBoundingClientRect().top < vh * .5) chap = chapterText(c); });
+      // o rótulo do capítulo fica oculto (sem eyebrow na página): mede pelo bloco do título
+      chapters.forEach(function (c) { if ((c.hidden ? c.parentElement : c).getBoundingClientRect().top < vh * .5) chap = chapterText(c); });
       var head = document.querySelector('#recursos [data-chapter]');
       var sub = function (box, kicker) {
         var b = box.getBoundingClientRect();
@@ -1100,7 +1114,12 @@
     if (w) mark.style.fontSize = (100 * mark.clientWidth * .96 / w).toFixed(1) + 'px';
   };
   fitMark();
-  window.addEventListener('resize', fitMark, { passive: true });
+  var markW = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === markW) return; // barra do Safari: só a altura muda
+    markW = window.innerWidth;
+    fitMark();
+  }, { passive: true });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitMark);
 
   // Reveal on scroll.

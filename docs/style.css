@@ -63,7 +63,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; background: var(--bg); }
+/* sem o retângulo cinza do toque no iOS: cada controle tem o próprio estado pressionado (:active) */
+html { scroll-behavior: smooth; scroll-padding-top: 84px; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; background: var(--bg); }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
@@ -239,6 +240,10 @@ body::after {
    botão de chama: um selo por tela. */
 .store-badge { display: inline-flex; align-self: center; border-radius: 9px; }
 .store-badge img { display: block; height: 48px; width: auto; }
+.store-badge { transition: transform .2s, opacity .2s; }
+.store-badge:active, .capsule__cta:active, .lang:active { transform: scale(.96); }
+.store-badge:active { opacity: .82; }
+.faq summary:active { color: #fff; opacity: .7; }
 .store-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 
 /* ---------- Celular (moldura) ---------- */
@@ -338,7 +343,7 @@ body::after {
 .motion .bridge__text .w.on { opacity: 1; }
 
 /* ---------- Como medimos: o painel ---------- */
-.measure { position: relative; }
+.measure { position: relative; overflow-x: clip; } /* o brilho do painel não vaza na lateral; clip não quebra o sticky */
 .measure__stage { padding: 72px 0 32px; }
 .measure__grid {
   display: grid; gap: 32px; align-items: center;
@@ -552,12 +557,13 @@ body::after {
    com o celular. Sem container query de propósito: no Safari ela fazia a tela piscar. */
 .sim { padding: 32px 0 104px; }
 @media (min-width: 960px) { .sim { padding: 40px 0 152px; } }
-.sim__head { text-align: center; max-width: 760px; margin: 0 auto; }
+.sim__head { text-align: center; max-width: 900px; margin: 0 auto; }
 .sim__head h3 {
   font-family: var(--display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
   letter-spacing: var(--display-track); font-size: clamp(34px, 4.8vw, 72px); line-height: .98; margin-bottom: 20px; text-wrap: balance;
 }
 .sim__lede { font-size: clamp(17px, 1.6vw, 19px); color: var(--text-2); max-width: 30em; margin: 0 auto; text-wrap: balance; }
+@media (min-width: 720px) { .sim__lede { max-width: none; } }
 
 /* Três passos: trilho em cima de cada um (enche em chama quando fecha), valor lido embaixo */
 .sim__steps {
@@ -588,13 +594,14 @@ html:not(.js) .sim__steps li::after, html:not(.js) .sim__steps b { transform: no
 /* Bancada */
 .sim__bench {
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
-  column-gap: clamp(24px, 5vw, 72px); margin-top: clamp(40px, 5vw, 64px);
+  column-gap: clamp(24px, 5vw, 72px); row-gap: 24px; margin-top: clamp(32px, 3vw, 44px);
 }
 .sim__side { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .sim__side--a { justify-self: end; }
 .sim__side--b { justify-self: start; }
 .sim__or { font: italic 400 24px/1 var(--serif); color: var(--text-2); }
-.sim__phone { --pw: min(300px, calc((86svh - 20px) / 2.17)); width: var(--pw); max-width: none; margin: 0; }
+/* Altura do celular = 2,174 × largura − 23. Passos + celular + rodapé cabem abaixo da cápsula */
+.sim__phone { --pw: clamp(230px, calc((100svh - 252px) / 2.174), 300px); width: var(--pw); max-width: none; margin: 0; }
 
 /* Objetos: botões sem cara de botão; o da vez ganha a legenda em chama e, parado, um chamado */
 .sim__prop {
@@ -789,30 +796,41 @@ html:not(.js) .sim__arrow { display: none; }
 }
 .sim__cam.is-read .sim-ocr::after { opacity: 1; transform: none; }
 
-/* Embaixo: o que fazer agora (lido por leitor de tela) e, no fim, o tempo + Baixar */
-.sim__foot { margin-top: 36px; min-height: 112px; text-align: center; }
-.sim__hint { min-height: 1.55em; font-size: 16px; color: var(--text-2); }
-.sim[data-step="saved"] .sim__hint { font-size: 19px; font-weight: 600; color: var(--text); }
+/* Embaixo do celular, numa linha só: o tempo + Baixar + Fazer de novo. Antes do fim a dica fica
+   só para leitor de tela (a seta e a tela já dizem o que fazer); a linha guarda o lugar. */
+.sim__foot {
+  grid-column: 1 / -1; position: relative; z-index: 2; min-height: 48px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 28px; text-align: center;
+}
+.sim__hint { font-size: 19px; font-weight: 600; color: var(--text); }
+.sim:not([data-step="saved"]) .sim__hint { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.motion .sim[data-step="saved"] .sim__hint { animation: sim-in .5s var(--ease) .2s both; }
+@keyframes sim-in { from { opacity: 0; translate: 0 10px; } }
+.sim:not([data-step="saved"]) .sim__foot { pointer-events: none; }
 .sim__done {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 18px;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
   opacity: 0; visibility: hidden; translate: 0 10px; transition: opacity .5s ease, translate .6s var(--ease), visibility 0s .5s;
 }
 .sim[data-step="saved"] .sim__done { opacity: 1; visibility: visible; translate: none; transition: opacity .5s ease .35s, translate .6s var(--ease) .35s, visibility 0s; }
 html:not(.js) .sim__drop, html:not(.js) .sim__foot { display: none; }
+.sim__side { transition: opacity .4s ease, visibility 0s; }
 /* Reduzir movimento: a câmera aparece e some sem deslizar, sem foco nem varredura */
 html:not(.motion) :is(.sim__cam, .sim__view, .sim__box, .sim__pill, .sim__shot) { transition: none; }
 html:not(.motion) .sim__view { filter: none; scale: 1; }
 
 /* Tablet: celular um pouco menor */
 @media (max-width: 1079px) {
-  .sim__phone { --pw: min(270px, calc((80svh - 20px) / 2.17)); }
+  .sim__phone { --pw: clamp(220px, calc((100svh - 252px) / 2.174), 270px); }
 }
 /* Celular: o celular em cima, os três objetos numa fileira embaixo */
 @media (max-width: 719px) {
   .sim__steps { gap: 8px; margin-top: 28px; }
-  .sim__steps li { flex-direction: column; align-items: center; font-size: 13px; }
-  .sim__bench { grid-template-columns: auto auto; grid-template-areas: "phone phone" "a b"; justify-content: center; column-gap: 14px; row-gap: 64px; margin-top: 32px; }
-  .sim__phone { --pw: min(250px, 66vw); grid-area: phone; justify-self: center; }
+  /* coluna sem quebra: com wrap, o WebKit mandava o valor (flex-basis 100%) para uma 2ª coluna fora da tela */
+  .sim__steps li { flex-direction: column; flex-wrap: nowrap; align-items: center; font-size: 13px; }
+  .sim__steps b { flex-basis: auto; }
+  .sim__bench { grid-template-columns: auto auto; grid-template-areas: "phone phone" "a b"; justify-content: center; column-gap: 14px; row-gap: 60px; margin-top: 32px; }
+  /* com a barra do Safari recolhida (lvh), celular + objetos cabem juntos */
+  .sim__phone { --pw: clamp(200px, calc((100lvh - 240px) / 2.174), min(250px, 66vw)); grid-area: phone; justify-self: center; }
   .sim__side--a { grid-area: a; justify-self: center; align-self: end; }
   .sim__side--b { grid-area: b; justify-self: center; align-self: end; flex-direction: row; align-items: flex-end; gap: 8px; }
   .sim__or { font-size: 17px; align-self: center; }
@@ -821,7 +839,10 @@ html:not(.motion) .sim__view { filter: none; scale: 1; }
   .sim__prop--odo .gauge { width: 92px; }
   .sim__prop--pump .pump { font-size: 4.6px; }
   .sim__prop--receipt .receipt { width: 70px; font-size: 3.7px; }
-  .sim__foot { margin-top: 28px; }
+  /* No fim, o rodapé ocupa a fileira dos objetos (já usados): fica onde o dedo está */
+  .sim__foot { grid-area: 2 / 1 / 3 / 3; align-self: center; flex-direction: column; gap: 16px; }
+  .sim__hint { font-size: 17px; }
+  .sim[data-step="saved"] .sim__side { opacity: 0; visibility: hidden; transition: opacity .3s ease, visibility 0s .3s; }
   .sim__arrow { top: auto; bottom: calc(100% + 4px); width: 74px; grid-auto-flow: column; align-items: center; gap: 0; }
   .sim__side--a .sim__arrow { left: 50%; }
   .sim__side--b .sim__arrow { right: 50%; top: auto; }
@@ -1036,6 +1057,8 @@ html:not(.motion) .manifesto { --heat: 1; }
 #beta.is-rev .wrap::before { filter: saturate(1.3) brightness(1.08); } /* sombra seria cortada pelo clip-path */
 .beta__wheel { position: relative; isolation: isolate; width: 168px; aspect-ratio: 1; margin: -16px auto 20px; transition: scale .5s cubic-bezier(.34, 1.4, .5, 1); }
 @media (max-width: 719px) { .beta__wheel { width: 144px; margin-top: -24px; } }
+/* tocar e segurar a roda acelera: sem o menu "Salvar imagem" do iOS por cima */
+.beta__wheel, .story__stage { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .beta__wheel::before {
   content: ""; position: absolute; z-index: -1; inset: 6%; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(255, 130, 0, .6), rgba(255, 60, 0, .2) 60%, transparent);

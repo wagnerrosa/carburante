@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=33">
+  <link rel="stylesheet" href="style.css?v=34">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -93,7 +93,6 @@
         <p class="hero__lede" data-i18n="hero.lede">Fotografe o hodômetro no posto. O&nbsp;Carburante calcula a média real e avisa antes da troca de óleo. Até sem sinal.</p>
         <div class="cta-row">
           <a class="store-badge js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.badge"><img src="assets/store/app-store-pt-br.svg" alt="Baixar na App Store" width="144" height="48"></a>
-          <a class="btn btn--ghost" href="#consumo" data-i18n="cta.how">Ver a conta</a>
         </div>
         <p class="hero__meta" data-i18n="hero.meta">Grátis · Sem cadastro · Sem anúncios · iOS 18+</p>
       </div>
@@ -120,7 +119,7 @@
     <div class="measure__stage">
       <div class="wrap measure__grid">
         <header class="measure__head">
-          <p class="kicker" data-chapter data-i18n="m.kicker">Como medimos</p>
+          <p class="kicker" hidden data-chapter data-i18n="m.kicker">Como medimos</p>
           <h2 data-rise data-i18n="m.title">Tanque cheio a tanque cheio. <em class="accent">A conta que não mente.</em></h2>
         </header>
 
@@ -181,7 +180,7 @@
   <section class="section section--tight ride" id="recursos" data-ride>
     <div class="wrap">
       <header class="section__head">
-        <p class="kicker" data-chapter data-i18n="f.kicker">Recursos</p>
+        <p class="kicker" hidden data-chapter data-i18n="f.kicker">Recursos</p>
         <h2 data-rise data-i18n="f.title">Feito para quem <em class="accent">roda,</em><br> <span class="ride__dim">não para quem</span> <span class="ride__x">digita.</span></h2>
       </header>
     </div>
@@ -194,7 +193,7 @@
   <section class="sim" id="registro" data-sim>
     <div class="wrap">
       <header class="sim__head">
-        <p class="kicker" data-i18n="f1.k">Registro</p>
+        <p class="kicker" hidden data-i18n="f1.k">Registro</p>
         <h3 data-rise data-i18n="f1.t">Fotografou, registrou.</h3>
         <p class="sim__lede" data-i18n="f1.d">O iPhone lê o hodômetro, depois a bomba ou o comprovante. Você só confere.</p>
       </header>
@@ -258,12 +257,12 @@
             <span class="sim__cap" data-i18n="sim.c.receipt">Comprovante</span>
           </button>
         </div>
-      </div>
-      <div class="sim__foot">
-        <p class="sim__hint" aria-live="polite"></p>
-        <div class="sim__done">
-          <a class="btn btn--flame js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="sim.cta">Baixar grátis</a>
-          <button class="btn btn--ghost" type="button" data-sim-again data-i18n="sim.again">Fazer de novo</button>
+        <div class="sim__foot">
+          <p class="sim__hint" aria-live="polite"></p>
+          <div class="sim__done">
+            <a class="btn btn--flame js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="sim.cta">Baixar grátis</a>
+            <button class="btn btn--ghost" type="button" data-sim-again data-i18n="sim.again">Fazer de novo</button>
+          </div>
         </div>
       </div>
     </div>
@@ -321,7 +320,7 @@
   <section class="section badges" id="conquistas">
     <div class="wrap">
       <header class="section__head">
-        <p class="kicker" data-chapter data-i18n="b.kicker">Conquistas</p>
+        <p class="kicker" hidden data-chapter data-i18n="b.kicker">Conquistas</p>
         <h2 data-rise data-i18n="b.title">Rodar também é colecionar.</h2>
         <p class="section__lede reveal" data-i18n="b.lede">25 medalhas. Todas se ganham rodando.</p>
       </header>
@@ -350,7 +349,7 @@
   <section class="section" id="roadmap">
     <div class="wrap">
       <header class="section__head">
-        <p class="kicker" data-chapter data-i18n="r.kicker">No horizonte</p>
+        <p class="kicker" hidden data-chapter data-i18n="r.kicker">Roadmap</p>
         <h2 class="roadmap__quote" data-rise data-i18n="r.quote">Hoje, o diário da moto. <em class="accent">Amanhã, o passaporte dela.</em></h2>
         <p class="section__lede reveal" data-i18n="r.lede">Quando a moto mudar de dono, o histórico vai junto. Ainda sem data.</p>
       </header>
@@ -398,7 +397,7 @@
         </div>
       </figure>
       <div class="story__copy reveal">
-        <p class="kicker" data-chapter data-i18n="s.kicker">Bastidores</p>
+        <p class="kicker" hidden data-chapter data-i18n="s.kicker">Bastidores</p>
         <h2 data-i18n="s.title">Feito por quem também roda.</h2>
         <p class="section__lede" data-i18n="s.lede">Sou <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer e motociclista há mais de duas décadas. Fiz o Carburante por um motivo simples: registrar um abastecimento precisa caber na parada do posto.</p>
         <div class="cta-row">
@@ -413,7 +412,7 @@
   <section class="section faq" id="faq">
     <div class="wrap faq__grid">
       <header class="faq__head">
-        <p class="kicker" data-chapter data-i18n="q.kicker">Perguntas</p>
+        <p class="kicker" hidden data-chapter data-i18n="q.kicker">Perguntas</p>
         <h2 data-rise data-i18n="q.title">Antes de você perguntar.</h2>
       </header>
       <div class="faq__list reveal">
@@ -496,6 +495,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=37"></script>
+<script src="app.js?v=38"></script>
 </body>
 </html>
