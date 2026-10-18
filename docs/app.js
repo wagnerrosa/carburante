@@ -14,7 +14,6 @@
     'cta.how': 'See the math',
     'hero.meta': 'Free · No sign-up · No ads · iOS 18+ · Brazil only, in Portuguese for now',
     'alt.hero': 'Carburante Summary screen with a Harley-Davidson: 20.3 km/l average, cost per km and monthly spend. The app switches bikes and changes color.',
-    'alt.fuel': 'Logging a fuel-up: the odometer photo is read (22,039 km), the pump photo brings cost and liters (R$ 28.49 and 4.135 L) and the review shows 20.1 km/l for this tank',
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
     'alt.maintenance': 'An oil change notification arrives on the iPhone and opens the scheduled maintenance list',
     'alt.garage': 'Garage with three bikes, records, totals and the achievement level',
@@ -40,6 +39,22 @@
     'f1.k': 'Logging',
     'f1.t': 'Snap it. Logged.',
     'f1.d': 'Your iPhone reads the odometer, then the pump or the receipt. You just check.',
+    'sim.s1': 'Odometer',
+    'sim.s2': 'Pump or receipt',
+    'sim.s3': 'Check and save',
+    'sim.v1': '22,039 km',
+    'sim.v2': 'R$ 28.49 · 4.135 L',
+    'sim.v3': '20.1 km/l',
+    'sim.c.odo': 'Odometer',
+    'sim.c.pump': 'Pump',
+    'sim.c.receipt': 'Receipt',
+    'sim.or': 'or',
+    'sim.a.scan': 'Scan',
+    'sim.a.next': 'Next',
+    'sim.a.review': 'Review',
+    'sim.a.save': 'Save fuel-up',
+    'sim.cta': 'Get it free',
+    'sim.again': 'Try again',
     'f2.k': 'Consumption',
     'f2.t': 'Twisties or traffic? The chart tells.',
     'f2.d': 'One bar per tank. Next to it, an estimated benchmark for bikes like yours.',
@@ -654,21 +669,6 @@
   var fclips = feats.map(function (f) { return f.querySelector('video.clip'); });
   var ticks = reel ? Array.prototype.slice.call(reel.querySelectorAll('.reel__ticks li')) : [];
   var reelActive = -1, reelVisible = false;
-  // Visor da bomba (Registro): conta de 0 até o valor, como a bomba enchendo, toda vez que o
-  // recurso entra. Ponto decimal, como no display de 7 segmentos.
-  var pumpNums = reel ? Array.prototype.slice.call(reel.querySelectorAll('[data-pump]')) : [];
-  var pumpRun = 0;
-  var countPump = function () {
-    if (!pumpNums.length) return;
-    cancelAnimationFrame(pumpRun);
-    var t0 = performance.now();
-    var step = function (now) {
-      var k = Math.min(1, (now - t0) / 1500), e = 1 - Math.pow(1 - k, 3);
-      pumpNums.forEach(function (el) { el.textContent = (parseFloat(el.dataset.pump) * e).toFixed(+el.dataset.dec); });
-      if (k < 1) pumpRun = requestAnimationFrame(step);
-    };
-    pumpRun = requestAnimationFrame(step);
-  };
   var setReel = function (i, visible) {
     if (i !== reelActive) {
       feats.forEach(function (f, k) {
@@ -680,12 +680,312 @@
         v.pause();
       });
       if (fclips[i] && clipsOk) { try { fclips[i].currentTime = 0; } catch (e) { /* sem metadados */ } }
-      if (feats[i] && feats[i].querySelector('[data-scan]')) countPump();
       reelActive = i;
     }
     if (!clipsOk) return;
     if (visible) playClip(fclips[i]); else if (fclips[i]) fclips[i].pause();
   };
+
+  // Registro: o simulador. Passos: odo → odo-read → fuel → fuel-read → review → saved.
+  // Cada objeto é um botão: tocar (ou Enter) leva o objeto até o celular; arrastar e soltar em
+  // cima do celular também. A "câmera" sobe, foca, a linha passa, os cantos travam no número e
+  // a tela avança (quadros do app de verdade). Com "reduzir movimento": sem voo, sem foco.
+  var sim = document.querySelector('[data-sim]');
+  var SIM = {
+    pt: {
+      drop: { odo: 'Arraste o hodômetro até aqui', fuel: 'Agora a bomba ou o comprovante' },
+      tap: { odo: 'Toque no hodômetro', fuel: 'Toque na bomba ou no comprovante' },
+      hint: { odo: 'Experimente: leve o hodômetro até o celular.', fuel: 'Agora a bomba ou o comprovante.', review: 'Confira e toque em Salvar.', saved: 'Pronto: registrado em {n} s.' },
+      read: { odo: ['Lendo o hodômetro…', 'Hodômetro lido'], pump: ['Lendo a bomba…', 'Bomba lida'], receipt: ['Lendo o comprovante…', 'Comprovante lido'] },
+      val: { odo: '22.039 km', fuel: 'R$ 28,49 · 4,135 L' }
+    },
+    en: {
+      drop: { odo: 'Drag the odometer here', fuel: 'Now the pump or the receipt' },
+      tap: { odo: 'Tap the odometer', fuel: 'Tap the pump or the receipt' },
+      hint: { odo: 'Try it: bring the odometer to the phone.', fuel: 'Now the pump or the receipt.', review: 'Check it and tap “Salvar” (Save).', saved: 'Done: logged in {n} s.' },
+      read: { odo: ['Reading the odometer…', 'Odometer read'], pump: ['Reading the pump…', 'Pump read'], receipt: ['Reading the receipt…', 'Receipt read'] },
+      val: { odo: '22,039 km', fuel: 'R$ 28.49 · 4.135 L' }
+    }
+  };
+  if (sim) (function () {
+    var screen = sim.querySelector('.sim__screen');
+    var shots = Array.prototype.slice.call(sim.querySelectorAll('.sim__shot'));
+    var cam = sim.querySelector('.sim__cam');
+    var view = cam.querySelector('.sim__view');
+    var statusT = cam.querySelector('.sim__status span');
+    var box = cam.querySelector('.sim__box');
+    var pill = cam.querySelector('.sim__pill');
+    var dropT = sim.querySelector('.sim__drop-t');
+    var hint = sim.querySelector('.sim__hint');
+    var stepEls = Array.prototype.slice.call(sim.querySelectorAll('.sim__steps li'));
+    var props = {};
+    Array.prototype.forEach.call(sim.querySelectorAll('[data-prop]'), function (b) { props[b.getAttribute('data-prop')] = b; });
+    var pumpDigits = Array.prototype.slice.call(props.pump.querySelectorAll('[data-pump]'));
+    var quick = !motion || !Element.prototype.animate;
+    var OUT = 'cubic-bezier(.32, .72, 0, 1)';
+    var step = '', shot = 4, busy = false, timers = [], t0 = 0, secs = 0, idleTimer = 0, pumpRun = 0;
+    var T = function (k) { return SIM[current === 'en' ? 'en' : 'pt'][k]; };
+    var later = function (fn, ms) { timers.push(setTimeout(fn, ms)); };
+
+    var setShot = function (n, how) {
+      var prev = shots[shot], next = shots[n];
+      if (n === shot) return;
+      shots.forEach(function (s, k) { s.classList.toggle('is-on', k === n); });
+      shot = n;
+      if (quick || !prev) return;
+      if (how === 'push') {
+        next.animate({ transform: ['translateX(30%)', 'none'], opacity: [0, 1] }, { duration: 460, easing: OUT });
+        prev.animate({ transform: ['none', 'translateX(-14%)'], opacity: [1, 0] }, { duration: 460, easing: OUT });
+      } else if (how === 'dismiss') {
+        // a folha do registro desce e revela o Resumo
+        prev.style.zIndex = 2;
+        prev.animate({ transform: ['none', 'translateY(100%)'], opacity: [1, 1] }, { duration: 560, easing: OUT }).onfinish = function () { prev.style.zIndex = ''; };
+        next.animate({ opacity: [1, 1], filter: ['brightness(.6)', 'none'] }, { duration: 560, easing: 'ease-out' });
+      }
+    };
+    var countPump = function (to, now) {
+      cancelAnimationFrame(pumpRun);
+      var put = function (e) { pumpDigits.forEach(function (el) { el.textContent = (parseFloat(el.dataset.pump) * e).toFixed(+el.dataset.dec); }); };
+      if (!to || quick || now) { put(to); return; }
+      var s0 = performance.now();
+      var tick = function (now) {
+        var k = Math.min(1, (now - s0) / 1500);
+        put(1 - Math.pow(1 - k, 3));
+        if (k < 1) pumpRun = requestAnimationFrame(tick);
+      };
+      pumpRun = requestAnimationFrame(tick);
+    };
+    var renderText = function () {
+      if (step === 'odo' || step === 'fuel') dropT.textContent = T(fine ? 'drop' : 'tap')[step];
+      var h = T('hint');
+      if (step === 'saved') hint.textContent = h.saved.replace('{n}', secs);
+      else if (h[step]) hint.textContent = h[step];
+    };
+    onLang.push(renderText);
+    var setStep = function (s) {
+      step = s;
+      sim.setAttribute('data-step', s);
+      var at = { odo: 0, 'odo-read': 0, fuel: 1, 'fuel-read': 1, review: 2, saved: 3 }[s];
+      var read = /-read$/.test(s);
+      stepEls.forEach(function (li, k) {
+        li.classList.toggle('is-done', k < at || (k === at && read));
+        li.classList.toggle('is-on', k === at);
+      });
+      var want = s === 'odo' ? ['odo'] : s === 'fuel' ? ['pump', 'receipt'] : [];
+      Object.keys(props).forEach(function (k) {
+        var on = want.indexOf(k) >= 0;
+        props[k].setAttribute('aria-disabled', on ? 'false' : 'true');
+        props[k].classList.toggle('is-next', on);
+      });
+      renderText();
+    };
+    var clearIdle = function () { clearTimeout(idleTimer); sim.classList.remove('is-idle'); };
+    var armIdle = function () {
+      clearIdle();
+      idleTimer = setTimeout(function () { if (!busy && (step === 'odo' || step === 'fuel')) sim.classList.add('is-idle'); }, 2600);
+    };
+    var press = function (sel) {
+      var h = sim.querySelector(sel);
+      if (!h) return;
+      h.classList.add('is-press');
+      setTimeout(function () { h.classList.remove('is-press'); }, 220);
+    };
+    var union = function (els) {
+      var r = null;
+      Array.prototype.forEach.call(els, function (el) {
+        var b = el.getBoundingClientRect();
+        r = r ? { l: Math.min(r.l, b.left), t: Math.min(r.t, b.top), r: Math.max(r.r, b.right), b: Math.max(r.b, b.bottom) } : { l: b.left, t: b.top, r: b.right, b: b.bottom };
+      });
+      return r;
+    };
+
+    // A câmera lê o objeto e a tela avança para o campo preenchido
+    var scan = function (kind) {
+      var fuel = kind !== 'odo';
+      busy = true;
+      sim.classList.add('is-busy');
+      clearIdle();
+      if (!t0) {
+        t0 = performance.now();
+        track('site_interaction', { event_category: 'ui', event_label: 'sim_start', event_location: 'registro' });
+      }
+      if (kind === 'pump') countPump(1, true); // a foto pega o visor já parado
+      var art = props[kind].querySelector('.sim__art').firstElementChild.cloneNode(true);
+      var defs = art.querySelector('defs');
+      if (defs) defs.parentNode.removeChild(defs); // os gradientes do original continuam valendo
+      view.innerHTML = '';
+      view.appendChild(art);
+      var txt = T('read')[kind];
+      statusT.textContent = txt[0];
+      pill.textContent = fuel ? SIM.pt.val.fuel : SIM.pt.val.odo; // a tela do app é em português
+      cam.className = 'sim__cam';
+      box.removeAttribute('style');
+      pill.removeAttribute('style');
+      screen.classList.add('is-cam');
+      var d = quick ? { focus: 0, scan: 0, lock: 0, read: 60, close: 1000, next: 1500 }
+                    : { focus: 380, scan: 640, lock: 1450, read: 1950, close: 3050, next: 3650 };
+      later(function () { cam.classList.add('is-focus'); }, d.focus);
+      if (!quick) later(function () { cam.classList.add('is-scan'); }, d.scan);
+      later(function () {
+        // os cantos travam no que foi lido: o visor do hodômetro ou os campos da bomba/comprovante
+        var r = union(kind === 'odo' ? [art.querySelector('.gauge__lcd')] : art.querySelectorAll('.sim-ocr'));
+        var c = cam.getBoundingClientRect(), pad = c.width * .035;
+        if (!r || !c.width) return;
+        box.style.left = (r.l - c.left - pad) + 'px';
+        box.style.top = (r.t - c.top - pad) + 'px';
+        box.style.width = (r.r - r.l + pad * 2) + 'px';
+        box.style.height = (r.b - r.t + pad * 2) + 'px';
+        pill.style.left = ((r.l + r.r) / 2 - c.left) + 'px';
+        pill.style.top = (r.t - c.top - pad * 2) + 'px';
+      }, d.lock);
+      later(function () {
+        cam.classList.add('is-read');
+        statusT.textContent = txt[1];
+        props[kind].classList.add('is-used');
+        setShot(fuel ? 3 : 1);
+        setStep(fuel ? 'fuel-read' : 'odo-read');
+        hint.textContent = txt[1] + ': ' + T('val')[fuel ? 'fuel' : 'odo'];
+      }, d.read);
+      later(function () {
+        screen.classList.remove('is-cam');
+        busy = false;
+        sim.classList.remove('is-busy');
+      }, d.close);
+      later(function () { advance(fuel ? 'review' : 'fuel'); }, d.next);
+    };
+    var advance = function (to) {
+      if (busy || (to === 'fuel' && step !== 'odo-read') || (to === 'review' && step !== 'fuel-read')) return;
+      press(to === 'fuel' ? '[data-hot="next"]' : '[data-hot="review"]');
+      setShot(to === 'fuel' ? 2 : 4, 'push');
+      setStep(to);
+      if (to === 'fuel') countPump(1);
+      armIdle();
+    };
+    var save = function () {
+      if (busy || step !== 'review') return;
+      secs = Math.max(1, Math.round((performance.now() - t0) / 1000));
+      setShot(5, 'dismiss');
+      setStep('saved');
+      track('site_interaction', { event_category: 'ui', event_label: 'sim_saved', event_location: 'registro', value: secs });
+    };
+    // O objeto voa até a tela (de onde estiver: parado ou no meio do arrasto) e some nela
+    var send = function (b, kind, dx, dy) {
+      if (busy) return;
+      busy = true;
+      sim.classList.add('is-busy');
+      clearIdle();
+      if (quick) { b.style.transform = ''; scan(kind); return; }
+      var ar = b.querySelector('.sim__art').getBoundingClientRect(), sr = screen.getBoundingClientRect();
+      var tx = dx + (sr.left + sr.width / 2) - (ar.left + ar.width / 2);
+      var ty = dy + (sr.top + sr.height * .5) - (ar.top + ar.height / 2);
+      var from = b.style.transform || 'none';
+      b.classList.add('is-fly');
+      var fly = b.animate([
+        { transform: from, opacity: 1 },
+        { transform: 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(.22)', opacity: 0 }
+      ], { duration: 460, easing: 'cubic-bezier(.5, 0, .75, .3)', fill: 'forwards' });
+      fly.onfinish = function () {
+        b.style.transform = '';
+        b.classList.remove('is-fly');
+        b.classList.add('is-used');
+        fly.cancel();
+        b.querySelector('.sim__art').animate({ opacity: [0, 1] }, { duration: 600, easing: 'ease-out' });
+        screen.parentNode.animate({ transform: ['none', 'scale(1.012)', 'none'] }, { duration: 320, easing: 'ease-out' });
+        scan(kind);
+      };
+    };
+    var reset = function () {
+      timers.forEach(clearTimeout);
+      timers = [];
+      busy = false;
+      t0 = 0;
+      sim.classList.remove('is-busy');
+      screen.classList.remove('is-cam');
+      Object.keys(props).forEach(function (k) { props[k].classList.remove('is-used'); props[k].style.transform = ''; });
+      countPump(0);
+      setShot(0);
+      setStep('odo');
+      armIdle();
+    };
+
+    // Arrastar: segue o dedo/cursor (inclina com a velocidade); solto em cima do celular = lê
+    var drag = null, suppress = false;
+    var overPhone = function (x, y) {
+      var r = screen.getBoundingClientRect();
+      return x > r.left - 24 && x < r.right + 24 && y > r.top - 24 && y < r.bottom + 24;
+    };
+    Object.keys(props).forEach(function (k) {
+      var b = props[k];
+      b.addEventListener('pointerdown', function (e) {
+        suppress = false;
+        if (busy || b.getAttribute('aria-disabled') === 'true' || e.button > 0) return;
+        drag = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, vx: 0, dx: 0, dy: 0, moved: false };
+        try { b.setPointerCapture(e.pointerId); } catch (err) { /* sem captura */ }
+      });
+      b.addEventListener('pointermove', function (e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        drag.dx = e.clientX - drag.x;
+        drag.dy = e.clientY - drag.y;
+        if (!drag.moved && Math.abs(drag.dx) + Math.abs(drag.dy) < 6) return;
+        if (!drag.moved) {
+          drag.moved = true;
+          b.classList.add('is-drag');
+          sim.classList.add('is-dragging');
+          clearIdle();
+        }
+        drag.vx = drag.vx * .8 + (e.clientX - drag.lx) * .2;
+        drag.lx = e.clientX;
+        b.style.transform = 'translate(' + drag.dx.toFixed(1) + 'px,' + drag.dy.toFixed(1) + 'px) rotate(' + clamp(drag.vx * 1.4, -14, 14).toFixed(1) + 'deg)';
+        sim.classList.toggle('is-over', overPhone(e.clientX, e.clientY));
+      });
+      var end = function (e) {
+        if (!drag || e.pointerId !== drag.id) return;
+        var d = drag;
+        drag = null;
+        sim.classList.remove('is-dragging', 'is-over');
+        if (!d.moved) return; // vira clique
+        suppress = true;
+        b.classList.remove('is-drag');
+        if (e.type === 'pointerup' && overPhone(e.clientX, e.clientY)) { send(b, k, d.dx, d.dy); return; }
+        // volta para o lugar
+        var from = b.style.transform;
+        b.style.transform = '';
+        if (!quick) b.animate({ transform: [from, 'none'] }, { duration: 520, easing: OUT });
+        armIdle();
+      };
+      b.addEventListener('pointerup', end);
+      b.addEventListener('pointercancel', end);
+      b.addEventListener('click', function (e) {
+        if (suppress && e.detail) { suppress = false; return; }
+        suppress = false;
+        if (b.getAttribute('aria-disabled') !== 'true') send(b, k, 0, 0);
+      });
+    });
+    sim.querySelector('[data-hot="scan"]').addEventListener('click', function () {
+      if (step === 'odo') send(props.odo, 'odo', 0, 0);
+      else if (step === 'fuel') send(props.pump, 'pump', 0, 0);
+    });
+    sim.querySelector('[data-hot="next"]').addEventListener('click', function () { advance('fuel'); });
+    sim.querySelector('[data-hot="review"]').addEventListener('click', function () { advance('review'); });
+    sim.querySelector('[data-hot="save"]').addEventListener('click', save);
+    sim.querySelector('[data-sim-again]').addEventListener('click', function () {
+      reset();
+      track('site_interaction', { event_category: 'ui', event_label: 'sim_again', event_location: 'registro' });
+    });
+
+    // Na carga: tela do passo 1, bomba zerada. Ao aparecer: ignição do hodômetro e o chamado.
+    countPump(0);
+    setShot(0);
+    setStep('odo');
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries, obs) {
+        if (!entries[0].isIntersecting) return;
+        sim.classList.add('is-on');
+        armIdle();
+        obs.disconnect();
+      }, { threshold: .5 }).observe(props.odo);
+    } else sim.classList.add('is-on');
+  })();
 
   var manifesto = document.querySelector('.manifesto');
   var rail = document.querySelector('[data-rail]');
@@ -698,13 +998,13 @@
       capsule.style.setProperty('--fuel', clamp(fuelMax > 0 ? y / fuelMax : 0, 0, 1).toFixed(4));
       var chap = '';
       chapters.forEach(function (c) { if (c.getBoundingClientRect().top < vh * .5) chap = chapterText(c); });
-      if (reel && reelActive >= 0) {
-        var rb = reel.getBoundingClientRect();
-        if (rb.top <= vh * .5 && rb.bottom >= vh * .5) {
-          var head = document.querySelector('#recursos [data-chapter]');
-          chap = (head ? head.textContent.trim() + ' · ' : '') + feats[reelActive].querySelector('.kicker').textContent.trim();
-        }
-      }
+      var head = document.querySelector('#recursos [data-chapter]');
+      var sub = function (box, kicker) {
+        var b = box.getBoundingClientRect();
+        if (b.top <= vh * .5 && b.bottom >= vh * .5) chap = (head ? head.textContent.trim() + ' · ' : '') + kicker.textContent.trim();
+      };
+      if (sim) sub(sim, sim.querySelector('.kicker'));
+      if (reel && reelActive >= 0) sub(reel, feats[reelActive].querySelector('.kicker'));
       setChapter(chap);
     }
     if (!motion) return;

@@ -490,7 +490,7 @@ body::after {
   .feature { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 80px; }
 }
 
-.motion .reel { height: 420vh; }
+.motion .reel { height: 340vh; }
 .motion .reel__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; display: flex; align-items: center; }
 .motion .features { grid-template-areas: "f"; gap: 0; padding: 0; }
 .motion .feature { grid-area: f; }
@@ -520,70 +520,256 @@ body::after {
   .motion .reel__ticks li { width: 28px; }
 }
 
-/* ---------- Registro: objetos do posto ---------- */
-/* Em volta do celular do primeiro recurso: o comprovante (papel, serrilha, código de barras) e o
-   visor da bomba. Ativo, a linha de leitura desce pelo comprovante e as caixas laranja marcam o que o
-   OCR pega, como as caixas do Vision; o visor conta até o valor (JS). Sem movimento: tudo marcado. */
-.feature__media--scan { position: relative; isolation: isolate; }
-.receipt {
-  position: absolute; z-index: 2; left: -2%; bottom: 9%; width: clamp(122px, 15vw, 216px); margin: 0;
-  rotate: -7deg; filter: drop-shadow(0 34px 28px rgba(0, 0, 0, .65));
-  font: 600 clamp(7px, .76vw, 11px)/1.45 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .02em; color: #2b2723; text-align: left;
+/* ---------- Registro: o simulador ---------- */
+/* Palco simétrico: o hodômetro à esquerda (passo 1), o celular no meio, a bomba ou o comprovante
+   à direita (passo 2). Os objetos nunca cobrem a tela. Cada objeto é um botão: arrasta até o
+   celular ou toca. A tela são quadros reais do app empilhados; a "câmera" é uma folha que sobe
+   por cima. Dentro da tela tudo é em cqw (largura da tela), então escala junto com o celular. */
+.sim { padding: 64px 0 104px; }
+@media (min-width: 960px) { .sim { padding: 88px 0 152px; } }
+.sim__head { text-align: center; max-width: 760px; margin: 0 auto; }
+.sim__head h3 {
+  font-family: var(--display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
+  letter-spacing: var(--display-track); font-size: clamp(34px, 4.8vw, 72px); line-height: .98; margin-bottom: 20px; text-wrap: balance;
 }
+.sim__lede { font-size: clamp(17px, 1.6vw, 19px); color: var(--text-2); max-width: 30em; margin: 0 auto; text-wrap: balance; }
+
+/* Três passos: trilho em cima de cada um (enche em chama quando fecha), valor lido embaixo */
+.sim__steps {
+  list-style: none; padding: 0; margin: 36px auto 0; max-width: 720px; counter-reset: sim;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+}
+.sim__steps li {
+  counter-increment: sim; position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-content: start;
+  column-gap: 8px; row-gap: 6px; padding-top: 16px; text-align: center; font-size: 15px; font-weight: 500; line-height: 1.3;
+  color: var(--text-3); transition: color .35s ease;
+}
+.sim__steps li::before, .sim__steps li::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 2px; }
+.sim__steps li::before { background: rgba(255, 255, 255, .12); }
+.sim__steps li::after { background: var(--flame); transform: scaleX(0); transform-origin: left; transition: transform .7s var(--ease); }
+.sim__n::before { content: counter(sim, decimal-leading-zero); font: 600 12px/1.6 var(--font); letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.sim__steps b {
+  flex-basis: 100%; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums;
+  opacity: 0; transform: translateY(4px); transition: opacity .4s ease, transform .5s var(--ease);
+}
+.sim__steps li.is-on { color: var(--text); }
+.sim__steps li.is-on .sim__n { color: #ff8a3d; }
+.sim__steps li.is-done { color: var(--text-2); }
+.sim__steps li.is-done::after { transform: none; }
+.sim__steps li.is-done b { opacity: 1; transform: none; }
+html:not(.js) .sim__steps li { color: var(--text-2); }
+html:not(.js) .sim__steps li::after, html:not(.js) .sim__steps b { transform: none; opacity: 1; }
+
+/* Bancada */
+.sim__bench {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  column-gap: clamp(24px, 5vw, 72px); margin-top: clamp(40px, 5vw, 64px);
+}
+.sim__side { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.sim__side--a { justify-self: end; }
+.sim__side--b { justify-self: start; }
+.sim__or { font: italic 400 24px/1 var(--serif); color: var(--text-2); }
+.sim__phone { width: min(300px, calc((86svh - 20px) / 2.17)); max-width: none; margin: 0; }
+
+/* Objetos: botões sem cara de botão; o da vez ganha a legenda em chama e, parado, um chamado */
+.sim__prop {
+  position: relative; display: grid; justify-items: center; gap: 14px; margin: 0; padding: 0; border: 0;
+  background: none; color: inherit; font: inherit; text-align: center; cursor: grab;
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+  transition: opacity .4s ease, filter .4s ease;
+}
+.sim__prop:focus-visible { outline: none; }
+.sim__prop:focus-visible .sim__art { outline: 3px solid #ff9f0a; outline-offset: 8px; border-radius: 14px; }
+.sim__art { display: block; filter: drop-shadow(0 28px 24px rgba(0, 0, 0, .6)); transition: scale .35s var(--ease), filter .35s ease; }
+.sim__prop[aria-disabled="false"]:hover .sim__art { scale: 1.04; }
+.sim__prop[aria-disabled="true"] { cursor: default; touch-action: auto; opacity: .34; filter: saturate(.2); }
+.sim__prop.is-used { opacity: .26; filter: saturate(0); }
+.sim__prop.is-drag, .sim__prop.is-fly { z-index: 30; cursor: grabbing; transition: none; }
+.sim__prop.is-drag .sim__art { scale: 1.08; filter: drop-shadow(0 50px 40px rgba(0, 0, 0, .75)); }
+.sim__cap { font-size: 13px; font-weight: 500; color: var(--text-2); transition: color .3s ease; }
+.sim__prop.is-next .sim__cap { color: #ff9a4d; }
+.sim__prop.is-used .sim__cap::before { content: "✓ "; }
+.motion .sim.is-idle .sim__prop.is-next .sim__art { animation: sim-nudge 2.8s ease-in-out infinite; }
+.motion .sim.is-idle .sim__prop--receipt.is-next .sim__art { animation-delay: .25s; }
+@keyframes sim-nudge { 0%, 68%, 100% { translate: 0 0; rotate: 0deg; } 75% { translate: 0 -8px; rotate: -3deg; } 83% { translate: 0 0; rotate: 2deg; } 90% { rotate: -1deg; } }
+html:not(.js) .sim__prop { cursor: default; }
+
+.sim__prop--odo .gauge { width: clamp(150px, 16vw, 220px); rotate: -6deg; }
+.sim__prop--pump .pump { font-size: clamp(8px, .8vw, 11px); rotate: 5deg; }
+.sim__prop--receipt .receipt { width: clamp(118px, 11.5vw, 156px); font-size: clamp(6.5px, .6vw, 8.2px); rotate: -5deg; }
+
+/* Hodômetro (a partir da foto da Iron 883): mostrador redondo, números creme, visor âmbar.
+   Ao aparecer, o ponteiro faz a varredura da ignição e o visor acende. */
+.gauge { display: block; height: auto; overflow: visible; }
+.gauge__ring { fill: none; stroke: #efe3cb; }
+.gauge__num, .gauge__unit { font: 700 14px/1 Georgia, "Times New Roman", serif; fill: #f1e4c8; text-anchor: middle; }
+.gauge__unit { font-size: 10px; }
+.gauge__km { font: 700 5.5px/1 var(--font); fill: #2a1200; }
+.gauge__d { font: italic 700 13.5px/1 "DSEG7", ui-monospace, monospace; fill: #2a1200; text-anchor: end; }
+.gauge__d--off { fill: rgba(42, 18, 0, .12); }
+.gauge__needle { transform-box: view-box; transform-origin: 120px 120px; transform: rotate(-135deg); }
+.gauge__glow { transition: opacity .7s ease .5s; }
+.motion .sim:not(.is-on) .gauge__glow { opacity: .2; }
+.motion .sim.is-on .sim__prop--odo .gauge__needle { animation: needle-sweep 1.8s cubic-bezier(.45, 0, .25, 1) .15s both; }
+@keyframes needle-sweep { 0% { transform: rotate(-135deg); } 45% { transform: rotate(135deg); } 100% { transform: rotate(-135deg); } }
+
+/* Comprovante (papel, serrilha, código de barras) e visor da bomba (7 segmentos âmbar acesos,
+   os apagados "88.88" por trás). Tudo em em: o tamanho vem do lugar onde estão. */
+.receipt { display: block; margin: 0; font: 600 8px/1.45 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .02em; color: #2b2723; text-align: left; }
+.receipt__paper, .receipt__head, .receipt__head b, .receipt__head span, .receipt__item, .receipt__code { display: block; }
 .receipt__paper {
   position: relative; padding: 1.7em 1.4em 2.4em;
   background: linear-gradient(180deg, #f7f4ed, #ebe6da);
   -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 6px) no-repeat, conic-gradient(from -45deg at bottom, #000 90deg, transparent 0) bottom / 10px 6px repeat-x;
   mask: linear-gradient(#000 0 0) top / 100% calc(100% - 6px) no-repeat, conic-gradient(from -45deg at bottom, #000 90deg, transparent 0) bottom / 10px 6px repeat-x;
 }
-.receipt p { margin: 0; }
-.receipt__head { text-align: center; margin-bottom: 1em !important; }
-.receipt__head b { display: block; font-size: 1.25em; letter-spacing: .08em; }
-.receipt__head span { display: block; font-weight: 500; opacity: .62; }
+.receipt__head { text-align: center; margin-bottom: 1em; }
+.receipt__head b { font-size: 1.25em; letter-spacing: .08em; }
+.receipt__head span { font-weight: 500; opacity: .62; }
 .receipt__item { padding-top: .8em; border-top: 1px dashed rgba(0, 0, 0, .3); }
-.receipt__row { display: flex; justify-content: space-between; gap: 1em; margin-top: .35em !important; }
-.receipt__total { font-size: 1.28em; margin-top: .8em !important; padding-top: .5em; border-top: 1px dashed rgba(0, 0, 0, .3); }
+.receipt__row { display: flex; justify-content: space-between; gap: 1em; margin-top: .35em; }
+.receipt__total { font-size: 1.28em; margin-top: .8em; padding-top: .5em; border-top: 1px dashed rgba(0, 0, 0, .3); }
 .receipt__foot { opacity: .62; }
-.receipt__code { display: block; height: 2.4em; margin-top: 1.1em; opacity: .85; background: repeating-linear-gradient(90deg, #2b2723 0 1px, transparent 1px 3px, #2b2723 3px 5px, transparent 5px 6px, #2b2723 6px 7px, transparent 7px 10px); }
-.receipt__scan {
-  position: absolute; left: -8%; right: -8%; top: 0; height: 3px; border-radius: 2px; opacity: 0; pointer-events: none;
-  background: linear-gradient(90deg, transparent, #ff7a00 18%, #ffc400 50%, #ff7a00 82%, transparent);
-  box-shadow: 0 0 18px 4px rgba(255, 122, 0, .55);
-}
-/* Caixa do OCR em volta do que foi lido */
-.ocr { position: relative; }
-.ocr::after {
-  content: ""; position: absolute; inset: -.28em -.4em; border-radius: .4em; pointer-events: none;
-  border: 1.5px solid #ff7a00; box-shadow: 0 0 0 3px rgba(255, 122, 0, .16), 0 0 14px rgba(255, 122, 0, .35);
-  opacity: 0; transform: scale(1.18);
-}
-html:not(.motion) .ocr::after { opacity: 1; transform: none; }
-.motion .feature.is-active .receipt__scan { animation: scan 3.4s cubic-bezier(.45, 0, .55, 1) .5s infinite; }
-.motion .feature.is-active .receipt .ocr::after { animation: ocr-box 3.4s cubic-bezier(.16, 1, .3, 1) .5s infinite; }
-.motion .feature.is-active .receipt__total .ocr::after { animation-delay: .75s; }
-.motion .feature.is-active .pump .ocr::after { animation: ocr-hold .5s cubic-bezier(.16, 1, .3, 1) 1.7s forwards; }
-.motion .feature.is-active .pump .ocr + .pump__label + .ocr::after { animation-delay: 1.9s; }
-@keyframes scan { 0% { top: 0; opacity: 0; } 6% { opacity: 1; } 56% { top: 100%; opacity: 1; } 62%, 100% { top: 100%; opacity: 0; } }
-@keyframes ocr-box { 0%, 28% { opacity: 0; transform: scale(1.18); } 34%, 90% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; transform: none; } }
-@keyframes ocr-hold { to { opacity: 1; transform: none; } }
-
-/* Visor da bomba: 7 segmentos âmbar acesos, com os segmentos apagados ("88.88") por trás */
+.receipt__code { height: 2.4em; margin-top: 1.1em; opacity: .85; background: repeating-linear-gradient(90deg, #2b2723 0 1px, transparent 1px 3px, #2b2723 3px 5px, transparent 5px 6px, #2b2723 6px 7px, transparent 7px 10px); }
 .pump {
-  position: absolute; z-index: 2; right: -3%; top: 11%; rotate: 5deg;
-  display: grid; grid-template-columns: auto auto; align-items: center; gap: .45em .7em;
-  padding: 1em 1.1em; border-radius: 16px; font-size: clamp(8px, .82vw, 12px);
+  display: inline-grid; grid-template-columns: auto auto; align-items: center; gap: .45em .7em;
+  padding: 1em 1.1em; border-radius: 1.45em; font-size: 10px;
   background: linear-gradient(180deg, #1c1c1f, #0c0c0e);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), inset 0 1px 0 rgba(255, 255, 255, .1),
-    0 0 0 6px #070707, 0 0 0 7px rgba(255, 255, 255, .07), 0 34px 50px -18px rgba(0, 0, 0, .95);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), inset 0 1px 0 rgba(255, 255, 255, .1), 0 0 0 .55em #070707, 0 0 0 .65em rgba(255, 255, 255, .07);
 }
 .pump__label { font: 700 1em/1 var(--font); letter-spacing: .1em; color: var(--text-3); text-align: right; }
 .pump__num { display: grid; justify-items: end; padding: .15em .2em; font: italic 700 2.7em/1 "DSEG7", ui-monospace, monospace; }
 .pump__num i, .pump__num b { grid-area: 1 / 1; font: inherit; }
 .pump__num i { color: rgba(255, 176, 32, .07); }
 .pump__num b { color: #ffb020; text-shadow: 0 0 10px rgba(255, 150, 0, .7), 0 0 26px rgba(255, 110, 0, .35); }
-@media (max-width: 879px) {
-  .receipt { left: 1%; bottom: 7%; }
-  .pump { right: 0; top: 9%; }
+
+/* Tela: quadros do app empilhados (só o da vez aparece) */
+.sim__screen {
+  position: relative; isolation: isolate; container-type: inline-size; aspect-ratio: 1206 / 2622;
+  overflow: hidden; border-radius: 44px; background: #e9e9ee; -webkit-user-select: none; user-select: none;
+}
+.sim__screen .sim__shot { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; background: none; opacity: 0; transition: opacity .3s ease, filter .45s ease; }
+.sim__screen .sim__shot.is-on { opacity: 1; }
+.sim__screen.is-cam .sim__shot.is-on { filter: brightness(.55); }
+
+/* Onde soltar: na parte vazia da tela (embaixo do botão apagado) */
+.sim__drop {
+  position: absolute; z-index: 2; left: 6%; right: 6%; top: 57%; bottom: 6%; padding: 0 9cqw;
+  display: grid; place-content: center; justify-items: center; gap: 3cqw; text-align: center;
+  border: .6cqw dashed rgba(60, 60, 67, .26); border-radius: 7cqw;
+  color: rgba(60, 60, 67, .58); font: 600 4.6cqw/1.25 var(--font); text-wrap: balance;
+  opacity: 0; pointer-events: none; transition: opacity .3s ease, background .3s ease, border-color .3s ease, color .3s ease, scale .35s var(--ease);
+}
+.sim__drop svg { width: 11cqw; height: 11cqw; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sim:is([data-step="odo"], [data-step="fuel"]):not(.is-busy) .sim__drop { opacity: 1; }
+.sim.is-dragging .sim__drop { border-color: rgba(255, 106, 0, .75); color: #f05a00; background: rgba(255, 106, 0, .06); }
+.sim.is-over .sim__drop { background: rgba(255, 106, 0, .14); scale: 1.03; }
+
+/* Botões da tela por cima dos botões do quadro (Escanear, Próximo/Revisar, Salvar) */
+.sim__hot {
+  position: absolute; z-index: 3; display: none; padding: 0; border: 0; border-radius: 999px;
+  background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .2s ease;
+}
+.sim__hot:focus-visible { outline-offset: -3px; }
+.sim__hot:active, .sim__hot.is-press { background: rgba(0, 0, 0, .14); }
+.sim__hot--scan { left: 65.5%; top: 8.8%; width: 30.5%; height: 5.4%; }
+.sim__hot--next { left: 4%; top: 52.4%; width: 92%; height: 6.1%; }
+.sim__hot--save { left: 4%; top: 95.7%; width: 92%; height: 6%; }
+.sim[data-step="odo"] [data-hot="scan"], .sim[data-step="fuel"] [data-hot="scan"],
+.sim[data-step="odo-read"] [data-hot="next"], .sim[data-step="fuel-read"] [data-hot="review"],
+.sim[data-step="review"] [data-hot="save"] { display: block; }
+.sim.is-busy .sim__hot { display: none; }
+.motion .sim[data-step="review"] .sim__hot--save { animation: sim-ring 1.6s ease-out infinite; }
+@keyframes sim-ring { 0% { box-shadow: 0 0 0 0 rgba(255, 106, 0, .6); } 100% { box-shadow: 0 0 0 5cqw rgba(255, 106, 0, 0); } }
+
+/* Câmera: folha escura que sobe; o objeto entra desfocado, foca, a linha passa, os cantos
+   travam no número e a pílula mostra o que foi lido (como as caixas do Vision) */
+.sim__cam {
+  position: absolute; z-index: 4; inset: 7% 0 0; overflow: hidden; visibility: hidden;
+  border-radius: 6cqw 6cqw 0 0; background: radial-gradient(120% 80% at 50% 42%, #202024, #050506 72%);
+  transform: translateY(102%); transition: transform .5s var(--ease), visibility 0s .5s;
+}
+.sim__screen.is-cam .sim__cam { transform: none; visibility: visible; transition: transform .5s var(--ease), visibility 0s; }
+.sim__status {
+  position: absolute; z-index: 2; top: 5cqw; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 2cqw;
+  padding: 2.2cqw 4cqw; border-radius: 999px; white-space: nowrap; background: rgba(255, 255, 255, .14);
+  font: 600 3.7cqw/1 var(--font); color: #fff;
+}
+.sim__spin { flex: none; width: 3.8cqw; height: 3.8cqw; border-radius: 50%; border: .55cqw solid rgba(255, 255, 255, .3); border-top-color: #fff; animation: sim-spin .8s linear infinite; }
+.sim__cam.is-read .sim__spin {
+  animation: none; border: 0;
+  background: #34c759 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.6 2.5L12 5.5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 90% no-repeat;
+}
+@keyframes sim-spin { to { transform: rotate(360deg); } }
+.sim__view { position: absolute; inset: 16cqw 5cqw 20cqw; display: grid; place-items: center; filter: blur(2.6cqw); scale: 1.1; transition: filter .6s ease, scale .9s var(--ease); }
+.sim__cam.is-focus .sim__view { filter: none; scale: 1; }
+.sim__view .gauge { width: 84cqw; }
+.sim__view .pump { font-size: 5.2cqw; }
+.sim__view .receipt { width: 76cqw; font-size: 3.9cqw; }
+.sim__line {
+  position: absolute; z-index: 1; left: 5%; right: 5%; top: 18%; height: .8cqw; border-radius: 1cqw; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, #ff7a00 18%, #ffc400 50%, #ff7a00 82%, transparent);
+  box-shadow: 0 0 4cqw 1cqw rgba(255, 122, 0, .5);
+}
+.sim__cam.is-scan .sim__line { animation: sim-scan 1s cubic-bezier(.45, 0, .55, 1) forwards; }
+@keyframes sim-scan { 0% { top: 18%; opacity: 0; } 12%, 86% { opacity: 1; } 100% { top: 82%; opacity: 0; } }
+.sim__box {
+  position: absolute; z-index: 1; left: 8%; top: 18%; width: 84%; height: 62%; opacity: 0; pointer-events: none;
+  transition: left .55s var(--ease), top .55s var(--ease), width .55s var(--ease), height .55s var(--ease), opacity .3s ease;
+}
+.sim__cam.is-focus .sim__box { opacity: 1; }
+.sim__box i { position: absolute; width: 6cqw; height: 6cqw; border: .7cqw solid #ff8a00; }
+.sim__box i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 2cqw; }
+.sim__box i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 2cqw; }
+.sim__box i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 2cqw; }
+.sim__box i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 2cqw; }
+.sim__pill {
+  position: absolute; z-index: 2; left: 50%; top: 30%; translate: -50% -100%; padding: 2.1cqw 3.8cqw; border-radius: 999px;
+  background: #ff6a00; color: #fff; font: 700 4.4cqw/1 var(--font); white-space: nowrap; font-variant-numeric: tabular-nums;
+  box-shadow: 0 2cqw 6cqw rgba(255, 90, 0, .45); opacity: 0; scale: .6; transition: opacity .25s ease, scale .5s cubic-bezier(.2, 1.4, .4, 1);
+}
+.sim__cam.is-read .sim__pill { opacity: 1; scale: 1; }
+.sim-ocr { position: relative; }
+.sim-ocr::after {
+  content: ""; position: absolute; inset: -.28em -.4em; border-radius: .4em; pointer-events: none;
+  border: 1.5px solid #ff7a00; box-shadow: 0 0 0 3px rgba(255, 122, 0, .16), 0 0 14px rgba(255, 122, 0, .35);
+  opacity: 0; transform: scale(1.18); transition: opacity .3s ease, transform .5s var(--ease);
+}
+.sim__cam.is-read .sim-ocr::after { opacity: 1; transform: none; }
+
+/* Embaixo: o que fazer agora (lido por leitor de tela) e, no fim, o tempo + Baixar */
+.sim__foot { margin-top: 36px; min-height: 112px; text-align: center; }
+.sim__hint { min-height: 1.55em; font-size: 16px; color: var(--text-2); }
+.sim[data-step="saved"] .sim__hint { font-size: 19px; font-weight: 600; color: var(--text); }
+.sim__done {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 18px;
+  opacity: 0; visibility: hidden; translate: 0 10px; transition: opacity .5s ease, translate .6s var(--ease), visibility 0s .5s;
+}
+.sim[data-step="saved"] .sim__done { opacity: 1; visibility: visible; translate: none; transition: opacity .5s ease .35s, translate .6s var(--ease) .35s, visibility 0s; }
+html:not(.js) .sim__drop, html:not(.js) .sim__foot { display: none; }
+/* Reduzir movimento: a câmera aparece e some sem deslizar, sem foco nem varredura */
+html:not(.motion) :is(.sim__cam, .sim__view, .sim__box, .sim__pill, .sim__shot) { transition: none; }
+html:not(.motion) .sim__view { filter: none; scale: 1; }
+
+/* Tablet: celular um pouco menor */
+@media (max-width: 1079px) {
+  .sim__phone { width: min(270px, calc((80svh - 20px) / 2.17)); }
+}
+/* Celular: o celular em cima, os três objetos numa fileira embaixo */
+@media (max-width: 719px) {
+  .sim__steps { gap: 8px; margin-top: 28px; }
+  .sim__steps li { font-size: 13px; column-gap: 6px; }
+  .sim__bench { grid-template-columns: auto auto; grid-template-areas: "phone phone" "a b"; justify-content: center; column-gap: 14px; row-gap: 28px; margin-top: 32px; }
+  .sim__phone { grid-area: phone; justify-self: center; width: min(250px, 66vw); }
+  .sim__side--a { grid-area: a; justify-self: center; align-self: end; }
+  .sim__side--b { grid-area: b; justify-self: center; align-self: end; flex-direction: row; align-items: flex-end; gap: 8px; }
+  .sim__or { font-size: 17px; align-self: center; }
+  .sim__prop { gap: 10px; }
+  .sim__cap { font-size: 11px; }
+  .sim__prop--odo .gauge { width: 92px; }
+  .sim__prop--pump .pump { font-size: 4.6px; }
+  .sim__prop--receipt .receipt { width: 70px; font-size: 3.7px; }
+  .sim__foot { margin-top: 28px; }
 }
 
 /* ---------- Manifesto ---------- */

@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=30">
+  <link rel="stylesheet" href="style.css?v=31">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -174,9 +174,10 @@
     <p class="measure__note reveal" data-i18n="m.note">Dividir km por litros a cada parada erra sempre que o tanque não enche. Por isso o Carburante só fecha a conta no cheio.</p>
   </div>
 
-  <!-- RECURSOS: um celular parado; a rolagem troca a tela e a frase ao lado. Cada recurso
-       tem o próprio celular, empilhados no mesmo lugar (a moldura é idêntica, só a tela troca).
-       Sem JS ou com "reduzir movimento": blocos um embaixo do outro. -->
+  <!-- RECURSOS: primeiro o simulador do registro; depois um celular parado em que a rolagem troca
+       a tela e a frase ao lado. Cada recurso do carretel tem o próprio celular, empilhados no mesmo
+       lugar (a moldura é idêntica, só a tela troca). Sem JS ou com "reduzir movimento": blocos um
+       embaixo do outro. -->
   <section class="section section--tight" id="recursos">
     <div class="wrap">
       <header class="section__head">
@@ -185,35 +186,91 @@
       </header>
     </div>
   </section>
+  <!-- REGISTRO: simulador. Os objetos do posto ficam ao lado do celular, nunca por cima: o
+       hodômetro (desenhado a partir da foto da Iron 883), a bomba e o comprovante. Arraste ou
+       toque: a "câmera" sobe, lê o número e a tela avança. As telas são quadros do app de verdade
+       (clipe de registro). Sem JS: a revisão parada, os objetos e os três passos com os valores. -->
+  <section class="sim" id="registro" data-sim>
+    <div class="wrap">
+      <header class="sim__head">
+        <p class="kicker" data-i18n="f1.k">Registro</p>
+        <h3 data-rise data-i18n="f1.t">Fotografou, registrou.</h3>
+        <p class="sim__lede" data-i18n="f1.d">O iPhone lê o hodômetro, depois a bomba ou o comprovante. Você só confere.</p>
+      </header>
+      <ol class="sim__steps">
+        <li><span class="sim__n" aria-hidden="true"></span><span data-i18n="sim.s1">Hodômetro</span><b data-i18n="sim.v1">22.039 km</b></li>
+        <li><span class="sim__n" aria-hidden="true"></span><span data-i18n="sim.s2">Bomba ou comprovante</span><b data-i18n="sim.v2">R$ 28,49 · 4,135 L</b></li>
+        <li><span class="sim__n" aria-hidden="true"></span><span data-i18n="sim.s3">Conferir e salvar</span><b data-i18n="sim.v3">20,1 km/l</b></li>
+      </ol>
+      <div class="sim__bench">
+        <div class="sim__side sim__side--a">
+          <button class="sim__prop sim__prop--odo" type="button" data-prop="odo">
+            <span class="sim__art" aria-hidden="true"><svg class="gauge" viewBox="0 0 240 240" aria-hidden="true"><defs><radialGradient id="gFace" cx="45%" cy="38%" r="70%"><stop offset="0" stop-color="#1b1e26"/><stop offset=".7" stop-color="#0b0c10"/><stop offset="1" stop-color="#050506"/></radialGradient><linearGradient id="gBezel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a5a60"/><stop offset=".25" stop-color="#1c1c1f"/><stop offset=".6" stop-color="#0c0c0e"/><stop offset="1" stop-color="#3a3a3f"/></linearGradient><linearGradient id="gLcd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc061"/><stop offset="1" stop-color="#f08a24"/></linearGradient></defs><circle cx="120" cy="120" r="119" fill="url(#gBezel)"/><circle cx="120" cy="120" r="108" fill="#020203"/><circle cx="120" cy="120" r="105" fill="url(#gFace)"/><g class="gauge__ring"><path d="M42.1 182.7L46.8 179.0M30.6 164.8L35.9 162.1M23.1 144.7L28.9 143.2M20.1 123.6L26.1 123.4M21.6 102.2L27.5 103.3M27.6 81.7L33.2 84.0M37.9 63.0L42.8 66.4M51.9 46.8L55.9 51.2M69.0 34.0L72.0 39.2M88.4 25.1L90.3 30.8M109.3 20.6L110.0 26.5M130.7 20.6L130.0 26.5M151.6 25.1L149.7 30.8M171.0 34.0L168.0 39.2M188.1 46.8L184.1 51.2M202.1 63.0L197.2 66.4M212.4 81.7L206.8 84.0M218.4 102.2L212.5 103.3M219.9 123.6L213.9 123.4M216.9 144.7L211.1 143.2M209.4 164.8L204.1 162.1M197.9 182.7L193.2 179.0" stroke-width="1.3"/><path d="M49.3 190.7L58.5 181.5M35.9 174.1L43.4 169.2M26.3 154.9L38.5 150.4M21.0 134.2L29.9 133.0M20.3 112.9L33.2 113.8M24.1 91.8L32.7 94.4M32.2 72.1L43.6 78.3M44.4 54.5L51.2 60.4M60.1 39.9L67.9 50.4M78.5 29.0L82.2 37.2M98.7 22.3L101.5 35.0M120.0 20.0L120.0 29.0M141.3 22.3L138.5 35.0M161.5 29.0L157.8 37.2M179.9 39.9L172.1 50.4M195.6 54.5L188.8 60.4M207.8 72.1L196.4 78.3M215.9 91.8L207.3 94.4M219.7 112.9L206.8 113.8M219.0 134.2L210.1 133.0M213.7 154.9L201.5 150.4M204.1 174.1L196.6 169.2M190.7 190.7L181.5 181.5" stroke-width="2.6"/></g><g class="gauge__num"><text x="69.1" y="175.9">0</text><text x="52.5" y="150.2">20</text><text x="48.2" y="119.9">40</text><text x="56.8" y="90.5">60</text><text x="76.9" y="67.4">80</text><text x="104.7" y="54.6">100</text><text x="135.3" y="54.6">120</text><text x="163.1" y="67.4">140</text><text x="183.2" y="90.5">160</text><text x="191.8" y="119.9">180</text><text x="187.5" y="150.2">200</text><text x="170.9" y="175.9">220</text></g><text class="gauge__unit" x="120" y="98">km/h</text><g class="gauge__lcd"><rect x="84" y="160" width="72" height="24" rx="3.5" fill="#2a1a0c"/><rect class="gauge__glow" x="84" y="160" width="72" height="24" rx="3.5" fill="url(#gLcd)"/><text class="gauge__km" x="88.5" y="175.5">KM</text><text class="gauge__d gauge__d--off" x="152" y="178.5">888888</text><text class="gauge__d" x="152" y="178.5">022039</text></g><g class="gauge__needle"><path d="M116.5 131 L118.8 34 L121.2 34 L123.5 131 Z" fill="#f4ead6"/><path d="M118.8 34 L121.2 34 L121.6 50 L118.4 50 Z" fill="#ff5a1f"/><circle cx="120" cy="120" r="17" fill="#060607" stroke="#26262a" stroke-width="1.5"/></g><path class="gauge__glare" d="M28 96 C 60 40, 150 20, 214 70 L 214 84 C 150 40, 70 60, 30 112 Z" fill="#fff" opacity=".05"/></svg></span>
+            <span class="sim__cap" data-i18n="sim.c.odo">Hodômetro</span>
+          </button>
+        </div>
+        <div class="phone sim__phone">
+          <div class="sim__screen">
+              <img class="sim__shot" data-shot="0" src="assets/sim/s0.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="1" src="assets/sim/s1.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="2" src="assets/sim/s2.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="3" src="assets/sim/s3.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot is-on" data-shot="4" src="assets/sim/s4.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="5" src="assets/sim/s5.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+            <div class="sim__drop" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>
+              <span class="sim__drop-t">Arraste o hodômetro até aqui</span>
+            </div>
+            <div class="sim__cam" aria-hidden="true">
+              <p class="sim__status"><i class="sim__spin"></i><span></span></p>
+              <div class="sim__view"></div>
+              <i class="sim__line"></i>
+              <span class="sim__box"><i></i><i></i><i></i><i></i></span>
+              <b class="sim__pill"></b>
+            </div>
+            <button class="sim__hot sim__hot--scan" type="button" data-hot="scan" data-i18n-alt="sim.a.scan" aria-label="Escanear"></button>
+            <button class="sim__hot sim__hot--next" type="button" data-hot="next" data-i18n-alt="sim.a.next" aria-label="Próximo"></button>
+            <button class="sim__hot sim__hot--next" type="button" data-hot="review" data-i18n-alt="sim.a.review" aria-label="Revisar"></button>
+            <button class="sim__hot sim__hot--save" type="button" data-hot="save" data-i18n-alt="sim.a.save" aria-label="Salvar abastecimento"></button>
+          </div>
+        </div>
+        <div class="sim__side sim__side--b">
+          <button class="sim__prop sim__prop--pump" type="button" data-prop="pump">
+            <span class="sim__art" aria-hidden="true"><span class="pump">
+              <span class="pump__label">R$</span><span class="pump__num sim-ocr"><i>88.88</i><b data-pump="28.49" data-dec="2">28.49</b></span>
+              <span class="pump__label">L</span><span class="pump__num sim-ocr"><i>8.888</i><b data-pump="4.135" data-dec="3">4.135</b></span>
+            </span></span>
+            <span class="sim__cap" data-i18n="sim.c.pump">Bomba</span>
+          </button>
+          <span class="sim__or" data-i18n="sim.or">ou</span>
+          <button class="sim__prop sim__prop--receipt" type="button" data-prop="receipt">
+            <span class="sim__art" aria-hidden="true"><span class="receipt"><span class="receipt__paper">
+              <span class="receipt__head"><b>POSTO DA SERRA</b><span>NFC-e · Documento auxiliar</span></span>
+              <span class="receipt__item">GASOLINA ADITIVADA</span>
+              <span class="receipt__row"><span class="sim-ocr">4,135 L</span><span>× 6,890</span></span>
+              <span class="receipt__row receipt__total"><span>TOTAL R$</span><span class="sim-ocr">28,49</span></span>
+              <span class="receipt__row receipt__foot"><span>PIX</span><span>29/09/26 22:50</span></span>
+              <span class="receipt__code"></span>
+            </span></span></span>
+            <span class="sim__cap" data-i18n="sim.c.receipt">Comprovante</span>
+          </button>
+        </div>
+      </div>
+      <div class="sim__foot">
+        <p class="sim__hint" aria-live="polite"></p>
+        <div class="sim__done">
+          <a class="btn btn--flame js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="sim.cta">Baixar grátis</a>
+          <button class="btn btn--ghost" type="button" data-sim-again data-i18n="sim.again">Fazer de novo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="reel" data-reel>
     <div class="reel__stage">
       <div class="wrap reel__wrap">
         <div class="features">
           <div class="feature is-active">
-            <!-- Objetos do posto: o comprovante (a linha de leitura passa e marca valor e litros, como as
-                 caixas do Vision) e o visor da bomba em 7 segmentos. Números = os do clipe. -->
-            <div class="feature__media feature__media--scan" data-scan><figure class="receipt" aria-hidden="true">
-                <div class="receipt__paper">
-                  <p class="receipt__head"><b>POSTO DA SERRA</b><span>NFC-e · Documento auxiliar</span></p>
-                  <p class="receipt__item">GASOLINA ADITIVADA</p>
-                  <p class="receipt__row"><span class="ocr">4,135 L</span><span>× 6,890</span></p>
-                  <p class="receipt__row receipt__total"><span>TOTAL R$</span><span class="ocr">28,49</span></p>
-                  <p class="receipt__row receipt__foot"><span>PIX</span><span>29/09/26 22:50</span></p>
-                  <span class="receipt__code"></span>
-                </div>
-                <span class="receipt__scan"></span>
-              </figure><div class="pump" aria-hidden="true">
-                <span class="pump__label">R$</span><span class="pump__num ocr"><i>88.88</i><b data-pump="28.49" data-dec="2">28.49</b></span>
-                <span class="pump__label">L</span><span class="pump__num ocr"><i>8.888</i><b data-pump="4.135" data-dec="3">4.135</b></span>
-              </div><div class="phone" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
-            <div class="feature__copy">
-              <p class="kicker" data-i18n="f1.k">Registro</p>
-              <h3 data-i18n="f1.t">Fotografou, registrou.</h3>
-              <p data-i18n="f1.d">O iPhone lê o hodômetro, depois a bomba ou o comprovante. Você só confere.</p>
-            </div>
-          </div>
-
-          <div class="feature">
             <div class="feature__media"><div class="phone" role="img" data-i18n-alt="alt.consumption" aria-label="Gráfico de consumo tanque a tanque da Harley-Davidson, com média de 20,3 km/l e comparação com a categoria"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop data-poster="assets/clips/consumo.webp" data-still="assets/clips/consumo-still.webp" width="600" height="1304" aria-hidden="true"><source src="assets/clips/consumo.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/consumo.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f2.k">Consumo</p>
@@ -240,7 +297,7 @@
             </div>
           </div>
         </div>
-        <ol class="reel__ticks" aria-hidden="true"><li class="is-on"><i></i></li><li><i></i></li><li><i></i></li><li><i></i></li></ol>
+        <ol class="reel__ticks" aria-hidden="true"><li class="is-on"><i></i></li><li><i></i></li><li><i></i></li></ol>
       </div>
     </div>
   </section>
@@ -436,6 +493,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 </body>
 </html>
