@@ -11,6 +11,9 @@
     'cta.store': 'Download on the App Store',
     'cta.badge': '<img src="assets/store/app-store-en-us.svg" alt="Download on the App Store" width="144" height="48">',
     'cta.nav': 'Get it free',
+    'nav.social': 'Carburante on social media',
+    'nav.reddit': 'r/carburante on Reddit',
+    'nav.instagram': '@carburante.app on Instagram',
     'hero.meta': 'Free · No sign-up · No ads · iOS 18+ · Brazil only, in Portuguese for now',
     'alt.hero': 'Carburante Summary screen with a Harley-Davidson: 20.3 km/l average, cost per km and monthly spend. The app switches bikes and changes color.',
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
@@ -121,6 +124,7 @@
     'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="motorcycle">🏍️</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
     'ft.copy': '© 2026 Carburante. All rights reserved.',
     'ft.privacy': 'Privacy',
+    'ft.lang': 'Português',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
   };
 
@@ -141,6 +145,7 @@
   altNodes.forEach(function (el) { el.dataset.ptAlt = el.getAttribute('alt') || el.getAttribute('aria-label'); });
 
   var toggle = document.getElementById('lang-toggle');
+  var footLang = document.querySelector('.footer__lang'); // no celular o EN sai da cápsula: a troca mora aqui
   var current = 'pt';
   var onLang = []; // quem precisa refazer algo depois que o texto troca (ex.: palavras da ponte)
 
@@ -165,15 +170,18 @@
     document.title = m.title;
     toggle.textContent = m.toggle;
     toggle.setAttribute('aria-label', m.toggleLabel);
+    if (footLang) footLang.lang = en ? 'pt-BR' : 'en'; // o botão fala no idioma para onde leva
     onLang.forEach(function (fn) { fn(); });
   }
 
-  toggle.addEventListener('click', function () {
+  var switchLang = function (where) {
     var next = current === 'pt' ? 'en' : 'pt';
     apply(next);
     store(next);
-    track('site_interaction', { event_category: 'ui', event_label: 'lang_' + next, event_location: 'nav' });
-  });
+    track('site_interaction', { event_category: 'ui', event_label: 'lang_' + next, event_location: where });
+  };
+  toggle.addEventListener('click', function () { switchLang('nav'); });
+  if (footLang) footLang.addEventListener('click', function () { switchLang('footer'); });
 
   // Analytics — cliques classificados pelo href, sem data-track no HTML: o i18n troca o
   // innerHTML dos parágrafos, e links internos a eles perderiam atributos. Parâmetros
@@ -189,6 +197,8 @@
       track('generate_lead', { method: 'app_store', event_location: where });
     } else if (href === '#consumo') {
       track('site_interaction', { event_category: 'navigation', event_label: 'anchor_how', event_location: where });
+    } else if (/reddit\.com|instagram\.com/.test(href)) {
+      track('site_interaction', { event_category: 'outbound', event_label: 'outbound_' + (/reddit/.test(href) ? 'reddit' : 'instagram'), event_location: where });
     } else if (/github\.com/.test(href)) {
       track('site_interaction', { event_category: 'outbound', event_label: 'outbound_github', event_location: where });
     } else if (/^https:\/\/wagnerrosa\.com\/?$/.test(href)) {
