@@ -49,10 +49,10 @@
     'f4.k': 'Garage',
     'f4.t': 'One garage. Zero mix-ups.',
     'f4.d': 'Each bike keeps its own consumption and maintenance. Records add them all up.',
-    'x1': '<span>No</span> sign-up.',
-    'x2': '<span>No</span> password.',
-    'x3': '<span>No</span> ads.',
-    'x4': '<span>No</span> signal? <em class="accent flame-text">No problem.</em>',
+    'x1': '<span class="dim">No</span> sign-up.',
+    'x2': '<span class="dim">No</span> password.',
+    'x3': '<span class="dim">No</span> ads.',
+    'x4': '<span class="dim">No</span> signal? <em class="accent flame-text">No problem.</em>',
     'bt.title': 'Use it at your next fuel-up.',
     'bt.d': 'Free on the Brazilian App Store. Requires an iPhone with iOS 18 or later; the app is in Portuguese for now.',
     'bt.mail': 'Questions or ideas? <a href="mailto:beta@carburante.motorcycles?subject=Carburante">beta@carburante.motorcycles</a>',
@@ -476,6 +476,98 @@
   splitWords();
   onLang.push(function () { splitWords(); frame(); });
 
+  // Títulos linha a linha: mede onde o navegador quebrou cada linha (com a fonte já carregada)
+  // e remonta como .ln > .li; o <em>/<span> de cada palavra volta em volta dela. O &nbsp; não
+  // quebra (o split é só em espaço comum). Refaz ao trocar idioma e ao redimensionar.
+  var riseEls = motion ? Array.prototype.slice.call(document.querySelectorAll('[data-rise]')) : [];
+  var splitLines = function (el) {
+    if (el._src == null) el._src = el.innerHTML;
+    el.innerHTML = el._src;
+    var tw = [];
+    (function walk(node) {
+      Array.prototype.slice.call(node.childNodes).forEach(function (n) {
+        if (n.nodeType === 1) { walk(n); return; }
+        if (n.nodeType !== 3) return;
+        var frag = document.createDocumentFragment();
+        n.textContent.split(/([ \t\n\r]+)/).forEach(function (t) {
+          if (!t) return;
+          if (/^[ \t\n\r]+$/.test(t)) { frag.appendChild(document.createTextNode(' ')); return; }
+          var w = document.createElement('span');
+          w.className = 'tw';
+          w.textContent = t;
+          frag.appendChild(w);
+          tw.push(w);
+        });
+        n.parentNode.replaceChild(frag, n);
+      });
+    })(el);
+    var lines = [], top = null;
+    tw.forEach(function (w) {
+      var t = w.getBoundingClientRect().top;
+      if (top === null || t - top > w.offsetHeight * .5) { lines.push([]); top = t; }
+      lines[lines.length - 1].push(w);
+    });
+    var out = document.createDocumentFragment();
+    lines.forEach(function (words, i) {
+      var ln = document.createElement('span');
+      var li = document.createElement('span');
+      ln.className = 'ln';
+      li.className = 'li';
+      li.style.setProperty('--i', i);
+      var holder = null, src = null;
+      words.forEach(function (w, k) {
+        var parent = w.parentNode === el ? null : w.parentNode;
+        if (parent && parent === src) { holder.appendChild(document.createTextNode(' ' + w.textContent)); return; }
+        if (k) li.appendChild(document.createTextNode(' '));
+        if (parent) {
+          holder = parent.cloneNode(false);
+          holder.textContent = w.textContent;
+          li.appendChild(holder);
+        } else {
+          holder = null;
+          li.appendChild(document.createTextNode(w.textContent));
+        }
+        src = parent;
+      });
+      ln.appendChild(li);
+      out.appendChild(ln);
+    });
+    el.innerHTML = '';
+    el.appendChild(out);
+    el.classList.add('is-split');
+  };
+  var splitAll = function () { riseEls.forEach(splitLines); };
+  onLang.push(function () { riseEls.forEach(function (el) { el._src = null; }); splitAll(); });
+  var resizeTimer = 0, lastW = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === lastW) return; // barra do Safari subindo/descendo muda só a altura
+    lastW = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(splitAll, 180);
+  }, { passive: true });
+  if (riseEls.length) {
+    var riseIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); riseIO.unobserve(e.target); } });
+    }, { threshold: .2, rootMargin: '0px 0px -8% 0px' });
+  }
+
+  // Ignição: com a fonte pronta (no máximo 700 ms de espera), mede as linhas e acende o hero.
+  var ignited = false;
+  var ignite = function () {
+    if (ignited) return;
+    ignited = true;
+    splitAll();
+    riseEls.forEach(function (el) { if (!el.closest('.hero')) riseIO.observe(el); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (document.fonts.status === 'loaded') splitAll(); });
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (hero) hero.classList.add('is-lit');
+        var h1 = hero && hero.querySelector('h1');
+        if (h1) h1.classList.add('is-in');
+      });
+    });
+  };
+
   // Como medimos: o painel conta a história.
   var measure = document.querySelector('[data-measure]');
   var cluster, drums = [], fuelSegs = [], events = [], steps = [], measureDone = false;
@@ -489,6 +581,11 @@
     fuelSegs = Array.prototype.slice.call(measure.querySelectorAll('.fuel i'));
     events = Array.prototype.slice.call(measure.querySelectorAll('.events li'));
     steps = Array.prototype.slice.call(measure.querySelectorAll('.steps li'));
+    if (motion) {
+      new IntersectionObserver(function (entries, obs) {
+        if (entries[0].isIntersecting) { cluster.classList.add('is-on'); obs.disconnect(); }
+      }, { threshold: .6 }).observe(cluster);
+    }
   }
   // Hodômetro de tambor: o último dígito gira sem parar; os de cima só viram quando todos
   // os de baixo passam pelo 9 (o "vai um" mecânico).
@@ -542,6 +639,10 @@
     if (visible) playClip(fclips[i]); else if (fclips[i]) fclips[i].pause();
   };
 
+  var manifesto = document.querySelector('.manifesto');
+  var rail = document.querySelector('[data-rail]');
+  var railTrack = rail && rail.querySelector('.badge-grid');
+
   var frame = function () {
     var y = window.scrollY, vh = window.innerHeight;
     if (navEl) navEl.classList.toggle('is-stuck', y > 8);
@@ -556,6 +657,17 @@
       wordEls.forEach(function (w, i) { w.classList.toggle('on', i < lit); });
     }
     if (measure && inView(measure)) renderMeasure(pinProgress(measure));
+    if (manifesto && inView(manifesto)) {
+      var mr = manifesto.getBoundingClientRect();
+      var heat = clamp((vh * .75 - mr.top) / (mr.height * .7), 0, 1);
+      manifesto.style.setProperty('--heat', heat.toFixed(3));
+      manifesto.classList.toggle('is-hot', heat > .8);
+    }
+    if (railTrack && inView(rail)) {
+      var rr = rail.getBoundingClientRect();
+      var over = Math.max(0, railTrack.scrollWidth - rail.clientWidth);
+      railTrack.style.setProperty('--bx', (-over * clamp((vh - rr.top) / (vh + rr.height), 0, 1)).toFixed(1) + 'px');
+    }
     if (reel) {
       var visible = inView(reel);
       if (visible || reelVisible) {
@@ -588,38 +700,13 @@
   var navLang = (navigator.language || 'pt').toLowerCase();
   apply(param || (saved === 'en' || saved === 'pt' ? saved : (navLang.indexOf('pt') === 0 ? 'pt' : 'en')));
   frame();
-
-
-  // COMPARAÇÃO (só no localhost; sair antes do PR): troca a fonte dos títulos e o destaque
-  // em serifa sem recarregar. A escolha vale a sessão (o <head> lê na próxima carga).
-  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
-    var root = document.documentElement;
-    var bar = document.createElement('div');
-    bar.className = 'font-dev';
-    var group = function (label, attr, keyName, opts) {
-      var b = document.createElement('b');
-      b.textContent = label;
-      bar.appendChild(b);
-      opts.forEach(function (o) {
-        var a = document.createElement('a');
-        a.href = '#';
-        a.textContent = o[1];
-        a.classList.toggle('is-on', root.dataset[attr] === o[0]);
-        a.addEventListener('click', function (e) {
-          e.preventDefault();
-          root.dataset[attr] = o[0];
-          try { sessionStorage.setItem(keyName, o[0]); } catch (err) { /* sem storage */ }
-          bar.querySelectorAll('[data-g="' + attr + '"]').forEach(function (x) { x.classList.toggle('is-on', x === a); });
-          if (document.fonts) document.fonts.ready.then(function () { fitMark(); frame(); }); else fitMark();
-        });
-        a.setAttribute('data-g', attr);
-        bar.appendChild(a);
-      });
-    };
-    group('Fonte', 'font', 'lp-font', [['sf', 'SF'], ['geist', 'Geist'], ['clash', 'Clash'], ['archivo', 'Archivo (v1)']]);
-    group('Destaque', 'accent', 'lp-accent', [['serif', 'Serifa'], ['sans', 'Sans']]);
-    document.body.appendChild(bar);
+  if (motion) {
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(ignite);
+      setTimeout(ignite, 700);
+    } else ignite();
   }
+
 
   // Nome do rodapé do tamanho da largura, qualquer que seja a fonte: mede em 100px e escala.
   var mark = document.querySelector('.footer__mark');

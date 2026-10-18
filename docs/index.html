@@ -19,29 +19,17 @@
   <meta property="og:title" content="Carburante · Quanto sua moto faz de verdade">
   <meta property="og:description" content="Consumo real, de tanque cheio a tanque cheio, e manutenção em dia. App grátis para iPhone, na App Store.">
   <meta property="og:url" content="https://carburante.motorcycles/">
-  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=4">
+  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=5">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=4">
+  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=5">
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=23">
+  <link rel="stylesheet" href="style.css?v=24">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
-  <!-- COMPARAÇÃO (só para a revisão local, sair antes do PR): ?font=sf|geist|clash|archivo e
-       ?accent=serif|sans escolhem a fonte dos títulos e das palavras de destaque; vale a sessão. -->
-  <script>
-    (function (d) {
-      try {
-        var q = location.search, s = sessionStorage;
-        var f = (q.match(/[?&]font=(sf|geist|clash|archivo)\b/) || [])[1], a = (q.match(/[?&]accent=(serif|sans)\b/) || [])[1];
-        if (f) s.setItem('lp-font', f); if (a) s.setItem('lp-accent', a);
-        d.dataset.font = s.getItem('lp-font') || 'sf'; d.dataset.accent = s.getItem('lp-accent') || 'serif';
-      } catch (e) { d.dataset.font = 'sf'; d.dataset.accent = 'serif'; }
-    })(document.documentElement);
-  </script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
        Clarity ainda é o projeto do portfólio (vhbu1gthme) — trocar quando houver um próprio.
@@ -98,7 +86,7 @@
   <section class="hero" data-hero>
     <div class="wrap hero__grid">
       <div class="hero__copy">
-        <h1 data-i18n="hero.title">Quanto sua moto faz <em class="accent flame-text">de&nbsp;verdade.</em></h1>
+        <h1 data-rise data-i18n="hero.title">Quanto sua moto faz <em class="accent flame-text">de&nbsp;verdade.</em></h1>
         <p class="hero__lede" data-i18n="hero.lede">Registre o abastecimento em segundos, até sem sinal. O resto é com a gente: a média certa e o aviso antes da manutenção.</p>
         <div class="cta-row">
           <a class="store-badge js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.badge"><img src="assets/store/app-store-pt-br.svg" alt="Baixar na App Store" width="144" height="48"></a>
@@ -130,7 +118,7 @@
       <div class="wrap measure__grid">
         <header class="measure__head">
           <p class="kicker" data-i18n="m.kicker">Como medimos</p>
-          <h2 data-i18n="m.title">Tanque cheio a tanque cheio. <em class="accent">A conta que não mente.</em></h2>
+          <h2 data-rise data-i18n="m.title">Tanque cheio a tanque cheio. <em class="accent">A conta que não mente.</em></h2>
         </header>
 
         <div class="cluster" role="img" data-i18n-alt="alt.cluster" aria-label="Painel da moto: o hodômetro vai de 22.039 a 22.391 km, entram 6,0 L num abastecimento parcial e 11,3 L no tanque cheio seguinte. 352 km ÷ 17,3 L = 20,3 km/l.">
@@ -188,9 +176,9 @@
        Sem JS ou com "reduzir movimento": blocos um embaixo do outro. -->
   <section class="section section--tight" id="recursos">
     <div class="wrap">
-      <header class="section__head reveal">
+      <header class="section__head">
         <p class="kicker" data-i18n="f.kicker">Recursos</p>
-        <h2 data-i18n="f.title">Feito para quem roda, não para quem digita.</h2>
+        <h2 data-rise data-i18n="f.title">Feito para quem roda, não para quem digita.</h2>
       </header>
     </div>
   </section>
@@ -243,10 +231,10 @@
   <section class="manifesto">
     <div class="wrap">
       <ul class="manifesto__list">
-        <li class="reveal" data-i18n="x1"><span>Sem</span> cadastro.</li>
-        <li class="reveal" data-i18n="x2"><span>Sem</span> senha.</li>
-        <li class="reveal" data-i18n="x3"><span>Sem</span> anúncios.</li>
-        <li class="reveal" data-i18n="x4"><span>Sem</span> sinal? <em class="accent flame-text">Sem problema.</em></li>
+        <li data-rise data-i18n="x1"><span class="dim">Sem</span> cadastro.</li>
+        <li data-rise data-i18n="x2"><span class="dim">Sem</span> senha.</li>
+        <li data-rise data-i18n="x3"><span class="dim">Sem</span> anúncios.</li>
+        <li data-rise data-i18n="x4"><span class="dim">Sem</span> sinal? <em class="accent flame-text">Sem problema.</em></li>
       </ul>
     </div>
   </section>
@@ -254,25 +242,28 @@
   <!-- CONQUISTAS -->
   <section class="section badges" id="conquistas">
     <div class="wrap">
-      <header class="section__head reveal">
+      <header class="section__head">
         <p class="kicker" data-i18n="b.kicker">Conquistas</p>
-        <h2 data-i18n="b.title">Rodar também é colecionar.</h2>
-        <p class="section__lede" data-i18n="b.lede">25 medalhas. Nenhuma função trancada atrás delas.</p>
+        <h2 data-rise data-i18n="b.title">Rodar também é colecionar.</h2>
+        <p class="section__lede reveal" data-i18n="b.lede">25 medalhas. Nenhuma função trancada atrás delas.</p>
       </header>
-      <ul class="badge-grid reveal">
-        <li><img src="assets/badges/firstFuel.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.fuel">1º abastecimento</span></li>
-        <li><img src="assets/badges/firstMaintenance.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.maint">1ª manutenção</span></li>
-        <li><img src="assets/badges/bestConsumption.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.best">Acima da média</span></li>
-        <li><img src="assets/badges/piston.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.cc">Clube 500cc</span></li>
-        <li><img src="assets/badges/touring.webp" alt="" width="240" height="240" loading="lazy"><span>Estradeiro</span></li>
-        <li><img src="assets/badges/trail.webp" alt="" width="240" height="240" loading="lazy"><span>Adventure Rider</span></li>
-        <li><img src="assets/badges/custom.webp" alt="" width="240" height="240" loading="lazy"><span>Highway Rider</span></li>
-        <li><img src="assets/badges/sport.webp" alt="" width="240" height="240" loading="lazy"><span>Speed Demon</span></li>
-        <li><img src="assets/badges/street.webp" alt="" width="240" height="240" loading="lazy"><span>Street Fighter</span></li>
-        <li><img src="assets/badges/scooter.webp" alt="" width="240" height="240" loading="lazy"><span>Urban Rider</span></li>
-        <li><img src="assets/badges/offroad.webp" alt="" width="240" height="240" loading="lazy"><span>Off-road</span></li>
-        <li class="is-soon"><img src="assets/badges/ironButt.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.iron">Iron Butt · futuro</span></li>
-      </ul>
+    </div>
+    <!-- Vitrine: a fileira corre para o lado conforme a página desce (sem prender a rolagem) -->
+    <div class="badge-rail reveal" data-rail>
+        <ul class="badge-grid">
+          <li><img src="assets/badges/firstFuel.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.fuel">1º abastecimento</span></li>
+          <li><img src="assets/badges/firstMaintenance.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.maint">1ª manutenção</span></li>
+          <li><img src="assets/badges/bestConsumption.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.best">Acima da média</span></li>
+          <li><img src="assets/badges/piston.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.cc">Clube 500cc</span></li>
+          <li><img src="assets/badges/touring.webp" alt="" width="240" height="240" loading="lazy"><span>Estradeiro</span></li>
+          <li><img src="assets/badges/trail.webp" alt="" width="240" height="240" loading="lazy"><span>Adventure Rider</span></li>
+          <li><img src="assets/badges/custom.webp" alt="" width="240" height="240" loading="lazy"><span>Highway Rider</span></li>
+          <li><img src="assets/badges/sport.webp" alt="" width="240" height="240" loading="lazy"><span>Speed Demon</span></li>
+          <li><img src="assets/badges/street.webp" alt="" width="240" height="240" loading="lazy"><span>Street Fighter</span></li>
+          <li><img src="assets/badges/scooter.webp" alt="" width="240" height="240" loading="lazy"><span>Urban Rider</span></li>
+          <li><img src="assets/badges/offroad.webp" alt="" width="240" height="240" loading="lazy"><span>Off-road</span></li>
+          <li class="is-soon"><img src="assets/badges/ironButt.webp" alt="" width="240" height="240" loading="lazy"><span data-i18n="bd.iron">Iron Butt · futuro</span></li>
+        </ul>
     </div>
   </section>
 
@@ -280,10 +271,10 @@
        Linha contínua = entregue; tracejada = ainda não existe. -->
   <section class="section" id="roadmap">
     <div class="wrap">
-      <header class="section__head reveal">
+      <header class="section__head">
         <p class="kicker" data-i18n="r.kicker">No horizonte</p>
-        <h2 class="roadmap__quote" data-i18n="r.quote">A moto leva seus eventos. <em class="accent">Você mantém sua história.</em></h2>
-        <p class="section__lede" data-i18n="r.lede">Hoje, um diário de bordo. Depois, o passaporte da moto. Nada disso tem data.</p>
+        <h2 class="roadmap__quote" data-rise data-i18n="r.quote">A moto leva seus eventos. <em class="accent">Você mantém sua história.</em></h2>
+        <p class="section__lede reveal" data-i18n="r.lede">Hoje, um diário de bordo. Depois, o passaporte da moto. Nada disso tem data.</p>
       </header>
 
       <ol class="track reveal">
@@ -343,9 +334,9 @@
   <!-- FAQ: título à esquerda (fixo ao rolar no desktop), perguntas à direita -->
   <section class="section faq" id="faq">
     <div class="wrap faq__grid">
-      <header class="faq__head reveal">
+      <header class="faq__head">
         <p class="kicker" data-i18n="q.kicker">Perguntas</p>
-        <h2 data-i18n="q.title">Antes de você perguntar.</h2>
+        <h2 data-rise data-i18n="q.title">Antes de você perguntar.</h2>
       </header>
       <div class="faq__list reveal">
         <details>
@@ -419,6 +410,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>
