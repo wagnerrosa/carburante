@@ -1,4 +1,4 @@
-// Carburante — landing page. i18n PT/EN, contador de estrelas, reveal on scroll.
+// Carburante — landing page. i18n PT/EN, seções presas à rolagem, reveal on scroll.
 (function () {
   'use strict';
 
@@ -6,9 +6,6 @@
   // lido do próprio DOM na carga e restaurado ao voltar.
   var EN = {
     'skip': 'Skip to content',
-    'nav.how': 'How it works',
-    'nav.features': 'Features',
-    'nav.roadmap': 'Roadmap',
     'hero.title': 'See your bike’s <span class="flame-text">real fuel economy.</span>',
     'hero.lede': 'Log the fuel-up at the pump, even with no signal. Carburante measures consumption from full tank to full tank and warns you before the next service is due.',
     'cta.store': 'Download on the App Store',
@@ -21,14 +18,16 @@
     'alt.consumption': 'Tank-by-tank consumption chart for the Harley-Davidson, with a 20.3 km/l average and a category comparison',
     'alt.maintenance': 'An oil change notification arrives on the iPhone and opens the scheduled maintenance list',
     'alt.garage': 'Garage with three bikes, records, totals and the achievement level',
-    'p1.t': 'Fuel up in seconds',
-    'p1.d': 'Odometer, price and liters. The date fills itself in, and so does the place if you allow location. Fits in a gas-station stop.',
-    'p2.t': 'Honest consumption',
-    'p2.d': 'Measured from full tank to full tank, the method that doesn’t lie. No inflated averages.',
-    'p3.t': 'No-surprise maintenance',
-    'p3.d': 'Oil, tires, chain and brakes. The app warns you before they’re due, by distance or by date.',
+    'br.text': 'Fuel-ups take seconds. Consumption doesn’t lie. Maintenance never catches you off guard.',
     'm.kicker': 'How we measure',
     'm.title': 'Full tank to full tank.<br>The method that doesn’t lie.',
+    'alt.cluster': 'Bike dashboard: the odometer goes from 22,039 to 22,391 km, 6.0 L go in on a partial fill-up and 11.3 L on the next full tank. 352 km ÷ 17.3 L = 20.3 km/l.',
+    'ev1': 'Full tank · starting point',
+    'ev2': '+6.0 L · partial',
+    'ev3': '+11.3 L · full tank',
+    'avg.label': 'Stretch average',
+    'avg.math': '352 km ÷ 17.3 L',
+    'avg.n': '20.3',
     'm1.t': 'Fill it up',
     'm1.d': 'Your first full tank is the starting point. No average yet, and the app shows how many fuel-ups are left.',
     'm2.t': 'Ride as usual',
@@ -40,13 +39,13 @@
     'f.title': 'Built for riding, not for typing.',
     'f1.k': 'Logging',
     'f1.t': 'Three steps. Zero wasted fields.',
-    'f1.d': 'Snap the odometer and the number is read on the spot, right on your iPhone. Cost and liters can come from a photo of the receipt or the pump, and you check them before saving. It works out the price per liter and shows that tank’s consumption.',
+    'f1.d': 'Snap the odometer and the number is read right on your iPhone. Cost and liters come from a photo of the receipt or the pump, and you check them before saving.',
     'f2.k': 'Consumption',
     'f2.t': 'Twisties or traffic? The chart shows.',
     'f2.d': 'Tank-by-tank chart, period average and an estimated benchmark for your bike’s category and engine size, if you enter both.',
     'f3.k': 'Maintenance',
     'f3.t': 'Every part on its own schedule.',
-    'f3.d': 'Set intervals by distance and by months. A bar shows what’s left and a notification arrives before it’s due. Every service stays on record with date, mileage and cost.',
+    'f3.d': 'Intervals by distance and by months. A notification arrives before it’s due, and every service stays on record with date, mileage and cost.',
     'f4.k': 'Garage',
     'f4.t': 'Your garage, every bike kept apart.',
     'f4.d': 'Track consumption and maintenance for each bike separately. Records and totals add up the whole garage.',
@@ -75,12 +74,8 @@
     'q4.a': 'On your iPhone first, with a cloud copy isolated to your account. Usage stats are anonymous and can be turned off in Settings. Details in the <a href="privacidade/">privacy policy</a>.',
     'q7.q': 'What happens to my photos?',
     'q7.a': 'They’re read right on your iPhone. Receipt photos aren’t kept. The odometer photo stays as proof of the record: on your iPhone and in a private folder for your account in the cloud.',
-    'q5.q': 'Why doesn’t consumption show on the first fuel-up?',
-    'q5.a': 'Because honest consumption is measured between two full tanks: the first one is the starting point. The app tells you how many fuel-ups are left until your first average appears.',
     'q8.q': 'Can it read the pump display?',
     'q8.a': 'It does, but it isn’t 100% accurate yet. Glare, angle and segmented displays get in the way. That’s why the app always shows what it read before you save: you check it and fix anything that’s off. Printed receipts tend to come out more accurate.',
-    'q6.q': 'Is the code open?',
-    'q6.a': 'The code is public on GitHub for anyone curious about how the app is built. If you like it, leave a star, it helps a lot.',
     'b.kicker': 'Achievements',
     'b.title': 'Riding is collecting, too.',
     'b.lede': '25 badges weighted by difficulty and levels that actually mean something. Recognition only: no feature is ever locked behind a badge.',
@@ -96,19 +91,13 @@
     'st.done': 'Shipped',
     'st.now': 'Now',
     'st.planned': 'Planned',
-    'st.vision': 'Vision',
     'st.ideas': 'Ideas',
     'r1.t': 'Logbook',
     'r1.d': 'Fast fuel logging, real consumption, receipt reading, scheduled maintenance, a multi-bike garage, badges and a cloud copy of your records.',
-    'r1.link': 'See the features',
     'r2.t': 'On the App Store',
     'r2.d': 'Available on the Brazilian App Store. This is where you come in: every fuel-up logged helps decide what comes next.',
     'r3.t': 'Digital passport',
     'r3.d': 'The history starts belonging to the bike, keeping the author of each record.',
-    'r4.t': 'QR code transfer',
-    'r4.d': 'Sold your bike? A code would hand over ownership and the history to the buyer.',
-    'r5.t': 'A profile that stays with you',
-    'r5.d': 'Your miles and badges would stay yours after a sale, bike documents (invoices, receipts, certificates) would be attached to it, and there’d be a way to check the history wasn’t altered.',
     'r6.t': 'Beyond the pump',
     'r6.d': 'Real consumption vs. factory figures, weather at each fuel-up, a ride diary and trips, long-distance challenges like the Iron Butt and, someday, community.',
     's.kicker': 'Behind the scenes',
@@ -140,6 +129,7 @@
 
   var toggle = document.getElementById('lang-toggle');
   var current = 'pt';
+  var onLang = []; // quem precisa refazer algo depois que o texto troca (ex.: palavras da ponte)
 
   function store(lang) { try { localStorage.setItem('carburante-lang', lang); } catch (e) { /* storage bloqueado */ } }
   function stored() { try { return localStorage.getItem('carburante-lang'); } catch (e) { return null; } }
@@ -154,13 +144,14 @@
     });
     altNodes.forEach(function (el) {
       var key = el.getAttribute('data-i18n-alt');
-      el.setAttribute(el.tagName === 'VIDEO' ? 'aria-label' : 'alt', en && EN[key] ? EN[key] : el.dataset.ptAlt);
+      el.setAttribute(el.tagName === 'IMG' ? 'alt' : 'aria-label', en && EN[key] ? EN[key] : el.dataset.ptAlt);
     });
     var m = META[lang];
     document.documentElement.lang = m.html;
     document.title = m.title;
     toggle.textContent = m.toggle;
     toggle.setAttribute('aria-label', m.toggleLabel);
+    onLang.forEach(function (fn) { fn(); });
   }
 
   toggle.addEventListener('click', function () {
@@ -169,26 +160,6 @@
     store(next);
     track('site_interaction', { event_category: 'ui', event_label: 'lang_' + next, event_location: 'nav' });
   });
-
-  // Prioridade: ?lang=en|pt (link compartilhável) > escolha salva > idioma do navegador.
-  var param = (location.search.match(/[?&]lang=(pt|en)\b/) || [])[1];
-  var saved = stored();
-  var nav = (navigator.language || 'pt').toLowerCase();
-  apply(param || (saved === 'en' || saved === 'pt' ? saved : (nav.indexOf('pt') === 0 ? 'pt' : 'en')));
-
-  // Estrelas do GitHub — contagem ao vivo; qualquer falha deixa o botão sem número.
-  var count = document.getElementById('star-count');
-  if (window.fetch && count) {
-    fetch('https://api.github.com/repos/wagnerrosa/carburante', { headers: { Accept: 'application/vnd.github+json' } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (d && typeof d.stargazers_count === 'number' && d.stargazers_count > 0) {
-          count.textContent = d.stargazers_count.toLocaleString();
-          count.hidden = false;
-        }
-      })
-      .catch(function () {});
-  }
 
   // Analytics — cliques classificados pelo href, sem data-track no HTML: o i18n troca o
   // innerHTML dos parágrafos, e links internos a eles perderiam atributos. Parâmetros
@@ -254,10 +225,10 @@
   // Mouse: hover revela e o cartão inclina com o cursor; parado na tela, o farol
   // pisca de tempos em tempos mostrando uma fresta do 3D. Toque (sem hover): revela
   // sozinho quando o cartão chega ao meio da tela; tocar alterna.
+  var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   var rider = document.querySelector('[data-rider]');
   if (rider) {
     var stage = rider.querySelector('.story__stage');
-    var fine = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     var riderOn = false, riderSeen = false, peekTimer = null, peeks = 0, tilt = 0;
 
     var setRider = function (on) {
@@ -420,7 +391,7 @@
     if (v.dataset.still) v.poster = v.dataset.still;
   };
   var playClip = function (v) {
-    if (v.dataset.failed) return;
+    if (!v || v.dataset.failed) return;
     if (v.preload !== 'auto') v.preload = 'auto';
     var p = v.play();
     if (p && p.catch) p.catch(function () {});
@@ -440,134 +411,173 @@
     }
   }
 
-  // Recursos no desktop (≥880px): celular fixo + lista. O rótulo de cada recurso vira botão
-  // (padrão acordeão) só nesse modo; no celular segue texto e o carrossel de baixo assume.
-  var feats = Array.prototype.slice.call(document.querySelectorAll('.feature'));
-  var featRail = document.querySelector('.features');
-  if (feats.length && featRail && window.matchMedia) {
-    var wide = window.matchMedia('(min-width: 880px)');
-    var active = 0, featTracked = false;
-    var tabs = feats.map(function (f, i) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'feature__tab';
-      b.setAttribute('aria-controls', 'fd' + (i + 1));
-      b.addEventListener('click', function () { if (i !== active) select(i, false); });
-      b.addEventListener('keydown', function (e) {
-        var k = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
-        if (!k) return;
-        e.preventDefault();
-        select((i + k + feats.length) % feats.length, true);
-      });
-      return b;
-    });
-    // Clipes dos recursos. Desktop: o do item ativo toca uma vez e, ao terminar, passa para o
-    // próximo (auto-avanço cíclico); o trilho aceso enche junto (--p). Celular: loop no slide visível.
-    var fclips = feats.map(function (f) { return f.querySelector('video.clip'); });
-    var railVisible = false, rafId = 0;
-    var copyOf = function (i) { return feats[i].querySelector('.feature__copy'); };
-    var progress = function () {
-      cancelAnimationFrame(rafId);
-      var i = active, v = fclips[i];
-      var tick = function () {
-        if (v.duration) copyOf(i).style.setProperty('--p', (v.currentTime / v.duration).toFixed(4));
-        if (i === active && !v.paused && !v.ended) rafId = requestAnimationFrame(tick);
-      };
-      tick();
-    };
-    var runClips = function (restart) {
-      if (!clipsOk) return;
-      fclips.forEach(function (v, k) {
-        if (!v) return;
-        v.loop = !wide.matches;
-        if (wide.matches && k !== active) v.pause();
-      });
-      if (!wide.matches) return;
-      var v = fclips[active];
-      if (!v) return;
-      if (restart) {
-        try { v.currentTime = 0; } catch (e) { /* ainda sem metadados */ }
-        copyOf(active).style.setProperty('--p', 0);
+  // ---------- Seções presas à rolagem ----------
+  // Um só ouvinte de scroll (rAF) avança tudo pela posição: nav, celular do hero, palavras da
+  // ponte, painel do "Como medimos" e o carretel dos recursos. Sem .motion (sem JS ou com
+  // "reduzir movimento"), cada seção é desenhada uma vez no estado final e fica estática.
+  var motion = document.documentElement.classList.contains('motion');
+  var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
+  var ease = function (t) { return t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+  // Quadros-chave [[p, valor], ...] → valor em p, suavizado entre cada par
+  var key = function (frames, p) {
+    for (var i = 1; i < frames.length; i++) {
+      if (p <= frames[i][0]) {
+        var a = frames[i - 1], b = frames[i];
+        return a[1] + (b[1] - a[1]) * ease(clamp((p - a[0]) / (b[0] - a[0] || 1), 0, 1));
       }
-      if (railVisible) playClip(v); else v.pause();
-    };
-    var slideIO = null;
-    if (clipsOk) {
-      fclips.forEach(function (v, i) {
-        if (!v) return;
-        v.addEventListener('playing', function () {
-          if (wide.matches && i === active) { featRail.classList.add('is-playing'); progress(); }
-        });
-        v.addEventListener('ended', function () {
-          if (wide.matches && i === active && railVisible) select((i + 1) % feats.length, false, true);
-        });
-      });
-      new IntersectionObserver(function (entries) {
-        railVisible = entries[0].isIntersecting;
-        runClips(false);
-      }, { threshold: 0.35 }).observe(featRail);
-      slideIO = new IntersectionObserver(function (entries) {
-        if (wide.matches) return;
-        entries.forEach(function (e) { if (e.isIntersecting) playClip(e.target); else e.target.pause(); });
-      }, { threshold: 0.6 });
-      fclips.forEach(function (v) { if (v) slideIO.observe(v); });
     }
+    return frames[frames.length - 1][1];
+  };
+  // 0 → 1 enquanto o palco (sticky) está preso
+  var pinProgress = function (el) {
+    var r = el.getBoundingClientRect();
+    var total = el.offsetHeight - window.innerHeight;
+    return total > 0 ? clamp(-r.top / total, 0, 1) : 1;
+  };
+  var inView = function (el) {
+    var r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  };
 
-    var select = function (i, focus, auto) {
-      if (!auto && i !== active && !featTracked) {
-        featTracked = true;
-        track('site_interaction', { event_category: 'ui', event_label: 'feature_' + (i + 1), event_location: 'recursos' });
-      }
-      active = i;
-      feats.forEach(function (f, k) {
-        f.classList.toggle('is-active', k === i);
-        tabs[k].setAttribute('aria-expanded', k === i ? 'true' : 'false');
-      });
-      if (focus) tabs[i].focus();
-      runClips(true);
-    };
-    // Envolve/desembrulha o <span data-i18n> — o i18n guarda a referência do span, então
-    // trocar de idioma continua funcionando nos dois modos.
-    var mode = function () {
-      feats.forEach(function (f, i) {
-        var label = f.querySelector('.kicker');
-        var tab = tabs[i];
-        if (wide.matches && tab.parentNode !== label) {
-          var span = label.firstElementChild;
-          label.replaceChild(tab, span);
-          tab.appendChild(span);
-        } else if (!wide.matches && tab.parentNode === label) {
-          label.replaceChild(tab.firstElementChild, tab);
-        }
-      });
-      featRail.classList.toggle('features--list', wide.matches);
-      if (!wide.matches) featRail.classList.remove('is-playing');
-      select(active, false, true);
-      // Voltou ao carrossel: reobservar dispara o IO de novo e o slide visível volta a tocar.
-      if (slideIO && !wide.matches) fclips.forEach(function (v) { if (v) { slideIO.unobserve(v); slideIO.observe(v); } });
-    };
-    mode();
-    if (wide.addEventListener) wide.addEventListener('change', mode);
-    else if (wide.addListener) wide.addListener(mode);
-  }
+  // Nav: vidro depois da primeira rolagem
+  var navEl = document.querySelector('.nav--overlay');
 
-  // Recursos no celular = carrossel (scroll-snap no CSS); os pontos só acompanham a posição.
-  // (não chamar de "track": o var sobrescreveria a função de analytics do mesmo escopo)
-  var rail = document.querySelector('.features');
-  var dots = document.querySelectorAll('.features__dots span');
-  if (rail && dots.length) {
-    var dotFrame = 0;
-    rail.addEventListener('scroll', function () {
-      cancelAnimationFrame(dotFrame);
-      dotFrame = requestAnimationFrame(function () {
-        var slides = rail.children;
-        var step = slides[1].offsetLeft - slides[0].offsetLeft;
-        var atEnd = rail.scrollLeft >= rail.scrollWidth - rail.clientWidth - 2;
-        var i = atEnd ? slides.length - 1 : Math.round(rail.scrollLeft / step);
-        dots.forEach(function (el, k) { el.classList.toggle('is-on', k === i); });
-      });
+  // Hero: o celular endireita conforme o hero sai (--tilt 1 → 0) e segue o cursor (--px/--py)
+  var hero = document.querySelector('[data-hero]');
+  var heroPhone = hero && hero.querySelector('.phone--hero');
+  if (heroPhone && motion && fine) {
+    window.addEventListener('pointermove', function (e) {
+      if (window.scrollY > window.innerHeight) return;
+      heroPhone.style.setProperty('--px', (e.clientX / window.innerWidth * 2 - 1).toFixed(3));
+      heroPhone.style.setProperty('--py', (e.clientY / window.innerHeight * 2 - 1).toFixed(3));
     }, { passive: true });
   }
+
+  // Ponte: cada palavra vira <span class="w"> e acende conforme a frase sobe na tela
+  var words = document.querySelector('[data-words]');
+  var wordEls = [];
+  var splitWords = function () {
+    if (!words || !motion) return;
+    words.innerHTML = words.textContent.split(/(\s+)/).map(function (t) {
+      return /^\s+$/.test(t) || !t ? t : '<span class="w">' + t + '</span>';
+    }).join('');
+    wordEls = Array.prototype.slice.call(words.querySelectorAll('.w'));
+  };
+  splitWords();
+  onLang.push(function () { splitWords(); frame(); });
+
+  // Como medimos: o painel conta a história.
+  var measure = document.querySelector('[data-measure]');
+  var cluster, drums = [], fuelSegs = [], events = [], steps = [], measureDone = false;
+  if (measure) {
+    cluster = measure.querySelector('.cluster');
+    drums = Array.prototype.map.call(measure.querySelectorAll('.odo__d'), function (d) {
+      var strip = d.firstElementChild;
+      strip.innerHTML = '<i>0</i><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>0</i>';
+      return strip;
+    });
+    fuelSegs = Array.prototype.slice.call(measure.querySelectorAll('.fuel i'));
+    events = Array.prototype.slice.call(measure.querySelectorAll('.events li'));
+    steps = Array.prototype.slice.call(measure.querySelectorAll('.steps li'));
+  }
+  // Hodômetro de tambor: o último dígito gira sem parar; os de cima só viram quando todos
+  // os de baixo passam pelo 9 (o "vai um" mecânico).
+  var setOdo = function (v) {
+    for (var i = 0; i < drums.length; i++) {
+      var p10 = Math.pow(10, i);
+      var pos = Math.floor(v / p10) % 10 + Math.max(0, (v % p10) - (p10 - 1));
+      drums[drums.length - 1 - i].style.transform = 'translateY(' + (-pos).toFixed(4) + 'em)';
+    }
+  };
+  // Roteiro (p = 0 → 1): enche na reserva → roda 176 km → parcial de 6,0 L → roda mais
+  // 176 km → enche de novo (11,3 L) → 352 km ÷ 17,3 L = 20,3 km/l.
+  var ODO = [[0, 22039], [.14, 22039], [.40, 22215], [.50, 22215], [.74, 22391], [1, 22391]];
+  var FUEL = [[0, .22], [.12, 1], [.14, 1], [.40, .4], [.43, .4], [.48, .72], [.50, .72], [.74, .12], [.76, .12], [.86, 1], [1, 1]];
+  var renderMeasure = function (p) {
+    setOdo(key(ODO, p));
+    var level = key(FUEL, p);
+    fuelSegs.forEach(function (s, i) { s.style.setProperty('--on', clamp(level * fuelSegs.length - i, 0, 1).toFixed(3)); });
+    cluster.classList.toggle('is-low', level < .2);
+    [.11, .47, .85].forEach(function (at, i) { if (events[i]) events[i].classList.toggle('is-on', p >= at); });
+    var step = p < .13 ? 0 : p < .75 ? 1 : 2;
+    steps.forEach(function (s, i) { s.classList.toggle('is-on', i === step); });
+    var done = p >= .88;
+    cluster.classList.toggle('is-done', done);
+    if (done && !measureDone) {
+      measureDone = true;
+      track('site_interaction', { event_category: 'ui', event_label: 'measure_done', event_location: 'consumo' });
+    }
+  };
+
+  // Recursos: um quarto da rolagem presa para cada recurso; o clipe do ativo toca em loop.
+  var reel = document.querySelector('[data-reel]');
+  var feats = reel ? Array.prototype.slice.call(reel.querySelectorAll('.feature')) : [];
+  var fclips = feats.map(function (f) { return f.querySelector('video.clip'); });
+  var ticks = reel ? Array.prototype.slice.call(reel.querySelectorAll('.reel__ticks li')) : [];
+  var reelActive = -1, reelVisible = false;
+  var setReel = function (i, visible) {
+    if (i !== reelActive) {
+      feats.forEach(function (f, k) {
+        f.classList.toggle('is-active', k === i);
+        f.classList.toggle('is-past', k < i);
+      });
+      fclips.forEach(function (v, k) {
+        if (!v || k === i) return;
+        v.pause();
+      });
+      if (fclips[i] && clipsOk) { try { fclips[i].currentTime = 0; } catch (e) { /* sem metadados */ } }
+      reelActive = i;
+    }
+    if (!clipsOk) return;
+    if (visible) playClip(fclips[i]); else if (fclips[i]) fclips[i].pause();
+  };
+
+  var frame = function () {
+    var y = window.scrollY, vh = window.innerHeight;
+    if (navEl) navEl.classList.toggle('is-stuck', y > 8);
+    if (!motion) return;
+
+    if (heroPhone && y < vh * 1.5) {
+      heroPhone.style.setProperty('--tilt', (1 - ease(clamp(y / (hero.offsetHeight * .75), 0, 1))).toFixed(3));
+    }
+    if (wordEls.length && inView(words)) {
+      var r = words.getBoundingClientRect();
+      var lit = Math.round(clamp((vh * .88 - r.top) / (vh * .5), 0, 1) * wordEls.length);
+      wordEls.forEach(function (w, i) { w.classList.toggle('on', i < lit); });
+    }
+    if (measure && inView(measure)) renderMeasure(pinProgress(measure));
+    if (reel) {
+      var visible = inView(reel);
+      if (visible || reelVisible) {
+        var p = pinProgress(reel);
+        var n = feats.length;
+        setReel(Math.min(n - 1, Math.floor(p * n)), visible);
+        ticks.forEach(function (t, k) { t.firstElementChild.style.setProperty('--p', clamp(p * n - k, 0, 1).toFixed(3)); });
+      }
+      reelVisible = visible;
+    }
+  };
+
+  // Estático: painel no fim da história. Os clipes ficam na imagem parada (clipsOk também
+  // depende de "reduzir movimento").
+  if (measure && !motion) renderMeasure(1);
+
+  var ticking = false;
+  var onScroll = function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { ticking = false; frame(); });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+
+  // Prioridade: ?lang=en|pt (link compartilhável) > escolha salva > idioma do navegador.
+  // Depois de montar painel e palavras: apply() chama os ganchos de onLang.
+  var param = (location.search.match(/[?&]lang=(pt|en)\b/) || [])[1];
+  var saved = stored();
+  var navLang = (navigator.language || 'pt').toLowerCase();
+  apply(param || (saved === 'en' || saved === 'pt' ? saved : (navLang.indexOf('pt') === 0 ? 'pt' : 'en')));
+  frame();
 
   // Reveal on scroll.
   var items = document.querySelectorAll('.reveal');

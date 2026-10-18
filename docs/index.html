@@ -8,7 +8,8 @@
   <link rel="canonical" href="https://carburante.motorcycles/">
   <meta name="author" content="Wagner Rosa">
   <meta name="publish_date" property="og:publish_date" content="2026-09-27T00:00:00-03:00">
-  <meta name="theme-color" content="#050505">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark">
   <meta name="apple-itunes-app" content="app-id=6785659437">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -24,9 +25,11 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=4">
 
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/archivo.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=20">
-  <script>document.documentElement.classList.add('js')</script>
+  <link rel="stylesheet" href="style.css?v=21">
+  <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
+  <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
   <!-- Analytics: GA4 próprio do Carburante (G-JNKWNRL5KE, domínio carburante.motorcycles).
        Clarity ainda é o projeto do portfólio (vhbu1gthme) — trocar quando houver um próprio.
@@ -63,24 +66,15 @@
 
 <a class="skip" href="#main" data-i18n="skip">Pular para o conteúdo</a>
 
-<header class="nav" id="top">
+<!-- Nav mínima (só marca + idioma + Baixar): transparente sobre o hero, ganha vidro ao rolar -->
+<header class="nav nav--overlay" id="top">
   <div class="wrap nav__inner">
     <a class="brand" href="#top" aria-label="Carburante">
       <img src="assets/icon-256.png" alt="" width="30" height="30">
       <span>Carburante</span>
     </a>
-    <nav class="nav__links" aria-label="Seções">
-      <a href="#consumo" data-i18n="nav.how">Como funciona</a>
-      <a href="#recursos" data-i18n="nav.features">Recursos</a>
-      <a href="#roadmap" data-i18n="nav.roadmap">Roadmap</a>
-    </nav>
     <div class="nav__actions">
       <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
-      <a class="star" href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">
-        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        <span class="star__label"><span aria-hidden="true">★</span> Star</span>
-        <span class="star__count" id="star-count" hidden></span>
-      </a>
       <a class="btn btn--flame btn--nav js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.nav">Baixar</a>
     </div>
   </div>
@@ -88,12 +82,10 @@
 
 <main id="main">
 
-  <!-- HERO -->
-  <section class="hero">
+  <!-- HERO: tipo grande + um celular só, inclinado; endireita conforme a página rola -->
+  <section class="hero" data-hero>
     <div class="wrap hero__grid">
       <div class="hero__copy">
-        <!-- Ícone do app (a arte real) com o reflexo do iOS por cima, em CSS -->
-        <div class="hero__icon"><img src="assets/icon-hero.webp" width="240" height="240" alt=""></div>
         <h1 data-i18n="hero.title">Saiba quanto sua moto faz <span class="flame-text">de&nbsp;verdade.</span></h1>
         <p class="hero__lede" data-i18n="hero.lede">Registre o abastecimento na parada do posto, até sem sinal. O Carburante mede o consumo de tanque cheio a tanque cheio e avisa antes da próxima manutenção.</p>
         <div class="cta-row">
@@ -107,122 +99,141 @@
         <div class="phone phone--hero">
           <video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/hero.webp" data-still="assets/clips/hero-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.hero" aria-label="Tela Resumo do Carburante com uma Harley-Davidson: consumo médio de 20,3 km/l, custo por km e gasto do mês. O app troca de moto e muda de cor."><source src="assets/clips/hero.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/hero.mp4" type="video/mp4"></video>
         </div>
-        <img class="float float--a" src="assets/badges/firstFuel.webp" alt="" width="240" height="240">
-        <img class="float float--b" src="assets/badges/bestConsumption.webp" alt="" width="240" height="240">
-        <img class="float float--c" src="assets/badges/touring.webp" alt="" width="240" height="240">
-        <img class="float float--d" src="assets/badges/piston.webp" alt="" width="240" height="240">
       </div>
     </div>
   </section>
 
-  <!-- PROMESSA -->
-  <section class="section promise">
+  <!-- PONTE: as três promessas numa frase; as palavras acendem com a rolagem -->
+  <section class="bridge">
     <div class="wrap">
-      <div class="promise__grid">
-        <article class="card promise__card">
-          <img src="assets/art/fuel.webp" alt="" width="560" height="560">
-          <h3 data-i18n="p1.t">Abasteça em segundos</h3>
-          <p data-i18n="p1.d">Hodômetro, valor e litros. A data entra sozinha; o local também, se você liberar a localização. Cabe na parada do posto.</p>
-        </article>
-        <article class="card promise__card">
-          <img src="assets/art/gas-station.webp" alt="" width="560" height="560">
-          <h3 data-i18n="p2.t">Consumo de verdade</h3>
-          <p data-i18n="p2.d">Calculado de tanque cheio a tanque cheio, o jeito que não mente. Nada de média inflada.</p>
-        </article>
-        <article class="card promise__card">
-          <img src="assets/art/car-oil.webp" alt="" width="560" height="560">
-          <h3 data-i18n="p3.t">Manutenção sem susto</h3>
-          <p data-i18n="p3.d">Óleo, pneus, relação e freios. O app avisa antes de vencer, por quilômetro ou por data.</p>
-        </article>
+      <div class="bridge__icons" aria-hidden="true">
+        <span><svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M4 11h10M14 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8.5L18 5"/></svg></span>
+        <span><svg viewBox="0 0 24 24"><path d="M12 14l4-4M3.5 17a9 9 0 1 1 17 0"/><circle cx="12" cy="14" r="1.5"/></svg></span>
+        <span><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3 17.7 6.3 21l6.3-6.3a4 4 0 0 0 5.1-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg></span>
       </div>
+      <p class="bridge__text" data-words data-i18n="br.text">Abastecer leva segundos. O consumo não mente. A manutenção não pega você de surpresa.</p>
     </div>
   </section>
 
-  <!-- COMO MEDIMOS -->
-  <section class="section" id="consumo">
-    <div class="wrap">
-      <header class="section__head reveal">
-        <p class="kicker" data-i18n="m.kicker">Como medimos</p>
-        <h2 data-i18n="m.title">Tanque cheio a tanque cheio.<br>O jeito que não mente.</h2>
-      </header>
-      <div class="promise__grid">
-        <article class="card decision reveal">
-          <span class="decision__n">01</span>
-          <h3 data-i18n="m1.t">Encha o tanque</h3>
-          <p data-i18n="m1.d">O primeiro tanque cheio é o ponto de partida. Ainda não tem média, e o app mostra quantos abastecimentos faltam.</p>
-        </article>
-        <article class="card decision reveal">
-          <span class="decision__n">02</span>
-          <h3 data-i18n="m2.t">Rode como sempre</h3>
-          <p data-i18n="m2.d">Colocou só um pouco? Desligue “Tanque cheio”. Esses litros entram na conta do trecho.</p>
-        </article>
-        <article class="card decision reveal">
-          <span class="decision__n">03</span>
-          <h3 data-i18n="m3.t">Encha de novo</h3>
-          <p data-i18n="m3.d">Km rodados ÷ litros colocados no trecho. Com o tanque cheio nas duas pontas, a conta fecha.</p>
-        </article>
+  <!-- COMO MEDIMOS: momento assinatura. A seção fica parada e a rolagem conta a história no
+       painel da moto: o tanque enche, o hodômetro roda, entra um parcial, enche de novo e a
+       conta fecha. Sem JS ou com "reduzir movimento": painel no estado final + os três passos. -->
+  <section class="measure" id="consumo" data-measure>
+    <div class="measure__stage">
+      <div class="wrap measure__grid">
+        <header class="measure__head">
+          <p class="kicker" data-i18n="m.kicker">Como medimos</p>
+          <h2 data-i18n="m.title">Tanque cheio a tanque cheio.<br>O jeito que não mente.</h2>
+        </header>
+
+        <div class="cluster" role="img" data-i18n-alt="alt.cluster" aria-label="Painel da moto: o hodômetro vai de 22.039 a 22.391 km, entram 6,0 L num abastecimento parcial e 11,3 L no tanque cheio seguinte. 352 km ÷ 17,3 L = 20,3 km/l.">
+          <div class="cluster__row">
+            <span class="cluster__label">ODO</span>
+            <span class="odo" data-odo>
+              <span class="odo__d"><span>0</span></span><span class="odo__d"><span>2</span></span><span class="odo__d"><span>2</span></span><span class="odo__d"><span>3</span></span><span class="odo__d"><span>9</span></span><span class="odo__d"><span>1</span></span>
+            </span>
+            <span class="cluster__label">km</span>
+          </div>
+          <div class="cluster__row cluster__fuel">
+            <svg class="cluster__pump" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h12M4 11h10M14 8h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V8.5L18 5"/></svg>
+            <span class="fuel__e">E</span>
+            <span class="fuel" data-fuel><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <span class="fuel__e">F</span>
+          </div>
+          <ul class="events">
+            <li data-i18n="ev1">Tanque cheio · ponto de partida</li>
+            <li data-i18n="ev2">+6,0 L · parcial</li>
+            <li data-i18n="ev3">+11,3 L · tanque cheio</li>
+          </ul>
+          <div class="cluster__result">
+            <span class="cluster__label" data-i18n="avg.label">Média do trecho</span>
+            <span class="cluster__math" data-i18n="avg.math">352 km ÷ 17,3 L</span>
+            <span class="cluster__avg"><b data-i18n="avg.n">20,3</b> km/l</span>
+          </div>
+        </div>
+
+        <ol class="steps">
+          <li>
+            <span class="steps__n">01</span>
+            <h3 data-i18n="m1.t">Encha o tanque</h3>
+            <p data-i18n="m1.d">O primeiro tanque cheio é o ponto de partida. Ainda não tem média, e o app mostra quantos abastecimentos faltam.</p>
+          </li>
+          <li>
+            <span class="steps__n">02</span>
+            <h3 data-i18n="m2.t">Rode como sempre</h3>
+            <p data-i18n="m2.d">Colocou só um pouco? Desligue “Tanque cheio”. Esses litros entram na conta do trecho.</p>
+          </li>
+          <li>
+            <span class="steps__n">03</span>
+            <h3 data-i18n="m3.t">Encha de novo</h3>
+            <p data-i18n="m3.d">Km rodados ÷ litros colocados no trecho. Com o tanque cheio nas duas pontas, a conta fecha.</p>
+          </li>
+        </ol>
       </div>
-      <p class="section__lede method__note reveal" data-i18n="m.note">Dividir cada abastecimento pelo anterior parece mais simples, mas erra toda vez que o tanque não enche. É daí que vem a média inflada.</p>
     </div>
   </section>
+  <div class="wrap">
+    <p class="measure__note reveal" data-i18n="m.note">Dividir cada abastecimento pelo anterior parece mais simples, mas erra toda vez que o tanque não enche. É daí que vem a média inflada.</p>
+  </div>
 
-  <!-- RECURSOS -->
-  <section class="section" id="recursos">
+  <!-- RECURSOS: um celular parado; a rolagem troca a tela e a frase ao lado. Cada recurso
+       tem o próprio celular, empilhados no mesmo lugar (a moldura é idêntica, só a tela troca).
+       Sem JS ou com "reduzir movimento": blocos um embaixo do outro. -->
+  <section class="section section--tight" id="recursos">
     <div class="wrap">
       <header class="section__head reveal">
         <p class="kicker" data-i18n="f.kicker">Recursos</p>
         <h2 data-i18n="f.title">Feito para quem roda, não para quem digita.</h2>
       </header>
-
-      <!-- Celular: carrossel com scroll-snap (como as capturas na App Store). Desktop: celular fixo à
-           esquerda + lista à direita; o item ativo troca a tela (JS). Sem JS: blocos alternados. -->
-      <div class="features">
-        <div class="feature is-active reveal">
-          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
-          <div class="feature__copy">
-            <p class="kicker"><span data-i18n="f1.k">Registro</span></p>
-            <div class="feature__detail" id="fd1"><div>
+    </div>
+  </section>
+  <section class="reel" data-reel>
+    <div class="reel__stage">
+      <div class="wrap reel__wrap">
+        <div class="features">
+          <div class="feature is-active">
+            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__copy">
+              <p class="kicker" data-i18n="f1.k">Registro</p>
               <h3 data-i18n="f1.t">Três passos. Nenhum campo à toa.</h3>
-              <p data-i18n="f1.d">Fotografe o hodômetro e o número é lido na hora, no próprio iPhone. Valor e litros podem vir da foto do cupom ou da bomba, e você confere antes de salvar. O app calcula o preço do litro e mostra o consumo daquele tanque.</p>
-            </div></div>
+              <p data-i18n="f1.d">Fotografe o hodômetro e o número é lido no próprio iPhone. Valor e litros vêm da foto do cupom ou da bomba, e você confere antes de salvar.</p>
+            </div>
           </div>
-        </div>
 
-        <div class="feature feature--flip reveal">
-          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/consumo.webp" data-still="assets/clips/consumo-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.consumption" aria-label="Gráfico de consumo tanque a tanque da Harley-Davidson, com média de 20,3 km/l e comparação com a categoria"><source src="assets/clips/consumo.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/consumo.mp4" type="video/mp4"></video></div></div>
-          <div class="feature__copy">
-            <p class="kicker"><span data-i18n="f2.k">Consumo</span></p>
-            <div class="feature__detail" id="fd2"><div>
+          <div class="feature">
+            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/consumo.webp" data-still="assets/clips/consumo-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.consumption" aria-label="Gráfico de consumo tanque a tanque da Harley-Davidson, com média de 20,3 km/l e comparação com a categoria"><source src="assets/clips/consumo.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/consumo.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__copy">
+              <p class="kicker" data-i18n="f2.k">Consumo</p>
               <h3 data-i18n="f2.t">Serra ou trânsito? O gráfico mostra.</h3>
               <p data-i18n="f2.d">Gráfico tanque a tanque, média do período e uma referência estimada para a categoria e a cilindrada da sua moto, se você informar as duas.</p>
-            </div></div>
+            </div>
           </div>
-        </div>
 
-        <div class="feature reveal">
-          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/manutencao.webp" data-still="assets/clips/manutencao-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.maintenance" aria-label="Notificação de troca de óleo chega no iPhone e abre a lista de manutenções programadas"><source src="assets/clips/manutencao.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/manutencao.mp4" type="video/mp4"></video></div></div>
-          <div class="feature__copy">
-            <p class="kicker"><span data-i18n="f3.k">Manutenção</span></p>
-            <div class="feature__detail" id="fd3"><div>
+          <div class="feature">
+            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/manutencao.webp" data-still="assets/clips/manutencao-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.maintenance" aria-label="Notificação de troca de óleo chega no iPhone e abre a lista de manutenções programadas"><source src="assets/clips/manutencao.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/manutencao.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__copy">
+              <p class="kicker" data-i18n="f3.k">Manutenção</p>
               <h3 data-i18n="f3.t">Cada peça no seu tempo.</h3>
-              <p data-i18n="f3.d">Defina intervalos por km e por meses. A barra mostra quanto falta e uma notificação chega antes de vencer. O histórico fica guardado, com data, km e valor de cada serviço.</p>
-            </div></div>
+              <p data-i18n="f3.d">Intervalos por km e por meses. A notificação chega antes de vencer, e cada serviço fica no histórico com data, km e valor.</p>
+            </div>
           </div>
-        </div>
 
-        <div class="feature feature--flip feature--compact reveal">
-          <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" poster="assets/clips/garagem.webp" data-still="assets/clips/garagem-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.garage" aria-label="Garagem com três motos, recordes, totais e o nível de conquistas"><source src="assets/clips/garagem.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/garagem.mp4" type="video/mp4"></video></div></div>
-          <div class="feature__copy">
-            <p class="kicker"><span data-i18n="f4.k">Garagem</span></p>
-            <div class="feature__detail" id="fd4"><div>
+          <div class="feature">
+            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/garagem.webp" data-still="assets/clips/garagem-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.garage" aria-label="Garagem com três motos, recordes, totais e o nível de conquistas"><source src="assets/clips/garagem.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/garagem.mp4" type="video/mp4"></video></div></div>
+            <div class="feature__copy">
+              <p class="kicker" data-i18n="f4.k">Garagem</p>
               <h3 data-i18n="f4.t">Sua garagem, sem misturar uma moto com a outra.</h3>
               <p data-i18n="f4.d">Acompanhe consumo e manutenção de cada moto separadamente. Recordes e totais somam a garagem inteira.</p>
-            </div></div>
+            </div>
           </div>
         </div>
+        <ol class="reel__ticks" aria-hidden="true"><li class="is-on"><i></i></li><li><i></i></li><li><i></i></li><li><i></i></li></ol>
       </div>
-      <div class="features__dots" aria-hidden="true"><span class="is-on"></span><span></span><span></span><span></span></div>
+    </div>
+  </section>
 
+  <section class="section section--tight">
+    <div class="wrap">
       <ul class="extras reveal">
         <li>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M12 19h.01M3 3l18 18"/></svg>
@@ -269,74 +280,43 @@
     </div>
   </section>
 
-  <!-- ROADMAP -->
+  <!-- ROADMAP: a frase do passaporte no centro e quatro marcos numa trilha.
+       Linha contínua = entregue; tracejada = ainda não existe. -->
   <section class="section" id="roadmap">
-    <div class="wrap wrap--narrow">
+    <div class="wrap">
       <header class="section__head reveal">
         <p class="kicker" data-i18n="r.kicker">Roadmap</p>
         <h2 data-i18n="r.title">Hoje, o diário de bordo. No horizonte, o passaporte da sua moto.</h2>
-        <blockquote class="quote" data-i18n="r.quote">“A moto leva seus eventos. Você mantém sua história.”</blockquote>
-        <p class="section__lede" data-i18n="r.lede">A ideia é que o histórico pertença à moto, não ao dono: numa venda, manutenções, quilometragem e consumo iriam junto. Nada disso tem data. O que vem depois depende do uso de verdade.</p>
       </header>
+      <blockquote class="quote reveal" data-i18n="r.quote">“A moto leva seus eventos. Você mantém sua história.”</blockquote>
+      <p class="section__lede roadmap__lede reveal" data-i18n="r.lede">A ideia é que o histórico pertença à moto, não ao dono: numa venda, manutenções, quilometragem e consumo iriam junto. Nada disso tem data. O que vem depois depende do uso de verdade.</p>
 
-      <!-- Linha contínua = entregue; tracejada = ainda não existe. O último item sai num ramo. -->
-      <div class="card roadmap__card">
-        <ol class="timeline">
-          <li class="tl tl--done reveal">
-            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
-            <div class="tl__head">
-              <h3 data-i18n="r1.t">Diário de bordo</h3>
-              <span class="tl__status" data-i18n="st.done">Entregue</span>
-              <span class="tl__tag">v1.0</span>
-            </div>
-            <p data-i18n="r1.d">Abastecimento rápido, consumo real, leitura do cupom, manutenção programada, garagem com várias motos, medalhas e cópia dos seus registros na nuvem.</p>
-            <a class="tl__link" href="#recursos" data-i18n="r1.link">Ver os recursos</a>
-          </li>
-          <li class="tl tl--now reveal">
-            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span>
-            <div class="tl__head">
-              <h3 data-i18n="r2.t">Na App Store</h3>
-              <span class="tl__status" data-i18n="st.now">Agora</span>
-            </div>
-            <p data-i18n="r2.d">Disponível na App Store do Brasil. É aqui que você entra: cada abastecimento registrado ajuda a decidir o próximo passo.</p>
-            <a class="btn btn--flame btn--sm js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.store">Baixar na App Store</a>
-          </li>
-          <li class="tl reveal">
-            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-5H20M15 13a3 3 0 1 0-6 0"/><circle cx="12" cy="8" r="2"/></svg></span>
-            <div class="tl__head">
-              <h3 data-i18n="r3.t">Passaporte digital</h3>
-              <span class="tl__status" data-i18n="st.planned">Planejado</span>
-            </div>
-            <p data-i18n="r3.d">O histórico passa a pertencer à moto, com o autor de cada registro guardado.</p>
-          </li>
-          <li class="tl reveal">
-            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="3" y="15" width="6" height="6" rx="1"/><path d="M21 15h-3a2 2 0 0 0-2 2v4M21 21v.01M12 7v3a2 2 0 0 1-2 2H7M3 12h.01M12 3h.01M12 16v.01M16 12h1M21 12v.01M12 21v-1"/></svg></span>
-            <div class="tl__head">
-              <h3 data-i18n="r4.t">Transferência por QR code</h3>
-              <span class="tl__status" data-i18n="st.planned">Planejado</span>
-            </div>
-            <p data-i18n="r4.d">Vendeu a moto? Um código passaria a posse e o histórico para o comprador.</p>
-          </li>
-          <li class="tl reveal">
-            <span class="tl__node" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="m15.5 12.9 1.5 8.5a.5.5 0 0 1-.8.5l-3.6-2.7a1 1 0 0 0-1.2 0l-3.6 2.7a.5.5 0 0 1-.8-.5l1.5-8.5"/></svg></span>
-            <div class="tl__head">
-              <h3 data-i18n="r5.t">Perfil que fica com você</h3>
-              <span class="tl__status" data-i18n="st.vision">Visão</span>
-            </div>
-            <p data-i18n="r5.d">Seus quilômetros e conquistas continuariam seus depois da venda, documentos da moto (nota, recibos, certificados) ligados a ela e um jeito de verificar que o histórico não foi alterado.</p>
-          </li>
-          <li class="tl tl--branch reveal">
-            <span class="tl__art" aria-hidden="true"><img src="assets/art/motorcycle.webp" alt="" width="320" height="320" loading="lazy"></span>
-            <div>
-              <div class="tl__head">
-                <h3 data-i18n="r6.t">Além do posto</h3>
-                <span class="tl__status" data-i18n="st.ideas">Ideias</span>
-              </div>
-              <p data-i18n="r6.d">Consumo real comparado ao de fábrica, clima em cada abastecimento, diário e viagens, desafios de longa distância como o Iron Butt e, um dia, comunidade.</p>
-            </div>
-          </li>
-        </ol>
-      </div>
+      <ol class="track reveal">
+        <li class="track__item is-done">
+          <span class="track__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <p class="track__status"><span data-i18n="st.done">Entregue</span> · v1.0</p>
+          <h3 data-i18n="r1.t">Diário de bordo</h3>
+          <p data-i18n="r1.d">Abastecimento rápido, consumo real, leitura do cupom, manutenção programada, garagem com várias motos, medalhas e cópia dos seus registros na nuvem.</p>
+        </li>
+        <li class="track__item is-now">
+          <span class="track__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span>
+          <p class="track__status" data-i18n="st.now">Agora</p>
+          <h3 data-i18n="r2.t">Na App Store</h3>
+          <p data-i18n="r2.d">Disponível na App Store do Brasil. É aqui que você entra: cada abastecimento registrado ajuda a decidir o próximo passo.</p>
+        </li>
+        <li class="track__item">
+          <span class="track__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-5H20M15 13a3 3 0 1 0-6 0"/><circle cx="12" cy="8" r="2"/></svg></span>
+          <p class="track__status" data-i18n="st.planned">Planejado</p>
+          <h3 data-i18n="r3.t">Passaporte digital</h3>
+          <p data-i18n="r3.d">O histórico passa a pertencer à moto, com o autor de cada registro guardado.</p>
+        </li>
+        <li class="track__item">
+          <span class="track__node" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg></span>
+          <p class="track__status" data-i18n="st.ideas">Ideias</p>
+          <h3 data-i18n="r6.t">Além do posto</h3>
+          <p data-i18n="r6.d">Consumo real comparado ao de fábrica, clima em cada abastecimento, diário e viagens, desafios de longa distância como o Iron Butt e, um dia, comunidade.</p>
+        </li>
+      </ol>
     </div>
   </section>
 
@@ -369,10 +349,10 @@
     </div>
   </section>
 
-  <!-- FAQ -->
+  <!-- FAQ: título à esquerda (fixo ao rolar no desktop), perguntas à direita -->
   <section class="section faq" id="faq">
-    <div class="wrap wrap--narrow">
-      <header class="section__head reveal">
+    <div class="wrap faq__grid">
+      <header class="faq__head reveal">
         <p class="kicker" data-i18n="q.kicker">Perguntas</p>
         <h2 data-i18n="q.title">Antes de você perguntar.</h2>
       </header>
@@ -402,16 +382,8 @@
           <p data-i18n="q7.a">A leitura acontece no próprio iPhone. A foto do cupom não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem.</p>
         </details>
         <details>
-          <summary data-i18n="q5.q">Por que o consumo não aparece no primeiro abastecimento?</summary>
-          <p data-i18n="q5.a">Porque consumo honesto se mede entre dois tanques cheios: o primeiro é o ponto de partida. O app mostra quantos abastecimentos faltam para a primeira média aparecer.</p>
-        </details>
-        <details>
           <summary data-i18n="q8.q">Lê o display da bomba?</summary>
           <p data-i18n="q8.a">Lê, mas ainda não acerta 100%. Reflexo, ângulo e display de segmentos atrapalham. Por isso o app sempre mostra o que leu antes de salvar: você confere e corrige o que precisar. O cupom impresso costuma sair mais preciso.</p>
-        </details>
-        <details>
-          <summary data-i18n="q6.q">O código é aberto?</summary>
-          <p data-i18n="q6.a">O código está público no GitHub para quem quiser conhecer como o app é feito. Se gostar, deixe uma estrela, isso ajuda muito.</p>
         </details>
       </div>
     </div>
@@ -453,8 +425,9 @@
     <p class="footer__copy" data-i18n="ft.copy">© 2026 Carburante. Todos os direitos reservados.</p>
     <p class="footer__legal" data-i18n="ft.legal">Nomes e logotipos de fabricantes de motos exibidos nas telas são marcas comerciais ou registradas de seus respectivos detentores, usados só para identificar a moto cadastrada. O Carburante é independente, sem afiliação, patrocínio ou endosso de qualquer fabricante.</p>
   </div>
+  <p class="footer__mark" aria-hidden="true">Carburante</p>
 </footer>
 
-<script src="app.js?v=24"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>
