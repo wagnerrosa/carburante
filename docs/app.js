@@ -124,7 +124,6 @@
     'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="motorcycle">🏍️</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
     'ft.copy': '© 2026 Carburante. All rights reserved.',
     'ft.privacy': 'Privacy',
-    'ft.lang': 'Português',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
   };
 
@@ -145,7 +144,6 @@
   altNodes.forEach(function (el) { el.dataset.ptAlt = el.getAttribute('alt') || el.getAttribute('aria-label'); });
 
   var toggle = document.getElementById('lang-toggle');
-  var footLang = document.querySelector('.footer__lang'); // no celular o EN sai da cápsula: a troca mora aqui
   var current = 'pt';
   var onLang = []; // quem precisa refazer algo depois que o texto troca (ex.: palavras da ponte)
 
@@ -170,18 +168,15 @@
     document.title = m.title;
     toggle.textContent = m.toggle;
     toggle.setAttribute('aria-label', m.toggleLabel);
-    if (footLang) footLang.lang = en ? 'pt-BR' : 'en'; // o botão fala no idioma para onde leva
     onLang.forEach(function (fn) { fn(); });
   }
 
-  var switchLang = function (where) {
+  toggle.addEventListener('click', function () {
     var next = current === 'pt' ? 'en' : 'pt';
     apply(next);
     store(next);
-    track('site_interaction', { event_category: 'ui', event_label: 'lang_' + next, event_location: where });
-  };
-  toggle.addEventListener('click', function () { switchLang('nav'); });
-  if (footLang) footLang.addEventListener('click', function () { switchLang('footer'); });
+    track('site_interaction', { event_category: 'ui', event_label: 'lang_' + next, event_location: 'nav' });
+  });
 
   // Analytics — cliques classificados pelo href, sem data-track no HTML: o i18n troca o
   // innerHTML dos parágrafos, e links internos a eles perderiam atributos. Parâmetros
