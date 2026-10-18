@@ -695,6 +695,7 @@
     pt: {
       drop: { odo: 'Arraste o hodômetro até aqui', fuel: 'Agora a bomba ou o comprovante' },
       tap: { odo: 'Toque no hodômetro', fuel: 'Toque na bomba ou no comprovante' },
+      arrow: ['arraste', 'toque'],
       hint: { odo: 'Experimente: leve o hodômetro até o celular.', fuel: 'Agora a bomba ou o comprovante.', review: 'Confira e toque em Salvar.', saved: 'Pronto: registrado em {n} s.' },
       read: { odo: ['Lendo o hodômetro…', 'Hodômetro lido'], pump: ['Lendo a bomba…', 'Bomba lida'], receipt: ['Lendo o comprovante…', 'Comprovante lido'] },
       val: { odo: '22.039 km', fuel: 'R$ 28,49 · 4,135 L' }
@@ -702,6 +703,7 @@
     en: {
       drop: { odo: 'Drag the odometer here', fuel: 'Now the pump or the receipt' },
       tap: { odo: 'Tap the odometer', fuel: 'Tap the pump or the receipt' },
+      arrow: ['drag', 'tap'],
       hint: { odo: 'Try it: bring the odometer to the phone.', fuel: 'Now the pump or the receipt.', review: 'Check it and tap “Salvar” (Save).', saved: 'Done: logged in {n} s.' },
       read: { odo: ['Reading the odometer…', 'Odometer read'], pump: ['Reading the pump…', 'Pump read'], receipt: ['Reading the receipt…', 'Receipt read'] },
       val: { odo: '22,039 km', fuel: 'R$ 28.49 · 4.135 L' }
@@ -716,6 +718,7 @@
     var box = cam.querySelector('.sim__box');
     var pill = cam.querySelector('.sim__pill');
     var dropT = sim.querySelector('.sim__drop-t');
+    var arrowTs = Array.prototype.slice.call(sim.querySelectorAll('.sim__arrow-t'));
     var hint = sim.querySelector('.sim__hint');
     var stepEls = Array.prototype.slice.call(sim.querySelectorAll('.sim__steps li'));
     var props = {};
@@ -757,6 +760,7 @@
     };
     var renderText = function () {
       if (step === 'odo' || step === 'fuel') dropT.textContent = T(fine ? 'drop' : 'tap')[step];
+      arrowTs.forEach(function (el) { el.textContent = T('arrow')[fine ? 0 : 1]; });
       var h = T('hint');
       if (step === 'saved') hint.textContent = h.saved.replace('{n}', secs);
       else if (h[step]) hint.textContent = h[step];

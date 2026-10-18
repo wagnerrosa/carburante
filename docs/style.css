@@ -524,7 +524,8 @@ body::after {
 /* Palco simétrico: o hodômetro à esquerda (passo 1), o celular no meio, a bomba ou o comprovante
    à direita (passo 2). Os objetos nunca cobrem a tela. Cada objeto é um botão: arrasta até o
    celular ou toca. A tela são quadros reais do app empilhados; a "câmera" é uma folha que sobe
-   por cima. Dentro da tela tudo é em cqw (largura da tela), então escala junto com o celular. */
+   por cima. Dentro da tela tudo é medido em --u (1% da largura da tela, em px), então escala junto
+   com o celular. Sem container query de propósito: no Safari ela fazia a tela piscar. */
 .sim { padding: 64px 0 104px; }
 @media (min-width: 960px) { .sim { padding: 88px 0 152px; } }
 .sim__head { text-align: center; max-width: 760px; margin: 0 auto; }
@@ -565,11 +566,11 @@ html:not(.js) .sim__steps li::after, html:not(.js) .sim__steps b { transform: no
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
   column-gap: clamp(24px, 5vw, 72px); margin-top: clamp(40px, 5vw, 64px);
 }
-.sim__side { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.sim__side { position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .sim__side--a { justify-self: end; }
 .sim__side--b { justify-self: start; }
 .sim__or { font: italic 400 24px/1 var(--serif); color: var(--text-2); }
-.sim__phone { width: min(300px, calc((86svh - 20px) / 2.17)); max-width: none; margin: 0; }
+.sim__phone { --pw: min(300px, calc((86svh - 20px) / 2.17)); width: var(--pw); max-width: none; margin: 0; }
 
 /* Objetos: botões sem cara de botão; o da vez ganha a legenda em chama e, parado, um chamado */
 .sim__prop {
@@ -613,6 +614,31 @@ html:not(.js) .sim__prop { cursor: default; }
 .motion .sim.is-on .sim__prop--odo .gauge__needle { animation: needle-sweep 1.8s cubic-bezier(.45, 0, .25, 1) .15s both; }
 @keyframes needle-sweep { 0% { transform: rotate(-135deg); } 45% { transform: rotate(135deg); } 100% { transform: rotate(-135deg); } }
 
+/* Seta de anotação ("arraste"): sai do objeto da vez e aponta para a parte vazia da tela. O traço
+   se desenha quando o passo começa e a seta balança de leve; some enquanto arrasta. */
+.sim__arrow {
+  position: absolute; z-index: 5; top: 52%; display: grid; justify-items: start; gap: 2px; width: 112px;
+  color: #ff9a4d; pointer-events: none; opacity: 0; transition: opacity .35s ease;
+}
+.sim__side--a .sim__arrow { left: calc(100% + 2px); }
+.sim__side--b .sim__arrow { right: calc(100% + 2px); top: 46%; justify-items: end; }
+.sim__arrow em { font: italic 400 24px/1 var(--serif); padding: 0 6px; }
+.sim__arrow svg { display: block; width: 100%; height: auto; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.sim__side--b .sim__arrow svg { transform: scaleX(-1); }
+.sim__arrow .sim__arc { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.sim__arrow .sim__tip { opacity: 0; transition: opacity .25s ease; }
+.sim[data-step="odo"]:not(.is-busy):not(.is-dragging) .sim__side--a .sim__arrow,
+.sim[data-step="fuel"]:not(.is-busy):not(.is-dragging) .sim__side--b .sim__arrow { opacity: 1; }
+.sim[data-step="odo"]:not(.is-busy) .sim__side--a .sim__arc,
+.sim[data-step="fuel"]:not(.is-busy) .sim__side--b .sim__arc { stroke-dashoffset: 0; transition: stroke-dashoffset .8s cubic-bezier(.6, 0, .3, 1) .15s; }
+.sim[data-step="odo"]:not(.is-busy) .sim__side--a .sim__tip,
+.sim[data-step="fuel"]:not(.is-busy) .sim__side--b .sim__tip { opacity: 1; transition-delay: .85s; }
+.motion .sim .sim__arrow { animation: arrow-bob 1.8s ease-in-out infinite; }
+.motion .sim .sim__side--b .sim__arrow { animation-name: arrow-bob-b; }
+@keyframes arrow-bob { 50% { translate: 5px 3px; } }
+@keyframes arrow-bob-b { 50% { translate: -5px 3px; } }
+html:not(.js) .sim__arrow { display: none; }
+
 /* Comprovante (papel, serrilha, código de barras) e visor da bomba (7 segmentos âmbar acesos,
    os apagados "88.88" por trás). Tudo em em: o tamanho vem do lugar onde estão. */
 .receipt { display: block; margin: 0; font: 600 8px/1.45 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .02em; color: #2b2723; text-align: left; }
@@ -645,7 +671,8 @@ html:not(.js) .sim__prop { cursor: default; }
 
 /* Tela: quadros do app empilhados (só o da vez aparece) */
 .sim__screen {
-  position: relative; isolation: isolate; container-type: inline-size; aspect-ratio: 1206 / 2622;
+  --u: calc((var(--pw) - 20px) / 100);
+  position: relative; isolation: isolate; aspect-ratio: 1206 / 2622; transform: translateZ(0);
   overflow: hidden; border-radius: 44px; background: #e9e9ee; -webkit-user-select: none; user-select: none;
 }
 .sim__screen .sim__shot { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; background: none; opacity: 0; transition: opacity .3s ease, filter .45s ease; }
@@ -654,13 +681,13 @@ html:not(.js) .sim__prop { cursor: default; }
 
 /* Onde soltar: na parte vazia da tela (embaixo do botão apagado) */
 .sim__drop {
-  position: absolute; z-index: 2; left: 6%; right: 6%; top: 57%; bottom: 6%; padding: 0 9cqw;
-  display: grid; place-content: center; justify-items: center; gap: 3cqw; text-align: center;
-  border: .6cqw dashed rgba(60, 60, 67, .26); border-radius: 7cqw;
-  color: rgba(60, 60, 67, .58); font: 600 4.6cqw/1.25 var(--font); text-wrap: balance;
+  position: absolute; z-index: 2; left: 6%; right: 6%; top: 57%; bottom: 6%; padding: 0 calc(9 * var(--u));
+  display: grid; place-content: center; justify-items: center; gap: calc(3 * var(--u)); text-align: center;
+  border: calc(.6 * var(--u)) dashed rgba(60, 60, 67, .26); border-radius: calc(7 * var(--u));
+  color: rgba(60, 60, 67, .58); font: 600 calc(4.6 * var(--u))/1.25 var(--font); text-wrap: balance;
   opacity: 0; pointer-events: none; transition: opacity .3s ease, background .3s ease, border-color .3s ease, color .3s ease, scale .35s var(--ease);
 }
-.sim__drop svg { width: 11cqw; height: 11cqw; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sim__drop svg { width: calc(11 * var(--u)); height: calc(11 * var(--u)); fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .sim:is([data-step="odo"], [data-step="fuel"]):not(.is-busy) .sim__drop { opacity: 1; }
 .sim.is-dragging .sim__drop { border-color: rgba(255, 106, 0, .75); color: #f05a00; background: rgba(255, 106, 0, .06); }
 .sim.is-over .sim__drop { background: rgba(255, 106, 0, .14); scale: 1.03; }
@@ -674,42 +701,42 @@ html:not(.js) .sim__prop { cursor: default; }
 .sim__hot:active, .sim__hot.is-press { background: rgba(0, 0, 0, .14); }
 .sim__hot--scan { left: 65.5%; top: 8.8%; width: 30.5%; height: 5.4%; }
 .sim__hot--next { left: 4%; top: 52.4%; width: 92%; height: 6.1%; }
-.sim__hot--save { left: 4%; top: 95.7%; width: 92%; height: 6%; }
+.sim__hot--save { left: 4%; top: 90.6%; width: 92%; height: 5.6%; }
 .sim[data-step="odo"] [data-hot="scan"], .sim[data-step="fuel"] [data-hot="scan"],
 .sim[data-step="odo-read"] [data-hot="next"], .sim[data-step="fuel-read"] [data-hot="review"],
 .sim[data-step="review"] [data-hot="save"] { display: block; }
 .sim.is-busy .sim__hot { display: none; }
 .motion .sim[data-step="review"] .sim__hot--save { animation: sim-ring 1.6s ease-out infinite; }
-@keyframes sim-ring { 0% { box-shadow: 0 0 0 0 rgba(255, 106, 0, .6); } 100% { box-shadow: 0 0 0 5cqw rgba(255, 106, 0, 0); } }
+@keyframes sim-ring { 0% { box-shadow: 0 0 0 0 rgba(255, 106, 0, .6); } 100% { box-shadow: 0 0 0 calc(5 * var(--u)) rgba(255, 106, 0, 0); } }
 
 /* Câmera: folha escura que sobe; o objeto entra desfocado, foca, a linha passa, os cantos
    travam no número e a pílula mostra o que foi lido (como as caixas do Vision) */
 .sim__cam {
   position: absolute; z-index: 4; inset: 7% 0 0; overflow: hidden; visibility: hidden;
-  border-radius: 6cqw 6cqw 0 0; background: radial-gradient(120% 80% at 50% 42%, #202024, #050506 72%);
+  border-radius: calc(6 * var(--u)) calc(6 * var(--u)) 0 0; background: radial-gradient(120% 80% at 50% 42%, #202024, #050506 72%);
   transform: translateY(102%); transition: transform .5s var(--ease), visibility 0s .5s;
 }
 .sim__screen.is-cam .sim__cam { transform: none; visibility: visible; transition: transform .5s var(--ease), visibility 0s; }
 .sim__status {
-  position: absolute; z-index: 2; top: 5cqw; left: 50%; translate: -50% 0; display: flex; align-items: center; gap: 2cqw;
-  padding: 2.2cqw 4cqw; border-radius: 999px; white-space: nowrap; background: rgba(255, 255, 255, .14);
-  font: 600 3.7cqw/1 var(--font); color: #fff;
+  position: absolute; z-index: 2; top: calc(5 * var(--u)); left: 50%; translate: -50% 0; display: flex; align-items: center; gap: calc(2 * var(--u));
+  padding: calc(2.2 * var(--u)) calc(4 * var(--u)); border-radius: 999px; white-space: nowrap; background: rgba(255, 255, 255, .14);
+  font: 600 calc(3.7 * var(--u))/1 var(--font); color: #fff;
 }
-.sim__spin { flex: none; width: 3.8cqw; height: 3.8cqw; border-radius: 50%; border: .55cqw solid rgba(255, 255, 255, .3); border-top-color: #fff; animation: sim-spin .8s linear infinite; }
+.sim__spin { flex: none; width: calc(3.8 * var(--u)); height: calc(3.8 * var(--u)); border-radius: 50%; border: calc(.55 * var(--u)) solid rgba(255, 255, 255, .3); border-top-color: #fff; animation: sim-spin .8s linear infinite; }
 .sim__cam.is-read .sim__spin {
   animation: none; border: 0;
   background: #34c759 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.6 2.5L12 5.5' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 90% no-repeat;
 }
 @keyframes sim-spin { to { transform: rotate(360deg); } }
-.sim__view { position: absolute; inset: 16cqw 5cqw 20cqw; display: grid; place-items: center; filter: blur(2.6cqw); scale: 1.1; transition: filter .6s ease, scale .9s var(--ease); }
+.sim__view { position: absolute; inset: calc(16 * var(--u)) calc(5 * var(--u)) calc(20 * var(--u)); display: grid; place-items: center; filter: blur(calc(2.6 * var(--u))); scale: 1.1; transition: filter .6s ease, scale .9s var(--ease); }
 .sim__cam.is-focus .sim__view { filter: none; scale: 1; }
-.sim__view .gauge { width: 84cqw; }
-.sim__view .pump { font-size: 5.2cqw; }
-.sim__view .receipt { width: 76cqw; font-size: 3.9cqw; }
+.sim__view .gauge { width: calc(84 * var(--u)); }
+.sim__view .pump { font-size: calc(5.2 * var(--u)); }
+.sim__view .receipt { width: calc(76 * var(--u)); font-size: calc(3.9 * var(--u)); }
 .sim__line {
-  position: absolute; z-index: 1; left: 5%; right: 5%; top: 18%; height: .8cqw; border-radius: 1cqw; opacity: 0; pointer-events: none;
+  position: absolute; z-index: 1; left: 5%; right: 5%; top: 18%; height: calc(.8 * var(--u)); border-radius: calc(1 * var(--u)); opacity: 0; pointer-events: none;
   background: linear-gradient(90deg, transparent, #ff7a00 18%, #ffc400 50%, #ff7a00 82%, transparent);
-  box-shadow: 0 0 4cqw 1cqw rgba(255, 122, 0, .5);
+  box-shadow: 0 0 calc(4 * var(--u)) calc(1 * var(--u)) rgba(255, 122, 0, .5);
 }
 .sim__cam.is-scan .sim__line { animation: sim-scan 1s cubic-bezier(.45, 0, .55, 1) forwards; }
 @keyframes sim-scan { 0% { top: 18%; opacity: 0; } 12%, 86% { opacity: 1; } 100% { top: 82%; opacity: 0; } }
@@ -718,15 +745,15 @@ html:not(.js) .sim__prop { cursor: default; }
   transition: left .55s var(--ease), top .55s var(--ease), width .55s var(--ease), height .55s var(--ease), opacity .3s ease;
 }
 .sim__cam.is-focus .sim__box { opacity: 1; }
-.sim__box i { position: absolute; width: 6cqw; height: 6cqw; border: .7cqw solid #ff8a00; }
-.sim__box i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 2cqw; }
-.sim__box i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 2cqw; }
-.sim__box i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 2cqw; }
-.sim__box i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 2cqw; }
+.sim__box i { position: absolute; width: calc(6 * var(--u)); height: calc(6 * var(--u)); border: calc(.7 * var(--u)) solid #ff8a00; }
+.sim__box i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; border-top-left-radius: calc(2 * var(--u)); }
+.sim__box i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; border-top-right-radius: calc(2 * var(--u)); }
+.sim__box i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; border-bottom-left-radius: calc(2 * var(--u)); }
+.sim__box i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; border-bottom-right-radius: calc(2 * var(--u)); }
 .sim__pill {
-  position: absolute; z-index: 2; left: 50%; top: 30%; translate: -50% -100%; padding: 2.1cqw 3.8cqw; border-radius: 999px;
-  background: #ff6a00; color: #fff; font: 700 4.4cqw/1 var(--font); white-space: nowrap; font-variant-numeric: tabular-nums;
-  box-shadow: 0 2cqw 6cqw rgba(255, 90, 0, .45); opacity: 0; scale: .6; transition: opacity .25s ease, scale .5s cubic-bezier(.2, 1.4, .4, 1);
+  position: absolute; z-index: 2; left: 50%; top: 30%; translate: -50% -100%; padding: calc(2.1 * var(--u)) calc(3.8 * var(--u)); border-radius: 999px;
+  background: #ff6a00; color: #fff; font: 700 calc(4.4 * var(--u))/1 var(--font); white-space: nowrap; font-variant-numeric: tabular-nums;
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(255, 90, 0, .45); opacity: 0; scale: .6; transition: opacity .25s ease, scale .5s cubic-bezier(.2, 1.4, .4, 1);
 }
 .sim__cam.is-read .sim__pill { opacity: 1; scale: 1; }
 .sim-ocr { position: relative; }
@@ -753,14 +780,14 @@ html:not(.motion) .sim__view { filter: none; scale: 1; }
 
 /* Tablet: celular um pouco menor */
 @media (max-width: 1079px) {
-  .sim__phone { width: min(270px, calc((80svh - 20px) / 2.17)); }
+  .sim__phone { --pw: min(270px, calc((80svh - 20px) / 2.17)); }
 }
 /* Celular: o celular em cima, os três objetos numa fileira embaixo */
 @media (max-width: 719px) {
   .sim__steps { gap: 8px; margin-top: 28px; }
   .sim__steps li { font-size: 13px; column-gap: 6px; }
-  .sim__bench { grid-template-columns: auto auto; grid-template-areas: "phone phone" "a b"; justify-content: center; column-gap: 14px; row-gap: 28px; margin-top: 32px; }
-  .sim__phone { grid-area: phone; justify-self: center; width: min(250px, 66vw); }
+  .sim__bench { grid-template-columns: auto auto; grid-template-areas: "phone phone" "a b"; justify-content: center; column-gap: 14px; row-gap: 64px; margin-top: 32px; }
+  .sim__phone { --pw: min(250px, 66vw); grid-area: phone; justify-self: center; }
   .sim__side--a { grid-area: a; justify-self: center; align-self: end; }
   .sim__side--b { grid-area: b; justify-self: center; align-self: end; flex-direction: row; align-items: flex-end; gap: 8px; }
   .sim__or { font-size: 17px; align-self: center; }
@@ -770,6 +797,13 @@ html:not(.motion) .sim__view { filter: none; scale: 1; }
   .sim__prop--pump .pump { font-size: 4.6px; }
   .sim__prop--receipt .receipt { width: 70px; font-size: 3.7px; }
   .sim__foot { margin-top: 28px; }
+  .sim__arrow { top: auto; bottom: calc(100% + 4px); width: 74px; grid-auto-flow: column; align-items: center; gap: 0; }
+  .sim__side--a .sim__arrow { left: 50%; }
+  .sim__side--b .sim__arrow { right: 50%; top: auto; }
+  .sim__arrow em { font-size: 19px; }
+  .sim__arrow svg { width: 50px; transform: rotate(-78deg); }
+  .sim__side--a .sim__arrow em { order: 2; }
+  .sim__side--b .sim__arrow svg { transform: scaleX(-1) rotate(-78deg); }
 }
 
 /* ---------- Manifesto ---------- */

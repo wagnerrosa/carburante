@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=31">
+  <link rel="stylesheet" href="style.css?v=32">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -208,6 +208,7 @@
             <span class="sim__art" aria-hidden="true"><svg class="gauge" viewBox="0 0 240 240" aria-hidden="true"><defs><radialGradient id="gFace" cx="45%" cy="38%" r="70%"><stop offset="0" stop-color="#1b1e26"/><stop offset=".7" stop-color="#0b0c10"/><stop offset="1" stop-color="#050506"/></radialGradient><linearGradient id="gBezel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a5a60"/><stop offset=".25" stop-color="#1c1c1f"/><stop offset=".6" stop-color="#0c0c0e"/><stop offset="1" stop-color="#3a3a3f"/></linearGradient><linearGradient id="gLcd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc061"/><stop offset="1" stop-color="#f08a24"/></linearGradient></defs><circle cx="120" cy="120" r="119" fill="url(#gBezel)"/><circle cx="120" cy="120" r="108" fill="#020203"/><circle cx="120" cy="120" r="105" fill="url(#gFace)"/><g class="gauge__ring"><path d="M42.1 182.7L46.8 179.0M30.6 164.8L35.9 162.1M23.1 144.7L28.9 143.2M20.1 123.6L26.1 123.4M21.6 102.2L27.5 103.3M27.6 81.7L33.2 84.0M37.9 63.0L42.8 66.4M51.9 46.8L55.9 51.2M69.0 34.0L72.0 39.2M88.4 25.1L90.3 30.8M109.3 20.6L110.0 26.5M130.7 20.6L130.0 26.5M151.6 25.1L149.7 30.8M171.0 34.0L168.0 39.2M188.1 46.8L184.1 51.2M202.1 63.0L197.2 66.4M212.4 81.7L206.8 84.0M218.4 102.2L212.5 103.3M219.9 123.6L213.9 123.4M216.9 144.7L211.1 143.2M209.4 164.8L204.1 162.1M197.9 182.7L193.2 179.0" stroke-width="1.3"/><path d="M49.3 190.7L58.5 181.5M35.9 174.1L43.4 169.2M26.3 154.9L38.5 150.4M21.0 134.2L29.9 133.0M20.3 112.9L33.2 113.8M24.1 91.8L32.7 94.4M32.2 72.1L43.6 78.3M44.4 54.5L51.2 60.4M60.1 39.9L67.9 50.4M78.5 29.0L82.2 37.2M98.7 22.3L101.5 35.0M120.0 20.0L120.0 29.0M141.3 22.3L138.5 35.0M161.5 29.0L157.8 37.2M179.9 39.9L172.1 50.4M195.6 54.5L188.8 60.4M207.8 72.1L196.4 78.3M215.9 91.8L207.3 94.4M219.7 112.9L206.8 113.8M219.0 134.2L210.1 133.0M213.7 154.9L201.5 150.4M204.1 174.1L196.6 169.2M190.7 190.7L181.5 181.5" stroke-width="2.6"/></g><g class="gauge__num"><text x="69.1" y="175.9">0</text><text x="52.5" y="150.2">20</text><text x="48.2" y="119.9">40</text><text x="56.8" y="90.5">60</text><text x="76.9" y="67.4">80</text><text x="104.7" y="54.6">100</text><text x="135.3" y="54.6">120</text><text x="163.1" y="67.4">140</text><text x="183.2" y="90.5">160</text><text x="191.8" y="119.9">180</text><text x="187.5" y="150.2">200</text><text x="170.9" y="175.9">220</text></g><text class="gauge__unit" x="120" y="98">km/h</text><g class="gauge__lcd"><rect x="84" y="160" width="72" height="24" rx="3.5" fill="#2a1a0c"/><rect class="gauge__glow" x="84" y="160" width="72" height="24" rx="3.5" fill="url(#gLcd)"/><text class="gauge__km" x="88.5" y="175.5">KM</text><text class="gauge__d gauge__d--off" x="152" y="178.5">888888</text><text class="gauge__d" x="152" y="178.5">022039</text></g><g class="gauge__needle"><path d="M116.5 131 L118.8 34 L121.2 34 L123.5 131 Z" fill="#f4ead6"/><path d="M118.8 34 L121.2 34 L121.6 50 L118.4 50 Z" fill="#ff5a1f"/><circle cx="120" cy="120" r="17" fill="#060607" stroke="#26262a" stroke-width="1.5"/></g><path class="gauge__glare" d="M28 96 C 60 40, 150 20, 214 70 L 214 84 C 150 40, 70 60, 30 112 Z" fill="#fff" opacity=".05"/></svg></span>
             <span class="sim__cap" data-i18n="sim.c.odo">Hodômetro</span>
           </button>
+          <span class="sim__arrow" aria-hidden="true"><em class="sim__arrow-t">arraste</em><svg viewBox="0 0 112 56"><path class="sim__arc" pathLength="1" d="M6 48 C 30 12, 72 6, 104 30"/><path class="sim__tip" d="M97.4 17.6 L104 30 L90.2 28.4"/></svg></span>
         </div>
         <div class="phone sim__phone">
           <div class="sim__screen">
@@ -235,6 +236,7 @@
           </div>
         </div>
         <div class="sim__side sim__side--b">
+          <span class="sim__arrow" aria-hidden="true"><em class="sim__arrow-t">arraste</em><svg viewBox="0 0 112 56"><path class="sim__arc" pathLength="1" d="M6 48 C 30 12, 72 6, 104 30"/><path class="sim__tip" d="M97.4 17.6 L104 30 L90.2 28.4"/></svg></span>
           <button class="sim__prop sim__prop--pump" type="button" data-prop="pump">
             <span class="sim__art" aria-hidden="true"><span class="pump">
               <span class="pump__label">R$</span><span class="pump__num sim-ocr"><i>88.88</i><b data-pump="28.49" data-dec="2">28.49</b></span>
@@ -493,6 +495,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=35"></script>
+<script src="app.js?v=36"></script>
 </body>
 </html>
