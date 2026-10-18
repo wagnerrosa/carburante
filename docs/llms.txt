@@ -36,6 +36,24 @@ Funciona sem criar conta e sem senha. Os dados ficam primeiro no iPhone, com có
 - Só na App Store do Brasil e em português, por enquanto.
 - A leitura do display da bomba ainda não acerta 100%; o cupom impresso costuma sair mais preciso.
 
+<!-- ajuda:start -->
+## Manual (Ajuda)
+
+Passo a passo do app, uma pergunta por página: https://carburante.motorcycles/ajuda/ — texto completo num arquivo só: https://carburante.motorcycles/llms-full.txt
+
+- [Como cadastrar sua moto no Carburante](https://carburante.motorcycles/ajuda/cadastrar-moto/): Marca, modelo, ano e o hodômetro atual bastam para começar. Categoria e cilindrada são opcionais e liberam a comparação com motos parecidas.
+- [Como registrar um abastecimento no Carburante](https://carburante.motorcycles/ajuda/registrar-abastecimento/): Três passos: hodômetro, valor e litros, revisar. Digite ou fotografe o painel e o comprovante; o app lê os números e você confere antes de salvar.
+- [Como o Carburante calcula o consumo da moto](https://carburante.motorcycles/ajuda/consumo/): De tanque cheio a tanque cheio: km rodados entre dois cheios divididos pelos litros colocados no trecho, parciais incluídos. A conta passo a passo.
+- [Por que o consumo da minha moto ainda não aparece?](https://carburante.motorcycles/ajuda/primeira-media/): O primeiro km/l aparece no segundo abastecimento com tanque cheio. Veja o que o app mostra enquanto isso e as causas mais comuns de a média não aparecer.
+- [Como funciona a leitura da foto (e o que fazer quando ela erra)](https://carburante.motorcycles/ajuda/leitura-da-foto/): O app lê o hodômetro e o comprovante no próprio iPhone e preenche os campos. Veja como tirar uma foto que lê bem e o que fazer quando a leitura erra.
+- [Esqueci de registrar um abastecimento. E agora?](https://carburante.motorcycles/ajuda/abasteci-sem-registrar/): Marque "Abasteci sem registrar" no próximo registro e a média ignora o buraco e recomeça. Se lembra quando foi, lance o abastecimento antigo pela data.
+- [Como lançar abastecimentos e manutenções antigos](https://carburante.motorcycles/ajuda/abastecimento-antigo/): Use "Adicionar histórico": escolha o dia primeiro e depois o km daquele dia. Registros antigos entram no consumo e nos gastos, mas não contam para conquistas.
+- [Como acompanhar a troca de óleo e outras manutenções](https://carburante.motorcycles/ajuda/manutencao/): Registre cada manutenção com data, km e intervalo. O app calcula a próxima pelo que vier primeiro, km ou tempo, mostra no Resumo e avisa antes de vencer.
+- [Vendi minha moto ou comprei outra. Como faço no Carburante?](https://carburante.motorcycles/ajuda/trocar-de-moto/): Coloque a moto atual à venda e cadastre a nova, de graça. A moto à venda aceita registros por mais 30 dias; vendida, sai da garagem e o histórico fica guardado.
+- [Carburante Premium: o que inclui e como assinar, restaurar ou cancelar](https://carburante.motorcycles/ajuda/premium/): O app é grátis e sem anúncios. O Premium (R$ 6,90/mês ou R$ 69,90/ano) traz garagem ilimitada, custos completos e medalhas como ícone do app.
+- [Como guardar seus dados e levar para outro iPhone](https://carburante.motorcycles/ajuda/outro-iphone/): Entre com a Apple em Garagem › Ajustes › Conta para guardar seu histórico na sua conta. No iPhone novo, entre com a mesma conta e tudo volta.
+<!-- ajuda:end -->
+
 ## Perguntas frequentes
 
 - [FAQ no site](https://carburante.motorcycles/#faq)

@@ -177,7 +177,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=38">
+  <link rel="stylesheet" href="style.css?v=40">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -606,6 +606,7 @@
           <summary data-i18n="q8.q">Lê o display da bomba?</summary>
           <p data-i18n="q8.a">Lê, mas ainda não acerta 100%. Reflexo, ângulo e display de segmentos atrapalham. Por isso o app sempre mostra o que leu antes de salvar: você confere e corrige o que precisar. O comprovante impresso costuma sair mais preciso.</p>
         </details>
+        <p class="faq__more" data-i18n="q.more">Mais respostas, passo a passo, na <a href="ajuda/">Ajuda do Carburante</a>.</p>
       </div>
     </div>
   </section>
@@ -642,6 +643,7 @@
     <div class="footer__row">
       <p class="footer__by" data-i18n="ft.by">Feito com <span class="footer__moto" role="img" aria-label="moto">🏍️</span> por <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a></p>
       <nav class="footer__links" aria-label="Links">
+        <a href="ajuda/" data-i18n="ft.help">Ajuda</a>
         <a href="https://github.com/wagnerrosa/carburante" target="_blank" rel="noopener">GitHub</a>
         <a href="mailto:contato@wagnerrosa.com">Email</a>
         <a href="privacidade/" data-i18n="ft.privacy">Privacidade</a>
@@ -653,6 +655,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=41"></script>
+<script src="app.js?v=42"></script>
 </body>
 </html>

@@ -1128,6 +1128,8 @@ html:not(.motion) .manifesto { --heat: 1; }
 .faq details.is-closing summary::after { transform: rotate(90deg); }
 .faq details p { padding: 0 0 26px; color: var(--text-2); max-width: 40em; }
 .faq details a { color: var(--text); text-underline-offset: 3px; }
+.faq__more { margin-top: 28px; color: var(--text-2); }
+.faq__more a { color: var(--text); text-underline-offset: 3px; }
 
 /* ---------- Footer ---------- */
 .footer { position: relative; overflow: hidden; border-top: 1px solid var(--line); padding: 48px 0 0; font-size: 16px; color: var(--text-2); text-align: center; }
@@ -1207,3 +1209,37 @@ html:not(.motion) .manifesto { --heat: 1; }
   box-shadow: var(--shadow); padding: 20px 24px;
 }
 .legal__summary h2 { margin-top: 0; font-size: 19px; }
+
+/* ---------- Ajuda (manual, gerado por scripts/build-ajuda.py) ----------
+   Base = página legal. Resposta curta em destaque no topo (é o que a busca e as IAs citam),
+   passos numerados, notas com a fórmula, tabelas que rolam no celular. */
+.help__navlink { font-size: 15px; font-weight: 600; color: var(--text-2); text-decoration: none; padding: 10px 2px; }
+.help__navlink:hover { color: var(--text); }
+.help__crumbs { font-size: 14px; color: var(--text-2); margin-bottom: 12px; }
+.help__crumbs a { color: var(--text-2); text-underline-offset: 3px; }
+.help h1 { text-wrap: balance; }
+.help h2 { scroll-margin-top: 72px; }
+.help .help__lead { font-size: 18px; line-height: 1.55; padding: 18px 20px; margin: 0 0 8px; border-radius: 16px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); }
+.help ol { margin: 8px 0 0; padding-left: 24px; }
+.help ol li { padding-left: 4px; }
+.help ol li + li { margin-top: 8px; }
+.help li::marker { color: var(--text-2); }
+.help strong { font-weight: 600; color: #fff; }
+.help__note { margin: 18px 0; padding: 14px 18px; border-left: 3px solid #ff7a00; border-radius: 0 12px 12px 0; background: rgba(255, 122, 0, .08); }
+.help__table { margin: 16px 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.help table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.help th, .help td { text-align: left; vertical-align: top; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); }
+.help th { font-weight: 600; color: var(--text-2); }
+.help__related { margin-top: 48px; padding-top: 8px; border-top: 1px solid var(--line); }
+.help__related h2 { font-size: 17px; margin: 24px 0 8px; color: var(--text-2); }
+.help__contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 40px; padding: 20px 22px; border-radius: 16px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); }
+.help__contact p { margin: 0; color: var(--text-2); }
+.help .help__contact .btn { color: #1a0500; }
+/* Índice: um bloco por tema, cada pergunta com a resposta em uma linha */
+.help__group h2 { font-size: 15px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--text-2); margin: 40px 0 8px; }
+.help__group ul { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--bg-alt); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.help__group li + li { margin: 0; border-top: 1px solid var(--line); }
+.help__group a { display: block; padding: 14px 18px; color: var(--text); text-decoration: none; transition: background-color .2s; }
+.help__group a:hover { background: rgba(255, 255, 255, .04); }
+.help__group a strong { display: block; font-size: 17px; }
+.help__group a span { display: block; margin-top: 2px; font-size: 14px; line-height: 1.45; color: var(--text-2); }

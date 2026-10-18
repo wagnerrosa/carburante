@@ -124,6 +124,8 @@
     'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="motorcycle">🏍️</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
     'ft.copy': '© 2026 Carburante. All rights reserved.',
     'ft.privacy': 'Privacy',
+    'ft.help': 'Help (in Portuguese)',
+    'q.more': 'More step-by-step answers in the <a href="ajuda/">Carburante Help</a> (in Portuguese).',
     'ft.legal': 'Motorcycle manufacturer names and logos shown in the screens are trademarks or registered trademarks of their respective owners, used only to identify the registered bike. Carburante is independent and is not affiliated with, sponsored or endorsed by any manufacturer.'
   };
 

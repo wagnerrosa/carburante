@@ -1,0 +1,405 @@
+# Carburante — manual completo
+
+> App grátis para iPhone que registra os abastecimentos da moto e mostra o consumo real (km/l), de tanque cheio a tanque cheio. Este arquivo reúne todas as páginas da Ajuda (https://carburante.motorcycles/ajuda/). Vale para o Carburante 1.1 para iPhone. Atualizado em 18 de outubro de 2026.
+
+- Site: https://carburante.motorcycles/
+- App Store: https://apps.apple.com/br/app/carburante/id6785659437
+- Contato: contato@wagnerrosa.com
+
+---
+
+# Como cadastrar sua moto no Carburante
+
+Fonte: https://carburante.motorcycles/ajuda/cadastrar-moto/ · Seção: Primeiros passos · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** na primeira vez que abrir o app, toque em **Cadastrar minha moto**. Só marca e modelo são obrigatórios; o hodômetro atual ajuda o app a conferir os próximos registros. O resto é opcional e pode ficar para depois. Não precisa criar conta.
+
+## Passo a passo
+
+1. Abra o Carburante e toque em **Cadastrar minha moto**. Se pulou a apresentação, vá em **Garagem** e toque em **Adicionar moto**.
+2. Em **Marca**, escolha na lista: Honda, Yamaha, BMW, Suzuki, Harley-Davidson, Royal Enfield, Ducati, Kawasaki, Triumph ou KTM. Se a sua não estiver, escolha **Outra…** e digite o nome.
+3. Digite o **Modelo** e escolha o **Ano**.
+4. Em **Hodômetro**, informe a quilometragem atual.
+5. Se quiser, preencha **Detalhes (opcional)**: categoria, cilindrada e país.
+6. Toque em **Salvar**.
+
+## Para que servem os detalhes opcionais
+
+Categoria e cilindrada liberam a comparação do seu consumo com uma estimativa para motos parecidas, na tela **Consumo**. Dá para completar depois: **Garagem** › sua moto › **Editar**.
+
+## A cor do app muda com a marca
+
+O Carburante assume a cor da marca da moto ativa: vermelho para Honda, verde para Kawasaki, e assim por diante. Marcas fora da lista usam a cor padrão do app.
+
+## Mais de uma moto
+
+No plano grátis, a garagem tem uma moto ativa por vez. Para trocar de moto sem pagar nada, veja [Vendi minha moto ou comprei outra](https://carburante.motorcycles/ajuda/trocar-de-moto/). Para ter várias motos ativas ao mesmo tempo, veja o [Carburante Premium](https://carburante.motorcycles/ajuda/premium/).
+
+---
+
+# Como registrar um abastecimento no Carburante
+
+Fonte: https://carburante.motorcycles/ajuda/registrar-abastecimento/ · Seção: Primeiros passos · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** no **Resumo**, toque no botão da bomba de combustível, no alto da tela, ao lado do nome da moto. São três passos: hodômetro, valor e litros, revisar. Em cada um dá para digitar ou tocar em **Escanear** para o app ler os números de uma foto.
+
+Também dá para começar por **Garagem** › sua moto › **Novo abastecimento**.
+
+## 1. Hodômetro
+
+1. Na tela "Qual o hodômetro agora?", digite o km do painel ou toque em **Escanear** e escolha **Tirar foto** ou **Escolher da galeria**.
+2. Confira o número. O app mostra quantos km você rodou desde o último registro, por exemplo "+352 km desde o último".
+3. Toque em **Próximo**.
+
+## 2. Valor e litros
+
+1. Digite o **Valor** pago e os **Litros**, ou toque em **Escanear** para ler do comprovante ou do visor da bomba.
+2. O app mostra o preço por litro. Se ele ficar laranja, confira o valor e os litros: provavelmente um dos dois está errado.
+3. Toque em **Revisar**.
+
+## 3. Revisar e salvar
+
+1. Se já der para medir, aparece o **Consumo deste tanque**. Senão, o app diz quantos tanques cheios faltam.
+2. Toque em qualquer linha (hodômetro, valor, litros) para corrigir.
+3. Em **Combustível**, já vem marcado o último que você usou.
+4. Deixe **Tanque cheio** ligado se completou o tanque; desligue se foi parcial.
+5. Data, hora e cidade são preenchidas sozinhas (a cidade, se você permitir a localização). Dá para ajustar; o app anota que houve ajuste manual.
+6. Toque em **Salvar abastecimento**.
+
+## Bom saber
+
+- **Fotos:** a do hodômetro fica guardada como comprovante do registro, no iPhone e numa pasta privada da sua conta na nuvem. A do comprovante ou da bomba não é guardada. Veja [Como funciona a leitura da foto](https://carburante.motorcycles/ajuda/leitura-da-foto/).
+- **Localização:** só no momento do registro e só com a sua permissão. Sem ela, o app funciona igual, sem o local.
+- **Desistiu no meio?** Toque em **Cancelar**: se já digitou algo, o app pergunta antes de descartar.
+- **Corrigir ou apagar depois:** **Garagem** › sua moto › **Abastecimentos**. Toque no registro para editar ou deslize para a esquerda para apagar.
+- **Sem internet:** o registro fica salvo no iPhone e vai para a nuvem na próxima sincronização com conexão.
+
+---
+
+# Como o Carburante calcula o consumo da moto
+
+Fonte: https://carburante.motorcycles/ajuda/consumo/ · Seção: Consumo · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** o Carburante mede o consumo de tanque cheio a tanque cheio. Ele pega os quilômetros rodados entre dois abastecimentos com o tanque completo e divide pelos litros que você colocou nesse trecho, contando também os abastecimentos parciais do meio. O resultado é o km/l real da sua moto, não o do painel nem o do manual.
+
+## Por que de tanque cheio a tanque cheio
+
+O único jeito de saber quanto combustível a moto gastou é encher o tanque, rodar e encher de novo: o que entra na segunda vez é o que saiu. Com o tanque pela metade não dá para saber quanto sobrou, e a conta vira chute.
+
+## A conta, passo a passo
+
+1. Encha o tanque e registre o abastecimento com **Tanque cheio** ligado. Esse é o ponto de partida: os litros dele não entram na conta.
+2. Rode normalmente. Se colocar só um pouco no caminho, registre com **Tanque cheio** desligado. Esses litros ficam guardados para a próxima conta.
+3. Encha o tanque de novo e registre com **Tanque cheio** ligado. O app fecha o trecho.
+
+> **km/l = km rodados no trecho ÷ litros colocados depois do primeiro cheio (parciais + o segundo cheio)**
+
+### Exemplo
+
+- No primeiro cheio, o hodômetro marca 22.039 km.
+- No caminho, um abastecimento parcial de 6,0 L.
+- No cheio seguinte, o hodômetro marca 22.391 km e entram 11,3 L.
+- Trecho: 22.391 − 22.039 = 352 km. Litros: 6,0 + 11,3 = 17,3 L.
+- Consumo: 352 ÷ 17,3 = **20,3 km/l**.
+
+## A média do Resumo
+
+A frase "Sua moto faz em média…" no **Resumo** é uma média ponderada: soma os km dos trechos e divide pela soma dos litros. Assim, um trecho curto não pesa o mesmo que uma viagem longa. Toque no card de consumo para abrir a tela **Consumo**, com o gráfico tanque a tanque e a escolha do período. Se a moto tiver categoria e cilindrada cadastradas, a tela também mostra uma comparação estimada com motos parecidas.
+
+## O que fica fora da conta
+
+- **Trecho impossível:** acima de 80 km/l, o trecho não entra na média. Quase sempre é km ou litros digitados errado.
+- **Abastecimento que você não registrou:** quando você marca **Abasteci sem registrar**, o trecho com o buraco fica fora e a medição recomeça. Veja [Esqueci de registrar um abastecimento](https://carburante.motorcycles/ajuda/abasteci-sem-registrar/).
+- **Abastecimentos antigos** que você lança depois entram normalmente no consumo; só não contam para as conquistas. Veja [Como lançar abastecimentos antigos](https://carburante.motorcycles/ajuda/abastecimento-antigo/).
+
+## Dicas para uma média confiável
+
+- Encha sempre do mesmo jeito: até o bico desarmar, sem forçar.
+- Registre todos os abastecimentos, inclusive os parciais.
+- Confira o hodômetro e os litros na revisão antes de salvar.
+
+## Fazendo a mesma conta sem o app
+
+Anote o hodômetro ao encher o tanque, rode, encha de novo e anote o hodômetro e os litros que entraram (some os parciais do meio, se houver). Divida os km rodados pelos litros. O Carburante faz exatamente isso a cada registro e guarda o histórico para você.
+
+---
+
+# Por que o consumo da minha moto ainda não aparece?
+
+Fonte: https://carburante.motorcycles/ajuda/primeira-media/ · Seção: Consumo · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** o primeiro km/l aparece quando você salva o segundo abastecimento com o tanque cheio. O primeiro cheio é só o ponto de partida, e abastecimentos parciais não fecham a conta sozinhos.
+
+## O que o app mostra enquanto isso
+
+- No **Resumo**: "Registre 2 abastecimentos com tanque cheio para medir o consumo da sua moto" ou "Falta 1 abastecimento cheio para medir o consumo da sua moto".
+- Na revisão de cada abastecimento, antes de salvar: "Faltam 2 abastecimentos cheios", "Falta 1 abastecimento cheio" ou "Tudo pronto para medir". Quando aparece "Tudo pronto para medir", o km/l surge no Resumo assim que você salvar.
+
+## Causas comuns
+
+1. **Só há um abastecimento cheio.** Abasteça de novo com o tanque cheio e registre.
+2. **Tanque cheio ficou desligado.** Se você encheu o tanque mas o registro está como parcial, abra **Garagem**, toque na moto, em **Abastecimentos**, toque no registro e ligue **Tanque cheio**.
+3. **A medição recomeçou.** Se você marcou **Abasteci sem registrar**, os trechos com buraco ficam fora e o km/l volta no próximo tanque cheio. Veja [Esqueci de registrar um abastecimento](https://carburante.motorcycles/ajuda/abasteci-sem-registrar/).
+4. **O trecho deu mais de 80 km/l.** Trechos impossíveis ficam fora da média. Confira o hodômetro e os litros dos dois registros.
+
+Entenda a conta completa em [Como o Carburante calcula o consumo da moto](https://carburante.motorcycles/ajuda/consumo/).
+
+---
+
+# Como funciona a leitura da foto (e o que fazer quando ela erra)
+
+Fonte: https://carburante.motorcycles/ajuda/leitura-da-foto/ · Seção: Abastecimentos · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** quando você toca em **Escanear**, o Carburante lê os números da foto no próprio iPhone, com o reconhecimento de texto da Apple, e preenche os campos. A leitura é uma ajuda: você sempre confere na revisão antes de salvar, e pode digitar por cima de qualquer valor.
+
+## O que o app lê
+
+- **No passo do hodômetro:** a quilometragem do painel.
+- **No passo de valor e litros:** o valor pago e os litros, do comprovante impresso ou do visor da bomba.
+
+## Quando a leitura não dá certo
+
+Se o app não encontrar os números, ele avisa ("Não consegui ler — digite o hodômetro" ou "Não consegui ler — digite os valores") e você digita. Nada se perde: o resto do registro continua igual.
+
+O visor da bomba é o caso mais difícil. Reflexo, ângulo e números de segmentos (os de calculadora) atrapalham, e às vezes a vírgula some. O comprovante impresso costuma sair mais preciso.
+
+## Para a foto ler bem
+
+- Fotografe de frente, com os números ocupando boa parte da imagem.
+- Evite reflexo do sol e da luz do posto; incline um pouco o celular se precisar.
+- Em painel digital, fotografe com o visor aceso.
+- Foto tremida ou cortada lê mal: tire outra.
+
+## Conferências automáticas
+
+Mesmo com a leitura certa, o app confere se os números fazem sentido:
+
+- **Salto grande de km** desde o último registro: aviso "confira o km", com a opção **Abasteci sem registrar**.
+- **Preço por litro fora do normal:** o preço por litro fica laranja. Quase sempre é valor ou litros trocados.
+- **Consumo alto demais para a moto:** aviso na revisão para conferir o km e os litros.
+
+## O que acontece com as fotos
+
+A foto do hodômetro fica guardada como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem, que só a sua conta acessa. A foto do comprovante ou da bomba não é guardada. Detalhes na [Política de Privacidade](https://carburante.motorcycles/privacidade/).
+
+---
+
+# Esqueci de registrar um abastecimento. E agora?
+
+Fonte: https://carburante.motorcycles/ajuda/abasteci-sem-registrar/ · Seção: Abastecimentos · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** sem problema. No próximo abastecimento, se o app notar um salto grande de km, toque em **Abasteci sem registrar**. A média deixa de fora o trecho com o buraco e recomeça dali, e os km rodados continuam contando. Se você lembra o dia e os valores do que esqueceu, dá para lançar como abastecimento antigo.
+
+## Opção 1: deixar o buraco de fora
+
+Use quando não lembra os valores ou não quer lançar o que ficou para trás.
+
+1. Registre o abastecimento de hoje normalmente.
+2. No passo do hodômetro, se o km saltou demais, aparece "+X km desde o último — confira o km". Se o km está certo, toque em **Abasteci sem registrar**.
+3. Na revisão, a opção **Abasteci sem registrar antes** aparece ligada. Mudou de ideia? Toque em **Desfazer** no passo do hodômetro ou desligue a opção na revisão.
+4. Salve.
+
+O app mostra "A medição recomeça aqui": os abastecimentos sem registro ficam fora do consumo, e o km/l volta no próximo tanque cheio (ou depois de dois, se este foi parcial).
+
+O app só sugere: ele nunca marca sozinho. Você também pode ligar a opção depois, editando o registro em **Garagem** › sua moto › **Abastecimentos**.
+
+## Opção 2: lançar o que você esqueceu
+
+Use quando sabe o dia, o km e os valores (por exemplo, pelo comprovante guardado). O abastecimento entra no lugar certo da linha do tempo e a média fica completa. Veja [Como lançar abastecimentos e manutenções antigos](https://carburante.motorcycles/ajuda/abastecimento-antigo/).
+
+Atalho: se você digita um km menor que o do último registro, o app oferece **Foi em outro dia? Escolher a data** e transforma o registro em antigo.
+
+## Por que o app pergunta
+
+Um trecho com abastecimento faltando daria um consumo irreal (todos os km divididos por poucos litros). O app percebe pelo salto de km ou por um km/l alto demais para a sua moto e pergunta, em vez de estragar a sua média.
+
+---
+
+# Como lançar abastecimentos e manutenções antigos
+
+Fonte: https://carburante.motorcycles/ajuda/abastecimento-antigo/ · Seção: Abastecimentos · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** vá em **Garagem**, toque na moto e em **Adicionar histórico**. Escolha o dia primeiro e depois o km daquele dia. Abastecimentos e manutenções antigos entram no consumo, nos gastos e nas próximas manutenções, mas não contam para as conquistas.
+
+## Onde encontrar
+
+- **Garagem** › sua moto › **Adicionar histórico**.
+- No fim da lista de **Abastecimentos** ou de **Manutenções** da moto: **Adicionar histórico**.
+- No **Resumo**, o card **Sua moto já tem histórico?** › **Registrar histórico**, com as opções **Abastecimento antigo** e **Manutenção antiga**. Ele aparece para motos usadas que ainda não têm histórico.
+
+## Abastecimento antigo, passo a passo
+
+1. Em "Quando foi e qual era o hodômetro?", escolha o **Dia**.
+2. Digite o km daquele dia. O app mostra entre quais registros ele precisa caber, pelo km dos abastecimentos vizinhos.
+3. Preencha valor e litros (ou escaneie o comprovante, se ainda tiver).
+4. Na revisão, confira os dados. O local não é preenchido sozinho: a localização de agora não seria a daquele dia. Se quiser, digite a cidade.
+5. Toque em **Salvar abastecimento**. A revisão avisa: "Registro de histórico: entra no consumo, fica fora das conquistas."
+
+## Manutenção antiga
+
+Escolha **Manutenção antiga**, informe a data em que foi feita, o tipo, o km e o custo. O app recalcula a próxima manutenção a partir dela. Veja [Como acompanhar a troca de óleo e outras manutenções](https://carburante.motorcycles/ajuda/manutencao/).
+
+## O que conta como histórico
+
+Um registro feito mais de 7 dias depois da data dele é tratado como histórico. Ele entra em tudo que mede a moto (consumo, gastos, km rodados, manutenção), mas não libera medalhas, pontos nem recordes: as conquistas premiam o uso real, registrado na hora.
+
+---
+
+# Como acompanhar a troca de óleo e outras manutenções
+
+Fonte: https://carburante.motorcycles/ajuda/manutencao/ · Seção: Manutenção · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** registre cada manutenção com a data, o km e de quanto em quanto ela se repete. O Carburante calcula a próxima pelo que vier primeiro, km ou tempo, mostra no **Resumo** quanto falta e avisa por notificação antes de vencer.
+
+## Registrar uma manutenção
+
+1. No **Resumo**, toque no card de manutenção, ou vá em **Garagem** › sua moto › **Manutenções**.
+2. Toque em **+** (**Adicionar manutenção**). Na lista **Programadas**, também dá para tocar num item para registrar a próxima.
+3. Escolha a **Data** e o **Tipo**: Troca de óleo, Filtros, Pneus, Relação / corrente, Freios, Revisão geral ou Outro.
+4. Informe o **Hodômetro** e o **Custo**.
+5. Em **Próxima manutenção**, confira o intervalo: **A cada** tantos km e **A cada** tantos meses. Vence pelo que chegar primeiro.
+6. Toque em **Salvar**.
+
+## Intervalos sugeridos
+
+O app já preenche uma sugestão. Ajuste conforme o manual da sua moto: cada registro guarda o seu próprio intervalo.
+
+| Tipo | A cada (km) | A cada (meses) |
+|---|---|---|
+| Troca de óleo | 3.000 | 6 |
+| Filtros | 6.000 | 12 |
+| Freios | 10.000 | 12 |
+| Pneus | 12.000 | 60 |
+| Relação / corrente | 20.000 | 36 |
+| Outro | você define | você define |
+
+## Pneus e revisão geral
+
+- **Pneus:** dianteiro e traseiro têm contadores próprios. Escolha a posição, ou **Ambos** para registrar os dois de uma vez.
+- **Revisão geral:** marque em **Itens executados** o que foi feito (óleo, filtros, freios, pneus, relação). Cada item marcado reinicia o próprio contador, na mesma data e km, e o custo total fica na revisão.
+
+## Como o app mostra o que está perto
+
+Cada manutenção tem uma barra entre a última e a próxima. Em dia, ela fica neutra; a partir de 80% do intervalo, fica laranja; vencida, vermelha.
+
+## Lembretes
+
+| Quando | O que chega |
+|---|---|
+| 7 dias antes da data prevista | "Troca de óleo: se aproximando" |
+| No dia previsto | "Troca de óleo: prevista para hoje" |
+| Passou de 80% dos km, ou venceu | Aviso na manhã seguinte; várias pendências chegam juntas numa notificação só |
+| 7, 14 e 21 dias sem registrar abastecimento | Lembrete para manter o consumo em dia |
+
+O app pede permissão de notificação na primeira vez que tem algo para lembrar. Se você negou e mudou de ideia, ligue em **Ajustes do iPhone** › **Notificações** › **Carburante**.
+
+## Manutenção feita antes do app
+
+Lance como histórico para o próximo vencimento ficar certo. Veja [Como lançar abastecimentos e manutenções antigos](https://carburante.motorcycles/ajuda/abastecimento-antigo/).
+
+---
+
+# Vendi minha moto ou comprei outra. Como faço no Carburante?
+
+Fonte: https://carburante.motorcycles/ajuda/trocar-de-moto/ · Seção: Garagem e Premium · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** em **Garagem**, toque na moto atual e em **Colocar à venda**. Depois cadastre a nova. Trocar de moto é grátis: a moto à venda continua aceitando registros por 30 dias depois que a nova chega e, quando você **Marcar como vendida**, ela sai da garagem com o histórico guardado para consulta.
+
+## Passo a passo
+
+1. Abra **Garagem** e toque na moto que vai vender.
+2. Toque em **Colocar à venda**. Ela continua sua até vender.
+3. Cadastre a moto nova: **Garagem** › **Adicionar moto**. Veja [Como cadastrar sua moto](https://carburante.motorcycles/ajuda/cadastrar-moto/).
+4. Vendeu? Abra a moto antiga e toque em **Marcar como vendida**.
+
+## O que acontece com a moto antiga
+
+- **À venda:** segue na garagem e aceita registros por 30 dias depois que a nova chega, para você lançar os últimos abastecimentos.
+- **Vendida:** sai da garagem e do Resumo e vai para **Motos que já tive**. O histórico fica guardado, só para consulta.
+- **Desistiu da venda?** Toque em **Tirar da venda** ou, numa moto vendida, em **Voltar para a garagem**.
+
+## E se eu quiser as duas motos ativas?
+
+No plano grátis, a garagem tem uma moto ativa por vez; as outras ficam só para consulta (dá para ver histórico, gráfico e custos, e exportar). Para registrar em várias motos ao mesmo tempo, assine o [Carburante Premium](https://carburante.motorcycles/ajuda/premium/). Com mais de uma moto ativa, troque a moto do **Resumo** tocando no nome dela, no alto da tela.
+
+---
+
+# Carburante Premium: o que inclui e como assinar, restaurar ou cancelar
+
+Fonte: https://carburante.motorcycles/ajuda/premium/ · Seção: Garagem e Premium · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** o Carburante é grátis e não tem anúncios, assinando ou não. O Carburante Premium é opcional, custa R$ 6,90 por mês ou R$ 69,90 por ano, e traz três coisas: garagem ilimitada, custos completos e as suas medalhas como ícone do app.
+
+## Grátis × Premium
+
+| | Grátis | Premium |
+|---|---|---|
+| Registrar abastecimentos e manutenções | Sim | Sim |
+| Consumo, gráfico e lembretes | Sim | Sim |
+| Conquistas e nível do perfil | Sim | Sim |
+| Motos ativas na garagem | 1 | Ilimitadas |
+| Custos | Total do mês (gasolina e manutenção) | Mês, ano e tudo; custo por km; manutenção por tipo; projeção do ano |
+| Medalha como ícone do app | Não | Sim |
+| Anúncios | Nenhum | Nenhum |
+
+## Como assinar
+
+1. Vá em **Garagem** › **Ajustes** e, na seção **Carburante Premium**, toque em **Conhecer o Premium**. A mesma tela abre pelo cadeado em **Custos** ou quando você tenta cadastrar uma segunda moto ativa.
+2. Escolha mensal ou anual e confirme com o seu Apple ID.
+
+O pagamento e a renovação automática são feitos pela Apple. Os Termos de Uso e a Política de Privacidade estão na própria tela do Premium.
+
+## Restaurar a assinatura
+
+Trocou de iPhone ou reinstalou o app? Abra a tela do Premium e toque em **Restaurar**. Funciona com o mesmo Apple ID usado na compra.
+
+## Cancelar
+
+- No app: **Garagem** › **Ajustes** › **Gerenciar assinatura**.
+- Ou no iPhone: **Ajustes** › seu nome › **Assinaturas** › **Carburante**.
+
+O Premium continua até o fim do período já pago. Depois, nada é apagado: as motos além da primeira ficam só para consulta (histórico, gráfico, custos e exportação continuam abertos), sem novos registros.
+
+## Uma moto por vez, sem pagar
+
+Trocar de moto não exige Premium: coloque a atual à venda e cadastre a nova. Veja [Vendi minha moto ou comprei outra](https://carburante.motorcycles/ajuda/trocar-de-moto/).
+
+---
+
+# Como guardar seus dados e levar para outro iPhone
+
+Fonte: https://carburante.motorcycles/ajuda/outro-iphone/ · Seção: Conta e dados · Atualizado em 18 de outubro de 2026
+
+**Resposta curta:** vá em **Garagem** › **Ajustes** (a engrenagem) › **Conta** e entre com a Apple. A partir daí seu histórico fica ligado à sua conta Apple. No iPhone novo, instale o Carburante, abra os mesmos **Ajustes** › **Conta** e entre com a mesma conta: suas motos, abastecimentos e manutenções voltam.
+
+## Sem conta, o que acontece
+
+O Carburante funciona sem conta e sem senha. Seus registros ficam no iPhone, com uma cópia na nuvem ligada a uma conta anônima deste aparelho. O ponto fraco: se você trocar, perder ou apagar o iPhone sem ter entrado com a Apple, não há como recuperar esse histórico.
+
+## Entrar com a Apple
+
+1. Abra **Garagem** e toque em **Ajustes**.
+2. Na seção **Conta**, toque no botão de entrar com a Apple e confirme.
+3. Pronto: o status muda para **Conta Apple**, com o e-mail informado pela Apple (pode ser um endereço privado da própria Apple).
+
+Nada do que você já registrou se perde: o histórico deste iPhone passa para a conta. O app também pode sugerir isso com o aviso **Guarde seu histórico**.
+
+## No iPhone novo
+
+1. Instale o Carburante pela App Store e abra.
+2. Vá em **Garagem** › **Ajustes** › **Conta** e entre com a mesma conta Apple.
+3. Seus dados chegam da nuvem. Se você já tinha registrado algo no iPhone novo antes de entrar, isso também vai para a conta.
+
+Assinou o Premium? A assinatura é do seu Apple ID da App Store, não da conta do app. Se ela não aparecer, use **Restaurar** na tela do Premium. Veja [Carburante Premium](https://carburante.motorcycles/ajuda/premium/).
+
+## Sair da conta
+
+Em **Ajustes** › **Conta**, toque em **Sair**. Seus dados continuam guardados na conta e voltam quando você entrar de novo; até lá, este iPhone fica sem dados.
+
+## Exportar ou apagar seus dados
+
+- **Exportar:** **Ajustes** › **Exportar meus dados** gera planilhas com suas motos, abastecimentos e manutenções, que abrem no Numbers e no Excel.
+- **Apagar sem conta:** **Ajustes** › **Conta** › **Apagar todos os dados** apaga motos, abastecimentos, manutenções e fotos do iPhone e do servidor.
+- **Excluir a conta:** com a conta Apple, **Excluir conta** apaga a conta e todo o histórico de todos os seus aparelhos.
+
+Apagar não pode ser desfeito. Mais detalhes na [Política de Privacidade](https://carburante.motorcycles/privacidade/).
