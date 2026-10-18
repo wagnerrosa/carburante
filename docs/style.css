@@ -99,12 +99,16 @@ h1, h2, .display {
   font-family: var(--display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
   letter-spacing: var(--display-track); text-wrap: balance;
 }
-/* Palavra-chave em serifa itálica: o "sotaque" do anúncio. Corpo maior para casar a altura-x. */
+/* Palavra-chave em serifa itálica + chama: o "sotaque" do anúncio. Sistema: sans branca afirma,
+   serifa em chama vira a frase. Corpo maior para casar a altura-x; folga à direita porque o
+   itálico vaza e o background-clip cortaria a última letra. */
 .accent {
   font-family: var(--serif); font-style: italic; font-weight: 400; font-stretch: 100%;
   font-size: 1.1em; letter-spacing: -.012em; line-height: .9;
+  background: var(--flame); -webkit-background-clip: text; background-clip: text; color: transparent;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  padding-right: .08em; margin-right: -.08em;
 }
-.accent.flame-text { padding-right: .08em; margin-right: -.08em; } /* itálico vaza: não cortar no clip */
 
 /* COMPARAÇÃO (sair antes do PR): fontes candidatas por data-font no <html> */
 [data-font="geist"] { --display: "Geist", var(--font); --display-track: -.05em; }
@@ -279,11 +283,10 @@ h1, h2, .display {
   letter-spacing: var(--display-track); font-size: clamp(44px, 8.2vw, 128px); line-height: .96;
   max-width: 11em; margin: 0 auto; text-wrap: balance;
 }
-.bridge__text .accent { display: block; color: var(--text-2); }
+.bridge__text .accent { display: block; }
 /* Palavras acendem conforme a frase sobe (JS embrulha cada palavra em .w) */
 .motion .bridge__text .w { opacity: .14; transition: opacity .4s ease, color .4s ease; }
 .motion .bridge__text .w.on { opacity: 1; }
-.motion .bridge__text .accent .w.on { color: var(--text); }
 
 /* ---------- Como medimos: o painel ---------- */
 .measure { position: relative; }
@@ -300,7 +303,7 @@ h1, h2, .display {
 }
 .measure__head { grid-area: head; align-self: end; }
 .measure__head h2 { font-size: clamp(32px, 4.4vw, 64px); line-height: .98; }
-.measure__head h2 .accent { display: block; color: var(--text-2); }
+.measure__head h2 .accent { display: block; }
 .cluster { grid-area: cluster; }
 .steps { grid-area: steps; align-self: start; }
 
@@ -505,7 +508,7 @@ h1, h2, .display {
 /* ---------- Roadmap ---------- */
 #roadmap .section__head { margin-bottom: 0; max-width: 1100px; }
 .section h2.roadmap__quote { font-size: clamp(38px, 6vw, 92px); line-height: .96; }
-.roadmap__quote .accent { display: block; color: var(--text-2); }
+.roadmap__quote .accent { display: block; }
 
 .track { --node: 44px; --ok: #30d158; --dash: rgba(161, 161, 166, .45); list-style: none; padding: 0; margin: 88px 0 0; display: grid; gap: 0; }
 .track__item { position: relative; padding: 0 0 40px 68px; }
