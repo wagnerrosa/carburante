@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=24">
+  <link rel="stylesheet" href="style.css?v=25">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -66,18 +66,20 @@
 
 <a class="skip" href="#main" data-i18n="skip">Pular para o conteúdo</a>
 
-<!-- Nav mínima (só marca + idioma + Baixar): transparente sobre o hero, ganha vidro ao rolar -->
-<header class="nav nav--overlay" id="top">
-  <div class="wrap nav__inner">
-    <a class="brand" href="#top" aria-label="Carburante">
-      <img src="assets/icon-256.png" alt="" width="30" height="30">
-      <span>Carburante</span>
-    </a>
-    <div class="nav__actions">
-      <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
-      <a class="btn btn--flame btn--nav js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener" data-i18n="cta.nav">Baixar</a>
-    </div>
+<!-- Menu = cápsula flutuante (ref. ugly.cash): marca à esquerda, o capítulo em que você está no
+     meio (lido dos títulos, então segue o idioma), idioma + Baixar à direita. A linha de baixo é o
+     tanque: enche com a leitura da página. -->
+<header class="capsule" id="top">
+  <a class="capsule__brand" href="#top" aria-label="Carburante">
+    <img src="assets/icon-256.png" alt="" width="32" height="32">
+    <span>Carburante</span>
+  </a>
+  <p class="capsule__chapter" aria-hidden="true"><span></span></p>
+  <div class="capsule__actions">
+    <button class="lang" type="button" id="lang-toggle" aria-label="Switch to English">EN</button>
+    <a class="capsule__cta js-store" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="assets/icon-256.png" alt="" width="32" height="32"><span data-i18n="cta.nav">Baixar</span></a>
   </div>
+  <span class="capsule__fuel" aria-hidden="true"><i></i></span>
 </header>
 
 <main id="main">
@@ -117,7 +119,7 @@
     <div class="measure__stage">
       <div class="wrap measure__grid">
         <header class="measure__head">
-          <p class="kicker" data-i18n="m.kicker">Como medimos</p>
+          <p class="kicker" data-chapter data-i18n="m.kicker">Como medimos</p>
           <h2 data-rise data-i18n="m.title">Tanque cheio a tanque cheio. <em class="accent">A conta que não mente.</em></h2>
         </header>
 
@@ -177,7 +179,7 @@
   <section class="section section--tight" id="recursos">
     <div class="wrap">
       <header class="section__head">
-        <p class="kicker" data-i18n="f.kicker">Recursos</p>
+        <p class="kicker" data-chapter data-i18n="f.kicker">Recursos</p>
         <h2 data-rise data-i18n="f.title">Feito para quem roda, não para quem digita.</h2>
       </header>
     </div>
@@ -228,7 +230,7 @@
   </section>
 
   <!-- MANIFESTO: o que o app não pede. Quatro linhas de letreiro, uma de cada vez. -->
-  <section class="manifesto">
+  <section class="manifesto" data-chapter="Manifesto">
     <div class="wrap">
       <ul class="manifesto__list">
         <li data-rise data-i18n="x1"><span class="dim">Sem</span> cadastro.</li>
@@ -243,7 +245,7 @@
   <section class="section badges" id="conquistas">
     <div class="wrap">
       <header class="section__head">
-        <p class="kicker" data-i18n="b.kicker">Conquistas</p>
+        <p class="kicker" data-chapter data-i18n="b.kicker">Conquistas</p>
         <h2 data-rise data-i18n="b.title">Rodar também é colecionar.</h2>
         <p class="section__lede reveal" data-i18n="b.lede">25 medalhas. Nenhuma função trancada atrás delas.</p>
       </header>
@@ -272,7 +274,7 @@
   <section class="section" id="roadmap">
     <div class="wrap">
       <header class="section__head">
-        <p class="kicker" data-i18n="r.kicker">No horizonte</p>
+        <p class="kicker" data-chapter data-i18n="r.kicker">No horizonte</p>
         <h2 class="roadmap__quote" data-rise data-i18n="r.quote">A moto leva seus eventos. <em class="accent">Você mantém sua história.</em></h2>
         <p class="section__lede reveal" data-i18n="r.lede">Hoje, um diário de bordo. Depois, o passaporte da moto. Nada disso tem data.</p>
       </header>
@@ -320,7 +322,7 @@
         </div>
       </figure>
       <div class="story__copy reveal">
-        <p class="kicker" data-i18n="s.kicker">Bastidores</p>
+        <p class="kicker" data-chapter data-i18n="s.kicker">Bastidores</p>
         <h2 data-i18n="s.title">Feito por quem também roda.</h2>
         <p class="section__lede" data-i18n="s.lede">Sou <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer e motociclista há mais de duas décadas. Fiz o Carburante por um motivo simples: registrar um abastecimento precisa caber na parada do posto.</p>
         <div class="cta-row">
@@ -335,7 +337,7 @@
   <section class="section faq" id="faq">
     <div class="wrap faq__grid">
       <header class="faq__head">
-        <p class="kicker" data-i18n="q.kicker">Perguntas</p>
+        <p class="kicker" data-chapter data-i18n="q.kicker">Perguntas</p>
         <h2 data-rise data-i18n="q.title">Antes de você perguntar.</h2>
       </header>
       <div class="faq__list reveal">
@@ -372,7 +374,7 @@
   </section>
 
   <!-- BAIXAR (id "beta" mantido: links antigos e analytics) -->
-  <section class="section" id="beta" data-ignite>
+  <section class="section" id="beta" data-ignite data-chapter="-">
     <div class="wrap">
       <div class="beta reveal">
         <!-- Roda do ícone: acende ao entrar na tela (ignição → loop); hover no botão acelera.
@@ -410,6 +412,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=27"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>

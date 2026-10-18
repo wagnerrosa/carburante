@@ -434,8 +434,24 @@
     return r.bottom > 0 && r.top < window.innerHeight;
   };
 
-  // Nav: vidro depois da primeira rolagem
-  var navEl = document.querySelector('.nav--overlay');
+  // Cápsula: o tanque (linha da base) enche com a leitura; o meio mostra o capítulo atual, lido
+  // dos títulos [data-chapter] (segue o idioma). No carretel dos recursos: "Recursos · Registro".
+  var capsule = document.querySelector('.capsule');
+  var chapterEl = capsule && capsule.querySelector('.capsule__chapter');
+  var chapterSpan = chapterEl && chapterEl.firstElementChild;
+  var chapters = Array.prototype.slice.call(document.querySelectorAll('[data-chapter]'));
+  var chapterNow = null, chapterTimer = 0;
+  var chapterText = function (el) {
+    var v = el.getAttribute('data-chapter');
+    return v === '-' ? '' : v || el.textContent.trim();
+  };
+  var setChapter = function (t) {
+    if (!chapterEl || t === chapterNow) return;
+    chapterNow = t;
+    chapterEl.classList.add('is-swap');
+    clearTimeout(chapterTimer);
+    chapterTimer = setTimeout(function () { chapterSpan.textContent = t; chapterEl.classList.remove('is-swap'); }, 200);
+  };
 
   // Hero: o celular endireita conforme o hero sai (--tilt 1 → 0) e segue o cursor (--px/--py)
   var hero = document.querySelector('[data-hero]');
@@ -474,7 +490,7 @@
     wordEls = Array.prototype.slice.call(words.querySelectorAll('.w'));
   };
   splitWords();
-  onLang.push(function () { splitWords(); frame(); });
+  onLang.push(function () { splitWords(); chapterNow = null; frame(); });
 
   // Títulos linha a linha: mede onde o navegador quebrou cada linha (com a fonte já carregada)
   // e remonta como .ln > .li; o <em>/<span> de cada palavra volta em volta dela. O &nbsp; não
@@ -562,6 +578,7 @@
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
         if (hero) hero.classList.add('is-lit');
+        document.documentElement.classList.add('is-lit');
         var h1 = hero && hero.querySelector('h1');
         if (h1) h1.classList.add('is-in');
       });
@@ -645,7 +662,20 @@
 
   var frame = function () {
     var y = window.scrollY, vh = window.innerHeight;
-    if (navEl) navEl.classList.toggle('is-stuck', y > 8);
+    if (capsule) {
+      var fuelMax = document.documentElement.scrollHeight - vh;
+      capsule.style.setProperty('--fuel', clamp(fuelMax > 0 ? y / fuelMax : 0, 0, 1).toFixed(4));
+      var chap = '';
+      chapters.forEach(function (c) { if (c.getBoundingClientRect().top < vh * .5) chap = chapterText(c); });
+      if (reel && reelActive >= 0) {
+        var rb = reel.getBoundingClientRect();
+        if (rb.top <= vh * .5 && rb.bottom >= vh * .5) {
+          var head = document.querySelector('#recursos [data-chapter]');
+          chap = (head ? head.textContent.trim() + ' · ' : '') + feats[reelActive].querySelector('.kicker').textContent.trim();
+        }
+      }
+      setChapter(chap);
+    }
     if (!motion) return;
 
     if (heroPhone && y < vh * 1.5) {
