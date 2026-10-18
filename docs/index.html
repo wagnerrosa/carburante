@@ -25,10 +25,154 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=5">
 
+  <!-- Dados estruturados (Google + assistentes de IA): marca, site, app e FAQ num @graph. O FAQPage
+       espelha o FAQ visível: mudou pergunta ou resposta, rode scripts/landing-jsonld.py. -->
   <script type="application/ld+json">
-  {"@context": "https://schema.org", "@type": "Organization", "name": "Carburante", "url": "https://carburante.motorcycles/",
-   "logo": "https://carburante.motorcycles/assets/icon-256.png",
-   "sameAs": ["https://apps.apple.com/br/app/carburante/id6785659437", "https://www.instagram.com/carburante.app/", "https://www.reddit.com/r/carburante/", "https://github.com/wagnerrosa/carburante"]}
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://carburante.motorcycles/#org",
+        "name": "Carburante",
+        "url": "https://carburante.motorcycles/",
+        "logo": "https://carburante.motorcycles/assets/icon-256.png",
+        "sameAs": [
+          "https://www.instagram.com/carburante.app/",
+          "https://www.reddit.com/r/carburante/",
+          "https://github.com/wagnerrosa/carburante"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://carburante.motorcycles/#website",
+        "url": "https://carburante.motorcycles/",
+        "name": "Carburante",
+        "inLanguage": "pt-BR",
+        "publisher": {
+          "@id": "https://carburante.motorcycles/#org"
+        }
+      },
+      {
+        "@type": "MobileApplication",
+        "@id": "https://carburante.motorcycles/#app",
+        "name": "Carburante",
+        "description": "App para iPhone que registra os abastecimentos da moto e mostra o consumo real (km/l), de tanque cheio a tanque cheio, com aviso antes da manutenção.",
+        "url": "https://carburante.motorcycles/",
+        "image": "https://carburante.motorcycles/assets/icon-256.png",
+        "screenshot": "https://carburante.motorcycles/assets/og.png",
+        "operatingSystem": "iOS 18.0 ou mais recente",
+        "applicationCategory": "UtilitiesApplication",
+        "inLanguage": "pt-BR",
+        "countriesSupported": "BR",
+        "installUrl": "https://apps.apple.com/br/app/carburante/id6785659437",
+        "sameAs": [
+          "https://apps.apple.com/br/app/carburante/id6785659437"
+        ],
+        "featureList": [
+          "Registro de abastecimento com leitura da foto do hodômetro e do cupom no próprio iPhone",
+          "Consumo real em km/l, de tanque cheio a tanque cheio",
+          "Gráfico de consumo por período",
+          "Histórico e lembrete de troca de óleo e manutenção",
+          "Lançamento de abastecimentos antigos",
+          "Conquistas e nível do perfil pelo uso real",
+          "Várias motos na garagem, cada uma com seu histórico (Carburante Premium, opcional)"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "BRL"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Wagner Rosa",
+          "url": "https://wagnerrosa.com"
+        },
+        "publisher": {
+          "@id": "https://carburante.motorcycles/#org"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://carburante.motorcycles/#faq",
+        "inLanguage": "pt-BR",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "É grátis?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sim. O app é grátis na App Store e não tem anúncios, assinando ou não. Quem quiser mais pode assinar o Carburante Premium (opcional): várias motos na garagem, custos completos e ícones de conquista."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Serve para a minha moto?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Qualquer marca e modelo. Se a sua não estiver na lista, é só digitar."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tem para Android?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Não por enquanto. O Carburante é nativo de iPhone de propósito: rápido, leve e com a cara do sistema."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Está disponível fora do Brasil?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Por enquanto, só na App Store do Brasil, e o app está em português. Outros países e idiomas estão nos planos."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Preciso criar conta?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Não. Abriu, usou: o app funciona sem criar conta e sem senha."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Esqueci de registrar um abastecimento. E agora?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sem problema. Quando o km salta demais, o app pergunta. Você toca em “Abasteci sem registrar”: a média recomeça dali e os km rodados continuam contando."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Onde ficam meus dados?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Primeiro no seu iPhone, com uma cópia na nuvem isolada na sua conta. As estatísticas de uso são anônimas e dá para desligar nos Ajustes. Detalhes na política de privacidade."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "O que acontece com as fotos?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A leitura acontece no próprio iPhone. A foto da bomba ou do comprovante não é guardada. A do hodômetro fica como comprovante do registro: no iPhone e numa pasta privada da sua conta na nuvem."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Lê o display da bomba?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Lê, mas ainda não acerta 100%. Reflexo, ângulo e display de segmentos atrapalham. Por isso o app sempre mostra o que leu antes de salvar: você confere e corrige o que precisar. O comprovante impresso costuma sair mais preciso."
+            }
+          }
+        ]
+      }
+    ]
+  }
   </script>
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
