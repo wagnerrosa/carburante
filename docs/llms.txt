@@ -1,0 +1,41 @@
+# Carburante
+
+> App grátis para iPhone que registra os abastecimentos da moto e mostra o consumo real (km/l), medido de tanque cheio a tanque cheio, além de avisar antes da próxima manutenção. Disponível na App Store do Brasil, em português.
+
+- Site: https://carburante.motorcycles/
+- App Store: https://apps.apple.com/br/app/carburante/id6785659437
+- Código: https://github.com/wagnerrosa/carburante
+- Instagram: https://www.instagram.com/carburante.app/
+- Reddit: https://www.reddit.com/r/carburante/
+- Contato: beta@carburante.motorcycles
+
+## Para quem é
+
+Motociclistas com iPhone que querem saber quanto a moto faz de verdade, quanto gastam com combustível e quando é a próxima troca de óleo, sem planilha e sem digitar muito.
+
+## O que faz
+
+- **Abastecimento em segundos:** foto do hodômetro e do cupom; o app lê litros, valor, tipo de combustível e quilometragem no próprio iPhone (Apple Vision) e mostra tudo para conferir antes de salvar.
+- **Consumo de verdade:** km/l calculado entre dois tanques cheios; abastecimentos parciais no meio entram na conta. Gráfico de consumo por período.
+- **Manutenção sem susto:** histórico de trocas de óleo e outros itens, com intervalo configurável e lembrete antes de vencer.
+- **Garagem:** cada moto com seu histórico separado; tema de cor pela marca.
+- **Histórico antigo:** dá para lançar abastecimentos de outros dias.
+- **Conquistas:** medalhas e nível do perfil ganhos pelo uso real.
+
+## Preço
+
+Grátis, sem anúncios, assinando ou não. Carburante Premium é opcional (R$ 6,90/mês ou R$ 69,90/ano): várias motos na garagem, custos completos e ícones de conquista.
+
+## Privacidade
+
+Funciona sem criar conta e sem senha. Os dados ficam primeiro no iPhone, com cópia na nuvem isolada por conta. Estatísticas de uso anônimas, desligáveis nos Ajustes. Login com Apple é opcional. Política: https://carburante.motorcycles/privacidade/
+
+## Limites atuais
+
+- Só iPhone (iOS 18 ou mais recente); não há versão Android.
+- Só na App Store do Brasil e em português, por enquanto.
+- A leitura do display da bomba ainda não acerta 100%; o cupom impresso costuma sair mais preciso.
+
+## Perguntas frequentes
+
+- [FAQ no site](https://carburante.motorcycles/#faq)
