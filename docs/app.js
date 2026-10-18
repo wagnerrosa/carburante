@@ -456,6 +456,7 @@
   // Hero: o celular endireita conforme o hero sai (--tilt 1 → 0) e segue o cursor (--px/--py)
   var hero = document.querySelector('[data-hero]');
   var heroPhone = hero && hero.querySelector('.phone--hero');
+  var heroVisual = hero && hero.querySelector('.hero__visual');
   if (heroPhone && motion && fine) {
     window.addEventListener('pointermove', function (e) {
       if (window.scrollY > window.innerHeight) return;
@@ -639,6 +640,21 @@
   var fclips = feats.map(function (f) { return f.querySelector('video.clip'); });
   var ticks = reel ? Array.prototype.slice.call(reel.querySelectorAll('.reel__ticks li')) : [];
   var reelActive = -1, reelVisible = false;
+  // Visor da bomba (Registro): conta de 0 até o valor, como a bomba enchendo, toda vez que o
+  // recurso entra. Ponto decimal, como no display de 7 segmentos.
+  var pumpNums = reel ? Array.prototype.slice.call(reel.querySelectorAll('[data-pump]')) : [];
+  var pumpRun = 0;
+  var countPump = function () {
+    if (!pumpNums.length) return;
+    cancelAnimationFrame(pumpRun);
+    var t0 = performance.now();
+    var step = function (now) {
+      var k = Math.min(1, (now - t0) / 1500), e = 1 - Math.pow(1 - k, 3);
+      pumpNums.forEach(function (el) { el.textContent = (parseFloat(el.dataset.pump) * e).toFixed(+el.dataset.dec); });
+      if (k < 1) pumpRun = requestAnimationFrame(step);
+    };
+    pumpRun = requestAnimationFrame(step);
+  };
   var setReel = function (i, visible) {
     if (i !== reelActive) {
       feats.forEach(function (f, k) {
@@ -650,6 +666,7 @@
         v.pause();
       });
       if (fclips[i] && clipsOk) { try { fclips[i].currentTime = 0; } catch (e) { /* sem metadados */ } }
+      if (feats[i] && feats[i].querySelector('[data-scan]')) countPump();
       reelActive = i;
     }
     if (!clipsOk) return;
@@ -678,8 +695,10 @@
     }
     if (!motion) return;
 
-    if (heroPhone && y < vh * 1.5) {
-      heroPhone.style.setProperty('--tilt', (1 - ease(clamp(y / (hero.offsetHeight * .75), 0, 1))).toFixed(3));
+    if (heroPhone && y < vh * 2) {
+      // Pelo topo do palco (sem a inclinação): deitado com o topo a 75% da tela, em pé a 12%
+      var vt = heroVisual.getBoundingClientRect().top;
+      heroPhone.style.setProperty('--tilt', ease(clamp((vt - vh * .12) / (vh * .63), 0, 1)).toFixed(3));
     }
     if (wordEls.length && inView(words)) {
       var r = words.getBoundingClientRect();

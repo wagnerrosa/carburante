@@ -27,7 +27,7 @@
 
   <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-serif-italic.woff2" crossorigin>
   <link rel="preload" as="image" href="assets/clips/hero.webp" type="image/webp" fetchpriority="high">
-  <link rel="stylesheet" href="style.css?v=25">
+  <link rel="stylesheet" href="style.css?v=27">
   <!-- .motion liga as seções presas à rolagem; sem ela (ou com "reduzir movimento") tudo fica estático -->
   <script>(function (c) { c.add('js'); if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) c.add('motion'); })(document.documentElement.classList)</script>
 
@@ -84,9 +84,10 @@
 
 <main id="main">
 
-  <!-- HERO: tipo grande + um celular só, inclinado; endireita conforme a página rola -->
+  <!-- HERO: título colossal centralizado; o celular nasce deitado embaixo dele e se levanta
+       conforme a página rola (ref. tara.com / ugly.cash) -->
   <section class="hero" data-hero>
-    <div class="wrap hero__grid">
+    <div class="wrap">
       <div class="hero__copy">
         <h1 data-rise data-i18n="hero.title">Quanto sua moto faz <em class="accent flame-text">de&nbsp;verdade.</em></h1>
         <p class="hero__lede" data-i18n="hero.lede">Registre o abastecimento em segundos, até sem sinal. O resto é com a gente: a média certa e o aviso antes da manutenção.</p>
@@ -96,11 +97,11 @@
         </div>
         <p class="hero__meta" data-i18n="hero.meta">Grátis · iOS 18+ · Em português</p>
       </div>
-      <div class="hero__visual">
+    </div>
+    <div class="hero__visual">
         <div class="glow" aria-hidden="true"></div>
         <div class="phone phone--hero">
           <video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/hero.webp" data-still="assets/clips/hero-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.hero" aria-label="Tela Resumo do Carburante com uma Harley-Davidson: consumo médio de 20,3 km/l, custo por km e gasto do mês. O app troca de moto e muda de cor."><source src="assets/clips/hero.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/hero.mp4" type="video/mp4"></video>
-        </div>
       </div>
     </div>
   </section>
@@ -189,7 +190,22 @@
       <div class="wrap reel__wrap">
         <div class="features">
           <div class="feature is-active">
-            <div class="feature__media"><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
+            <!-- Objetos do posto: o cupom (a linha de leitura passa e marca valor e litros, como as
+                 caixas do Vision) e o visor da bomba em 7 segmentos. Números = os do clipe. -->
+            <div class="feature__media feature__media--scan" data-scan><figure class="receipt" aria-hidden="true">
+                <div class="receipt__paper">
+                  <p class="receipt__head"><b>POSTO DA SERRA</b><span>NFC-e · Documento auxiliar</span></p>
+                  <p class="receipt__item">GASOLINA ADITIVADA</p>
+                  <p class="receipt__row"><span class="ocr">4,135 L</span><span>× 6,890</span></p>
+                  <p class="receipt__row receipt__total"><span>TOTAL R$</span><span class="ocr">28,49</span></p>
+                  <p class="receipt__row receipt__foot"><span>PIX</span><span>29/09/26 22:50</span></p>
+                  <span class="receipt__code"></span>
+                </div>
+                <span class="receipt__scan"></span>
+              </figure><div class="pump" aria-hidden="true">
+                <span class="pump__label">R$</span><span class="pump__num ocr"><i>88.88</i><b data-pump="28.49" data-dec="2">28.49</b></span>
+                <span class="pump__label">L</span><span class="pump__num ocr"><i>8.888</i><b data-pump="4.135" data-dec="3">4.135</b></span>
+              </div><div class="phone"><video class="clip" muted playsinline disablepictureinpicture disableremoteplayback preload="none" loop poster="assets/clips/registro.webp" data-still="assets/clips/registro-still.webp" width="600" height="1304" role="img" data-i18n-alt="alt.fuel" aria-label="Registro de abastecimento: a foto do hodômetro é lida (22.039 km), a da bomba traz valor e litros (R$ 28,49 e 4,135 L) e a revisão mostra 20,1 km/l neste tanque"><source src="assets/clips/registro.webm" type='video/webm; codecs="vp9"'><source src="assets/clips/registro.mp4" type="video/mp4"></video></div></div>
             <div class="feature__copy">
               <p class="kicker" data-i18n="f1.k">Registro</p>
               <h3 data-i18n="f1.t">Fotografou, registrou.</h3>
@@ -412,6 +428,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=28"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>
