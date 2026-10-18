@@ -2,10 +2,60 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://carburante.motorcycles/</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-18</lastmod>
   </url>
   <url>
     <loc>https://carburante.motorcycles/privacidade/</loc>
-    <lastmod>2026-10-10</lastmod>
+    <lastmod>2026-10-18</lastmod>
   </url>
+  <!-- ajuda:start -->
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/cadastrar-moto/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/registrar-abastecimento/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/consumo/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/primeira-media/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/leitura-da-foto/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/abasteci-sem-registrar/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/abastecimento-antigo/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/manutencao/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/trocar-de-moto/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/premium/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <url>
+    <loc>https://carburante.motorcycles/ajuda/outro-iphone/</loc>
+    <lastmod>2026-10-18</lastmod>
+  </url>
+  <!-- ajuda:end -->
 </urlset>
