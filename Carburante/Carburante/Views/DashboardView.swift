@@ -44,6 +44,7 @@ struct DashboardView: View {
     /// Fonte de acessibilidade: grade de métricas em 1 coluna (em 2, o valor
     /// quebrava no meio do número — "1.6 / 27, / 00").
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.openChallenges) private var openChallenges
 
     private var sync: SyncService { .shared }
 
@@ -264,6 +265,16 @@ struct DashboardView: View {
                 } else {
                     consumptionCard(summary, segments: [], moto: moto)
                 }
+
+                #if DEBUG
+                // D0 dos Desafios: card do desafio ativo (dados fictícios).
+                if let challenge = ChallengePreview.summaryChallenge {
+                    Button { openChallenges() } label: {
+                        ChallengeSummaryCard(challenge: challenge)
+                    }
+                    .buttonStyle(.plain)
+                }
+                #endif
 
                 // Sem abastecimento a grade seria 4 tiles "—"/"R$ 0,00"/"0 km":
                 // ruído sem informação. O estado vazio já traz o CTA de registro.

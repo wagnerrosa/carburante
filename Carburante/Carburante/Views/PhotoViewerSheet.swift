@@ -80,6 +80,7 @@ struct OdometerPhotoPreview: View {
 /// Tela cheia: pinça para zoom, arrasta quando ampliada, toque duplo volta.
 struct PhotoViewerSheet: View {
     let image: UIImage
+    var title = "Hodômetro"
     @Environment(\.dismiss) private var dismiss
 
     @State private var scale: CGFloat = 1
@@ -100,9 +101,9 @@ struct PhotoViewerSheet: View {
                     .onTapGesture(count: 2) {
                         withAnimation(.snappy) { reset() }
                     }
-                    .accessibilityLabel("Foto do hodômetro")
+                    .accessibilityLabel(title == "Hodômetro" ? "Foto do hodômetro" : title)
             }
-            .navigationTitle("Hodômetro")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

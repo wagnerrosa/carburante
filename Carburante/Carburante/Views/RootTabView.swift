@@ -34,17 +34,36 @@ struct RootTabView: View {
         return moto?.themeColor ?? BrandTheme.default
     }
 
+    enum AppTab: Hashable { case summary, challenges, garage }
+    @State private var selectedTab: AppTab = .summary
+
     var body: some View {
-        TabView {
-            Tab("Resumo", systemImage: "gauge.with.dots.needle.bottom.50percent") {
+        TabView(selection: $selectedTab) {
+            Tab("Resumo", systemImage: "gauge.with.dots.needle.bottom.50percent", value: AppTab.summary) {
                 DashboardView()
                     .syncDegradedBanner()
             }
-            Tab("Garagem", systemImage: "motorcycle") {
+            #if DEBUG
+            // D0 dos Desafios (PLAN/desafios.md): protótipo com dados fictícios,
+            // só com o launch arg `-challengesPreview <tela>`.
+            if ChallengePreview.isEnabled {
+                Tab("Desafios", systemImage: "flag.checkered", value: AppTab.challenges) {
+                    ChallengesView(challenges: ChallengePreview.challenges,
+                                   start: ChallengePreview.startScreen)
+                }
+            }
+            #endif
+            Tab("Garagem", systemImage: "motorcycle", value: AppTab.garage) {
                 GarageView()
                     .syncDegradedBanner()
             }
         }
+        .environment(\.openChallenges, { selectedTab = .challenges })
+        #if DEBUG
+        .onAppear {
+            if let screen = ChallengePreview.screen, screen != .resumo { selectedTab = .challenges }
+        }
+        #endif
         // Tema global: tinge tudo que herda accent (tab bar, controles, links).
         // Telas de uma moto específica sobrepõem com a cor da própria moto.
         .tint(activeTint)
@@ -175,6 +194,11 @@ private struct SyncDegradedBanner: ViewModifier {
             // SyncService seta o flag sem withAnimation, então animamos aqui.
             .animation(.default, value: degraded)
     }
+}
+
+extension EnvironmentValues {
+    /// Leva à aba Desafios (card do Resumo).
+    @Entry var openChallenges: () -> Void = {}
 }
 
 extension View {
