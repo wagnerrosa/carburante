@@ -116,6 +116,21 @@ nonisolated enum AppFormat {
         return date.formatted(style.locale(locale))
     }
 
+    /// Período de dias: "1–31 de out." no mesmo mês, "20 de out. – 19 de nov."
+    /// entre meses; o ano aparece só fora do ano corrente.
+    static func dayRange(_ start: Date, _ end: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let sameYear = calendar.isDate(start, equalTo: end, toGranularity: .year)
+        if sameYear && calendar.isDate(start, equalTo: end, toGranularity: .month) {
+            let day = calendar.component(.day, from: start)
+            return "\(day)–\(dayMonth(end, now: now, calendar: calendar))"
+        }
+        // Ano diferente entre as pontas: as duas levam o ano.
+        let startText = sameYear
+            ? dayMonth(start, now: now, calendar: calendar)
+            : start.formatted(Date.FormatStyle().day().month(.abbreviated).year().locale(locale))
+        return "\(startText) – \(dayMonth(end, now: now, calendar: calendar))"
+    }
+
     /// Header de seção de mês (padrão Fotos/Wallet): "Setembro" no ano corrente,
     /// "Setembro de 2025" nos anteriores.
     static func monthTitle(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
