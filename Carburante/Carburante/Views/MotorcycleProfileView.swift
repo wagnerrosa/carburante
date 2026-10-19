@@ -6,6 +6,8 @@
 //  aqui (é o lar do Resumo) — o perfil é só dados da moto + atalhos pros
 //  históricos, sem duplicar o dashboard. Ação (abastecer) e navegação ficam
 //  visualmente distintas: ação = Button com tile; navegação = NavigationLink.
+//  Ordem: situação (só quando há) → ações → registros e Custos → hodômetro →
+//  cadastro → venda → excluir. O que se usa sobe; o que já está no título desce.
 //
 
 import SwiftUI
@@ -25,19 +27,11 @@ struct MotorcycleProfileView: View {
 
     var body: some View {
         List {
-            Section("Moto") {
-                LabeledContent("Marca", value: motorcycle.make)
-                LabeledContent("Modelo", value: motorcycle.model)
-                LabeledContent("Ano", value: String(motorcycle.year))
-                LabeledContent("País", value: motorcycle.country)
-                // Na garagem e livre não tem rótulo (estado ok = silêncio).
-                if let label = garageAccess.label(for: motorcycle) {
+            // Na garagem e livre não tem rótulo (estado ok = silêncio). Fora
+            // disso, o estado abre a tela — não desce junto com o cadastro.
+            if let label = garageAccess.label(for: motorcycle) {
+                Section {
                     LabeledContent("Situação", value: label)
-                }
-            }
-            Section("Hodômetro") {
-                LabeledContent("Atual") {
-                    Text(AppFormat.km(motorcycle.currentOdometer)).monospacedDigit()
                 }
             }
 
@@ -73,6 +67,20 @@ struct MotorcycleProfileView: View {
                     navRow(icon: "brazilianrealsign.circle.fill",
                            title: "Custos", value: AppFormat.currency(motorcycle.totalSpentEver))
                 }
+            }
+
+            // Cadastro depois dos registros: marca, modelo e ano já estão no
+            // título, e em cima empurravam Custos para baixo da dobra.
+            Section("Hodômetro") {
+                LabeledContent("Atual") {
+                    Text(AppFormat.km(motorcycle.currentOdometer)).monospacedDigit()
+                }
+            }
+            Section("Moto") {
+                LabeledContent("Marca", value: motorcycle.make)
+                LabeledContent("Modelo", value: motorcycle.model)
+                LabeledContent("Ano", value: String(motorcycle.year))
+                LabeledContent("País", value: motorcycle.country)
             }
 
             statusSection

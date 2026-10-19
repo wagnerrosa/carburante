@@ -58,6 +58,8 @@ struct MonthCost: Equatable {
     let fuel: Double
     let maintenance: Double
     var other: Double = 0
+
+    var total: Double { fuel + maintenance + other }
 }
 
 /// Ritmo do ano corrente: projeção e comparação com o mesmo período do ano
@@ -213,6 +215,18 @@ extension Motorcycle {
         activeExpenses.filter { $0.amount > 0 }.map {
             CostItem(date: $0.date, amount: $0.amount, label: $0.categoryLabel)
         }
+    }
+
+    /// Gasto por mês do card "Gasto este mês" do Resumo (6 meses, com zeros):
+    /// a mesma conta da tela Custos, que o card abre — o número tem que bater.
+    func monthlySpending(now: Date = Date()) -> [MonthCost] {
+        CostCalculator.monthly(fuel: consumptionEntries, maintenance: maintenanceCosts,
+                               other: otherCosts, monthCount: 6, now: now)
+    }
+
+    /// Gasto do mês-civil atual: gasolina + manutenção + outras despesas.
+    func spentThisMonth(now: Date = Date()) -> Double {
+        monthlySpending(now: now).last?.total ?? 0
     }
 
     /// Tudo o que a moto já custou: gasolina + manutenção + outras despesas.

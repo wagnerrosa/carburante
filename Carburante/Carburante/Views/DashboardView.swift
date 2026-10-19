@@ -41,6 +41,9 @@ struct DashboardView: View {
     @State private var showingCloudBackup = false
     /// Mesma flag do AccountView: desligada, o passo de conta não aparece.
     @AppStorage("appleSignInEnabled") private var appleSignInEnabled = true
+    /// Fonte de acessibilidade: grade de métricas em 1 coluna (em 2, o valor
+    /// quebrava no meio do número — "1.6 / 27, / 00").
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     private var sync: SyncService { .shared }
 
@@ -605,7 +608,9 @@ struct DashboardView: View {
         // Séries de tendência para as sparklines (estilo Fitness). Custo/km e
         // preço/L têm tendência útil; gasto/mês idem. Hodômetro só sobe → sem
         // sparkline (linha reta crescente não informa nada — anti-Fitness).
-        let expense = moto.monthlyExpenseSeries()
+        // Gasto do mês = a mesma conta da tela Custos que o tile abre
+        // (gasolina + manutenção + outras despesas) — o número tem que bater.
+        let spending = moto.monthlySpending()
         // Número = km do mês-civil atual; barras = km por SEMANA (densas, estilo
         // Fitness) com grid + rótulos de mês. Hodômetro absoluto saiu da grade
         // (estado da moto; segue no perfil e no card de último abastecimento).
@@ -613,20 +618,24 @@ struct DashboardView: View {
         let weeklyBars = moto.weeklyDistanceSeries()
         // Sem ícones (padrão Fitness: mini-cards de estatística não usam ícone —
         // só número grande + rótulo + mini-gráfico).
-        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 12),
+                            count: typeSize.isAccessibilitySize ? 1 : 2)
+        return LazyVGrid(columns: columns, spacing: 12) {
             MetricTile(label: "Custo por km",
                        value: summary.costPerKm.map(AppFormat.currency) ?? "—",
                        sparkline: moto.costPerKmSeries)
-            // Toque abre os Custos completos (gasolina + manutenção), como o
-            // número do consumo abre a tela de Consumo.
+            // Toque abre os Custos completos, como o número do consumo abre a
+            // tela de Consumo. Único tile que navega → chevron.
             NavigationLink {
                 CostsView(motorcycle: moto)
             } label: {
                 MetricTile(label: "Gasto este mês",
-                           value: AppFormat.currency(expense.last?.total ?? 0),
-                           sparkline: expense.map(\.total))
+                           value: AppFormat.currency(spending.last?.total ?? 0),
+                           sparkline: spending.map(\.total),
+                           navigates: true)
             }
             .buttonStyle(.plain)
+            .accessibilityHint("Abre os custos da moto")
             MetricTile(label: "Rodados este mês",
                        value: AppFormat.km(distanceThisMonth),
                        distanceBars: weeklyBars)
