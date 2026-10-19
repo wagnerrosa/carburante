@@ -3,7 +3,10 @@
 //  Carburante
 //
 //  Histórico de manutenções de uma moto — agrupado por mês, mais recente no
-//  topo. Tile colorido por tipo (padrão Ajustes/Wallet/Diário).
+//  topo. Tile colorido por tipo (padrão Ajustes/Wallet/Diário). Manutenção
+//  antiga não tem porta aqui: o `+` com data no passado já vira registro antigo
+//  (`bounds.isBackdated`), e o lote do passado de uma moto usada entra pelo
+//  perfil ("Adicionar histórico") — um verbo só por tela.
 //
 
 import SwiftUI
@@ -14,8 +17,6 @@ struct MaintenanceListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: MaintenanceLog?
     @State private var showingAdd = false
-    /// "Adicionar histórico": manutenção feita antes (form em modo histórico).
-    @State private var showingHistory = false
     /// Status a registrar ao tocar numa linha "Programadas" (abre o form
     /// prefixado com o tipo e, p/ pneu, a posição).
     @State private var scheduledAdd: MaintenanceStatus?
@@ -65,12 +66,6 @@ struct MaintenanceListView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    // Moto usada: o passado (óleo/pneus/revisões antes do app).
-                    Button {
-                        showingHistory = true
-                    } label: {
-                        Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
-                    }
                 }
             } else {
                 List {
@@ -107,16 +102,6 @@ struct MaintenanceListView: View {
                             MonthHeader(title: group.title, totalCost: group.totalCost)
                         }
                     }
-                    // Secundário e no fim: o `+` segue sendo o caminho do dia a dia.
-                    Section {
-                        Button {
-                            showingHistory = true
-                        } label: {
-                            Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
-                        }
-                    } footer: {
-                        Text("Trocas de óleo, pneus e revisões feitas antes de usar o app.")
-                    }
                 }
             }
         }
@@ -136,9 +121,6 @@ struct MaintenanceListView: View {
         }
         .sheet(isPresented: $showingAdd) {
             GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle) }
-        }
-        .sheet(isPresented: $showingHistory) {
-            GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle, isHistoryEntry: true) }
         }
         .sheet(item: $editingLog) { log in
             GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle, maintenanceLog: log) }
