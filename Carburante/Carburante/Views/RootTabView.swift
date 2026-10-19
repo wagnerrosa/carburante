@@ -22,6 +22,11 @@ struct RootTabView: View {
     /// Apresenta o cadastro de moto logo após o onboarding (CTA "Cadastrar minha
     /// moto") — leva o usuário direto ao caminho do 1º abastecimento.
     @State private var showRegisterMotorcycle = false
+    /// "Lembrar do próximo abastecimento?" — resolvida aqui porque o cadastro
+    /// de moto abre de 3 lugares (onboarding, Resumo, Garagem). O form marca
+    /// `pending`; a raiz pergunta depois que ele fecha.
+    @AppStorage(FirstFuelReminderOffer.storageKey) private var reminderOffer: FirstFuelReminderOffer = .none
+    @State private var showingReminderOffer = false
 
     /// Cor de destaque global = tema da moto ativa (ou padrão sem moto).
     private var activeTint: Color {
@@ -63,6 +68,23 @@ struct RootTabView: View {
         .sheet(isPresented: $showRegisterMotorcycle) {
             GarageGated(newMotorcycle: { MotorcycleFormView(entryPoint: "onboarding") })
         }
+        .onChange(of: reminderOffer) { _, state in
+            if state == .pending { Task { await resolveReminderOffer() } }
+        }
+        // App fechado logo depois do cadastro: resolve no próximo launch.
+        .task { await resolveReminderOffer() }
+        .alert("Lembrar do próximo abastecimento?", isPresented: $showingReminderOffer) {
+            Button("Agora não", role: .cancel) {
+                Analytics.firstFuelReminderOfferResponded(choice: "later")
+            }
+            Button("Lembrar") {
+                Analytics.firstFuelReminderOfferResponded(choice: "remind")
+                scheduleNeverLoggedReminders()
+            }
+            .keyboardShortcut(.defaultAction)
+        } message: {
+            Text("Se em uma semana você ainda não tiver registrado, o Carburante te avisa. Dá para registrar mesmo dias depois.")
+        }
         .task {
             // Sincronização no launch: puxa o que falta (dados de outro device do
             // mesmo usuário) ANTES de enviar o local. Pull é aditivo — nunca
@@ -84,6 +106,36 @@ struct RootTabView: View {
         // Limite da garagem no plano grátis (GarageGate.swift). Por último na
         // cadeia: o onboarding e a sheet acima também recebem.
         .environment(\.garageAccess, GarageLimit.access(for: motorcycles))
+    }
+
+    /// Decide a pergunta do lembrete depois do cadastro de moto (uma vez só).
+    /// "Agora não" deixa o pedido do iOS para o 1º abastecimento salvo, como
+    /// sempre foi — ele só pode ser feito uma vez.
+    private func resolveReminderOffer() async {
+        guard reminderOffer == .pending else { return }
+        // Espera o cadastro fechar: o alerta aparece sobre o Resumo, não no
+        // meio da animação da sheet.
+        try? await Task.sleep(for: .seconds(0.8))
+        guard reminderOffer == .pending else { return }
+        reminderOffer = .done
+        let status = await NotificationService.shared.authorizationStatus()
+        let hasAnyFuelLog = motorcycles.contains { !$0.activeFuelLogs.isEmpty }
+        switch FirstFuelReminderOffer.action(hasAnyFuelLog: hasAnyFuelLog, authorization: status) {
+        case .ask:              showingReminderOffer = true
+        case .scheduleSilently: scheduleNeverLoggedReminders()
+        case .skip:             break
+        }
+    }
+
+    /// Marcos 7/14/21 dias a partir do cadastro da moto mais nova.
+    private func scheduleNeverLoggedReminders() {
+        guard let moto = motorcycles.first else { return }
+        let createdAt = moto.createdAt
+        let name = moto.model
+        Task {
+            await NotificationService.shared.scheduleNeverLoggedReminders(bikeCreatedAt: createdAt,
+                                                                         bikeName: name)
+        }
     }
 
     /// O cover aparece enquanto o onboarding não foi concluído; o callback de

@@ -41,6 +41,15 @@ struct FuelEntryFlowView: View {
     /// Passo atual. `fill` reúne valor + litros (uma foto traz os dois).
     private enum Step: Int, CaseIterable {
         case odometer, fill, review
+
+        /// Nome do passo no `fuel_entry_abandoned`.
+        var analyticsName: String {
+            switch self {
+            case .odometer: "odometer"
+            case .fill:     "fill"
+            case .review:   "review"
+            }
+        }
     }
     @State private var step: Step = .odometer
 
@@ -106,6 +115,11 @@ struct FuelEntryFlowView: View {
     /// Fluxo normal que virou registro antigo pelo atalho "Foi em outro dia?"
     /// (km abaixo do último — abastecimento esquecido).
     @State private var switchedToHistory = false
+    /// Funil do abandono (`fuel_entry_abandoned`): quando abriu, se salvou e
+    /// por qual saída fechou. Sem saída marcada = arrastou p/ baixo.
+    @State private var openedAt: Date?
+    @State private var didSave = false
+    @State private var exitKind: String?
 
     // MARK: - Derivados
 
@@ -307,13 +321,17 @@ struct FuelEntryFlowView: View {
                 }
             }
             .onAppear(perform: prefill)
+            .onDisappear(perform: trackAbandonIfNeeded)
             // Protege o investimento do usuário: swipe-down com dados digitados
             // pede confirmação (padrão Mail/Notas) em vez de descartar em silêncio.
             .interactiveDismissDisabled(hasInput)
             .confirmationDialog("Descartar este abastecimento?",
                                 isPresented: $showDiscardConfirm,
                                 titleVisibility: .visible) {
-                Button("Descartar", role: .destructive) { dismiss() }
+                Button("Descartar", role: .destructive) {
+                    exitKind = "discard"
+                    dismiss()
+                }
                 Button("Continuar editando", role: .cancel) {}
             }
             // Detecta correção manual de campo após o OCR ter preenchido →
@@ -887,7 +905,12 @@ struct FuelEntryFlowView: View {
         switch step {
         case .odometer:
             // Cancelar com dados digitados confirma antes de descartar.
-            if hasInput { showDiscardConfirm = true } else { dismiss() }
+            if hasInput {
+                showDiscardConfirm = true
+            } else {
+                exitKind = "cancel"
+                dismiss()
+            }
         case .fill:     goTo(.odometer)
         case .review:   goTo(.fill)
         }
@@ -906,6 +929,23 @@ struct FuelEntryFlowView: View {
         // segundos, sem toque extra na linha). Registro antigo começa pela data.
         if !isHistoryEntry { fillFocus = .odometer }
         Analytics.fuelEntryStarted(entryPoint: entryPoint)
+        if openedAt == nil { openedAt = Date() }
+    }
+
+    /// Fechou sem salvar → diz em que passo parou. A câmera em tela cheia
+    /// também pode tirar esta tela de cena: não conta como abandono.
+    private func trackAbandonIfNeeded() {
+        guard !didSave, !showCamera, let openedAt else { return }
+        Analytics.fuelEntryAbandoned(
+            entryPoint: entryPoint,
+            exit: exitKind ?? "swipe",
+            lastStep: step.analyticsName,
+            isHistorical: historyMode,
+            hadInput: hasInput,
+            ocrUsed: ocrProcessed,
+            seconds: Date().timeIntervalSince(openedAt)
+        )
+        self.openedAt = nil
     }
 
     /// Marca edição manual pós-OCR (a escrita do próprio OCR ocorre durante
@@ -1023,6 +1063,7 @@ struct FuelEntryFlowView: View {
             saveError = "Não foi possível salvar. Tente novamente."
             return
         }
+        didSave = true
         Haptics.success()
 
         // Analytics — fuel_created: o evento ★ do MVP. Valores sensíveis vão em

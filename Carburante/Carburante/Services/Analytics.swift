@@ -349,6 +349,25 @@ enum Analytics {
         capture("fuel_entry_started", ["entry_point": entryPoint])
     }
 
+    /// Fechou o fluxo de abastecimento novo sem salvar — diz onde travou.
+    /// `exit`: `cancel` (Cancelar sem nada digitado), `discard` (confirmou
+    /// "Descartar") ou `swipe` (arrastou p/ baixo, só possível sem nada
+    /// digitado). `lastStep`: `odometer` / `fill` / `review`. Só bools e faixa
+    /// de tempo — nunca valores.
+    static func fuelEntryAbandoned(entryPoint: String, exit: String, lastStep: String,
+                                   isHistorical: Bool, hadInput: Bool, ocrUsed: Bool,
+                                   seconds: TimeInterval) {
+        capture("fuel_entry_abandoned", [
+            "entry_point": entryPoint,
+            "exit": exit,
+            "last_step": lastStep,
+            "is_historical": isHistorical,
+            "had_input": hadInput,
+            "ocr_used": ocrUsed,
+            "time_band": formTimeBand(seconds),
+        ])
+    }
+
     /// `isHistorical`: registrado dias depois do fato (`EventProvenance`) — filtre
     /// insights de hábito/retenção por `is_historical = false` (histórico infla
     /// `log_number`/`unlocks_consumption` sem ser uso recorrente).
@@ -491,6 +510,14 @@ enum Analytics {
 
     static func syncFailed(stage: String, errorCode: String) {
         capture("sync_failed", ["stage": stage, "error_code": errorCode])
+    }
+
+    /// Resposta à pergunta do app depois de cadastrar a moto ("Lembrar do
+    /// próximo abastecimento?"). `choice`: `remind` / `later`. O pedido do iOS
+    /// que vem depois do `remind` sai em `permission_responded`
+    /// (`context = first_fuel_reminder`).
+    static func firstFuelReminderOfferResponded(choice: String) {
+        capture("first_fuel_reminder_offer", ["choice": choice])
     }
 
     static func permissionResponded(permission: String, result: String, context: String) {

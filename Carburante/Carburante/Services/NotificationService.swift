@@ -11,6 +11,11 @@
 //  — na primeira vez que há algo a agendar (após salvar um abastecimento), não
 //  na abertura do app.
 //
+//  Quem cadastra a moto e nunca registra também recebe os 3 marcos, contados do
+//  cadastro (`neverLoggedFireDates`), depois de aceitar a pergunta do app
+//  (`FirstFuelReminderOffer`). Os identificadores são os mesmos: o 1º
+//  abastecimento salvo substitui esses lembretes pelos normais.
+//
 
 import Foundation
 import UserNotifications
@@ -54,6 +59,85 @@ enum AbsenceReminder {
             return (day, fire)
         }
     }
+
+    // MARK: - Moto cadastrada, nenhum abastecimento ainda
+
+    /// Hora fixa dos lembretes de quem nunca registrou. O cadastro costuma ser
+    /// em casa, a qualquer hora: repetir a hora dele mandaria aviso às 23h.
+    static let neverLoggedHour = 18
+
+    /// Texto por marco para quem ainda não registrou nada. Aceita abastecimento
+    /// de dias atrás de propósito: até 7 dias ainda conta como "na hora"
+    /// (`EventProvenance`), e o fluxo deixa escolher o dia.
+    static func neverLoggedMessage(forDay day: Int, bikeName: String) -> (title: String, body: String) {
+        switch day {
+        case 7:
+            return ("Já abasteceu a \(bikeName)?",
+                    "Registre mesmo que tenha sido há alguns dias: no app dá para escolher o dia.")
+        case 14:
+            return ("Quantos km/l a \(bikeName) faz?",
+                    "Registre dois tanques cheios e o Carburante mostra o consumo de verdade.")
+        default:
+            return ("Abasteceu nos últimos dias?",
+                    "Registre em poucos segundos. O histórico da sua moto começa no 1º registro.")
+        }
+    }
+
+    /// Mesmos marcos, contados do dia do cadastro da moto, sempre às
+    /// `neverLoggedHour`. Só os que ainda caem no futuro. Pura → testável.
+    static func neverLoggedFireDates(
+        bikeCreatedAt: Date,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [(day: Int, fireDate: Date)] {
+        let start = calendar.startOfDay(for: bikeCreatedAt)
+        return dayOffsets.compactMap { day in
+            guard let dayDate = calendar.date(byAdding: .day, value: day, to: start),
+                  let fire = calendar.date(bySettingHour: neverLoggedHour, minute: 0, second: 0, of: dayDate),
+                  fire > now else { return nil }
+            return (day, fire)
+        }
+    }
+}
+
+/// Pergunta do app ("Lembrar do próximo abastecimento?") feita uma vez, depois
+/// de cadastrar uma moto. Vem antes do pedido do iOS, que só pode ser feito uma
+/// vez: com "Agora não", o pedido do sistema fica para o 1º abastecimento salvo,
+/// como sempre foi.
+enum FirstFuelReminderOffer: String {
+    /// Nunca houve moto nova desde que a regra existe.
+    case none = ""
+    /// Moto acabou de ser cadastrada; a raiz do app resolve assim que o
+    /// cadastro fecha.
+    case pending
+    /// Já resolvida (perguntou, agendou ou não se aplicava). Não volta.
+    case done
+
+    /// Chave do `@AppStorage` (form da moto marca `pending`, a raiz resolve).
+    static let storageKey = "firstFuelReminderOffer"
+
+    enum Action: Equatable {
+        /// Mostrar a pergunta do app.
+        case ask
+        /// Permissão já dada: agenda sem perguntar.
+        case scheduleSilently
+        /// Nada a fazer (já registra abastecimento, ou negou notificações).
+        case skip
+    }
+
+    /// O que fazer quando o cadastro fecha. Quem já tem abastecimento tem os
+    /// lembretes normais; quem negou notificações não é perguntado de novo.
+    static func action(hasAnyFuelLog: Bool, authorization: UNAuthorizationStatus) -> Action {
+        guard !hasAnyFuelLog else { return .skip }
+        switch authorization {
+        case .notDetermined:
+            return .ask
+        case .authorized, .provisional, .ephemeral:
+            return .scheduleSilently
+        default:
+            return .skip
+        }
+    }
 }
 
 /// Wrapper fino sobre `UNUserNotificationCenter`. Isola o framework do resto do
@@ -66,16 +150,17 @@ struct NotificationService {
     /// Pede permissão se ainda não decidida. Retorna se está autorizado.
     /// Não força nada se o usuário já negou (respeita a escolha).
     @discardableResult
-    func requestAuthorizationIfNeeded() async -> Bool {
+    func requestAuthorizationIfNeeded(context: String = "reminder_scheduling") async -> Bool {
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
         case .notDetermined:
             let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
             // Analytics: só na 1ª decisão. Contexto = algo a agendar (save de
-            // abastecimento ou manutenção) — pedido contextual, não no launch.
+            // abastecimento ou manutenção, ou "Lembrar" depois do cadastro da
+            // moto) — pedido contextual, não no launch.
             Analytics.permissionResponded(permission: "notifications",
                                           result: granted ? "granted" : "denied",
-                                          context: "reminder_scheduling")
+                                          context: context)
             return granted
         case .authorized, .provisional, .ephemeral:
             return true
@@ -98,23 +183,50 @@ struct NotificationService {
         guard await requestAuthorizationIfNeeded() else { return }
 
         for (day, fireDate) in pending {
-            let content = UNMutableNotificationContent()
-            let copy = AbsenceReminder.message(forDay: day)
-            content.title = copy.title
-            content.body = copy.body
-            content.sound = .default
-
-            let comps = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute], from: fireDate
-            )
-            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
-            let request = UNNotificationRequest(
-                identifier: "\(AbsenceReminder.identifierPrefix)\(day)",
-                content: content,
-                trigger: trigger
-            )
-            try? await center.add(request)
+            await addAbsenceReminder(day: day, fireDate: fireDate,
+                                     copy: AbsenceReminder.message(forDay: day))
         }
+    }
+
+    /// Moto cadastrada e nenhum abastecimento: agenda os marcos a partir do
+    /// cadastro. Chamar só depois do "Lembrar" (ou com a permissão já dada) —
+    /// aqui é onde o iOS pede a permissão, se ainda não decidida.
+    func scheduleNeverLoggedReminders(bikeCreatedAt: Date, bikeName: String, now: Date = Date()) async {
+        cancelAbsenceReminders()
+        let pending = AbsenceReminder.neverLoggedFireDates(bikeCreatedAt: bikeCreatedAt, now: now)
+        guard !pending.isEmpty else { return }
+        guard await requestAuthorizationIfNeeded(context: "first_fuel_reminder") else { return }
+
+        for (day, fireDate) in pending {
+            await addAbsenceReminder(day: day, fireDate: fireDate,
+                                     copy: AbsenceReminder.neverLoggedMessage(forDay: day, bikeName: bikeName))
+        }
+    }
+
+    /// Mesmo identificador nos dois casos: um novo agendamento sempre
+    /// substitui o anterior (o 1º abastecimento troca "nunca registrou" pelos
+    /// lembretes de ausência).
+    private func addAbsenceReminder(day: Int, fireDate: Date, copy: (title: String, body: String)) async {
+        let content = UNMutableNotificationContent()
+        content.title = copy.title
+        content.body = copy.body
+        content.sound = .default
+
+        let comps = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute], from: fireDate
+        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "\(AbsenceReminder.identifierPrefix)\(day)",
+            content: content,
+            trigger: trigger
+        )
+        try? await center.add(request)
+    }
+
+    /// Estado atual da permissão (para decidir se a pergunta do app aparece).
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
     }
 
     /// Remove os lembretes de ausência pendentes (sem tocar em outros).
