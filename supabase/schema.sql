@@ -92,6 +92,13 @@ alter table public.fuel_logs add column if not exists deleted_at timestamptz;
 -- Lacuna: abastecimentos não registrados antes deste → quebra a medição de
 -- consumo (ver PLAN/lacuna-abastecimento.md). Marcado pelo usuário.
 alter table public.fuel_logs add column if not exists missed_previous boolean not null default false;
+-- Desafios (D1, PLAN/desafios.md): de onde veio a foto do hodômetro
+-- ('camera'/'gallery', chave congelada; nulo = registro antigo) — a turma vê
+-- "da galeria" e julga. E a "foto do desafio" (foto extra, não vale km): mesma
+-- regra de referência da foto do hodômetro (PhotoReference), arquivo
+-- `<motorcycle_id>/<fuel_log_id>-challenge.jpg` no bucket fuel-log-photos.
+alter table public.fuel_logs add column if not exists odometer_photo_source text;
+alter table public.fuel_logs add column if not exists challenge_photo_url text;
 -- Backfill: linhas antigas nunca foram "atualizadas" → updated_at = created_at
 -- (o default now() da migração colocaria a data da migração, não a real).
 update public.fuel_logs set updated_at = created_at where updated_at > created_at;
