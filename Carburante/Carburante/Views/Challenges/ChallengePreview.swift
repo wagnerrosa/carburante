@@ -6,7 +6,7 @@
 //  servidor. Só DEBUG, só em memória — não toca SwiftData nem Supabase.
 //
 //  Launch arg `-challengesPreview <tela>` liga a aba e abre a tela:
-//  board | activity | participant | details | empty | invite | inviteAnon | form | resumo.
+//  board | activity | participant | entry | details | empty | invite | inviteAnon | form | resumo.
 //  Fotos: Documents/ChallengePreview/<ref>.jpg no simulador (sem elas, a
 //  capa padrão / um quadro cinza).
 //
@@ -16,7 +16,7 @@ import Foundation
 
 enum ChallengePreview {
     enum Screen: String {
-        case board, activity, participant, details, empty, invite, inviteAnon, form, resumo
+        case board, activity, participant, entry, details, empty, invite, inviteAnon, form, resumo
     }
 
     static var screen: Screen? {
@@ -29,6 +29,7 @@ enum ChallengePreview {
         switch screen {
         case .activity: .activity
         case .participant: .participant(participantID)
+        case .entry: .entry(entryID)
         case .details: .details
         case .invite: .invite(anonymous: false)
         case .inviteAnon: .invite(anonymous: true)
@@ -55,6 +56,11 @@ enum ChallengePreview {
         return cal.date(bySettingHour: hour, minute: minute, second: 0, of: d)!
     }
 
+    /// Comentários de hoje relativos a agora ("há 12 min"), não a uma hora fixa.
+    private static func ago(minutes: Int) -> Date {
+        Date().addingTimeInterval(-Double(minutes) * 60)
+    }
+
     // MARK: Pilotos
 
     private static let ids = (0..<6).map { _ in UUID() }
@@ -67,6 +73,10 @@ enum ChallengePreview {
     private static let twin = ChallengeBike(make: "Triumph", model: "Street Twin")
 
     static var participantID: UUID { ids[2] }
+    /// Abastecimento da Ana na serra (foto do desafio + conversa).
+    static let entryID = UUID()
+    private static let noPhotoEntryID = UUID()
+    private static let myEntryID = UUID()
 
     // MARK: Turma da serra (mês corrente, ativo)
 
@@ -82,15 +92,15 @@ enum ChallengePreview {
             ChallengeStanding(id: ids[5], rank: 6, name: "Fernanda Alves", bikes: [twin], fuelUps: 1, km: 0, isMe: false),
         ]
         func e(_ who: Int, _ bike: ChallengeBike, _ date: Date, _ odo: Double, _ status: ChallengeEntry.Status,
-               photo: Bool = true, gallery: Bool = false, extra: String? = nil) -> ChallengeEntry {
-            ChallengeEntry(id: UUID(), memberID: ids[who], date: date, bike: bike, odometer: odo, status: status,
+               photo: Bool = true, gallery: Bool = false, extra: String? = nil, id: UUID = UUID()) -> ChallengeEntry {
+            ChallengeEntry(id: id, memberID: ids[who], date: date, bike: bike, odometer: odo, status: status,
                            odometerPhotoRef: photo ? "odometer" : nil, odometerFromGallery: gallery,
                            challengePhotoRef: extra)
         }
         let entries = [
-            e(0, cb500, day(0, 14, 32), 18_930, .counted(km: 230), extra: "IMG_0003"),
-            e(2, biz, day(0, 9, 10), 41_205, .noPhoto, photo: false),
-            e(1, iron, day(1, 18, 45), 22_035, .counted(km: 310), extra: "IMG_0001"),
+            e(0, cb500, day(0, 14, 32), 18_930, .counted(km: 230), extra: "IMG_0003", id: entryID),
+            e(2, biz, day(0, 9, 10), 41_205, .noPhoto, photo: false, id: noPhotoEntryID),
+            e(1, iron, day(1, 18, 45), 22_035, .counted(km: 310), extra: "IMG_0001", id: myEntryID),
             e(3, gs, day(2, 11, 20), 9_870, .counted(km: 190), gallery: true),
             e(4, himalayan, day(3, 16, 5), 31_400, .counted(km: 205), extra: "IMG_0004"),
             e(0, cb500, day(4, 8, 40), 18_700, .counted(km: 310)),
@@ -108,9 +118,20 @@ enum ChallengePreview {
             e(1, iron, day(16, 8, 15), 21_095, .counted(km: 300)),
             e(0, cb500, day(17, 17, 0), 17_770, .counted(km: 260)),
         ]
+        func c(_ entry: UUID, _ who: Int, _ date: Date, _ text: String) -> ChallengeComment {
+            ChallengeComment(id: UUID(), entryID: entry, memberID: ids[who], text: text, date: date)
+        }
+        let comments = [
+            c(entryID, 2, ago(minutes: 85), "Que vista! Onde é isso?"),
+            c(entryID, 0, ago(minutes: 70), "Serra do Rio do Rastro. Lá em cima tava 6 °C 🥶"),
+            c(entryID, 1, ago(minutes: 12), "Semana que vem eu vou também. Me espera lá em cima 😂"),
+            c(noPhotoEntryID, 3, ago(minutes: 200), "Cadê a foto do hodômetro, Bruno? 👀"),
+            c(noPhotoEntryID, 2, ago(minutes: 185), "Esqueci! Os km vão no próximo, juro 😅"),
+            c(myEntryID, 4, day(1, 19, 10), "Essa Iron tá rodando mais que a minha Himalayan"),
+        ]
         return Challenge(id: UUID(), name: "Turma da serra", startDate: start, endDate: end,
-                         createdByName: "Wagner", code: "SERRA7", coverRef: "IMG_0005",
-                         standings: standings, entries: entries)
+                         createdByName: "Wagner", code: "K7QM4XPR", coverRef: "IMG_0005",
+                         standings: standings, entries: entries, comments: comments, createdByMe: true)
     }()
 
     // MARK: Bate-volta de domingo (1 semana, ativo, sem capa)
@@ -119,7 +140,7 @@ enum ChallengePreview {
         let me = UUID()
         return Challenge(
             id: UUID(), name: "Bate-volta de domingo", startDate: day(2), endDate: day(-4),
-            createdByName: "Carla", code: "DOMING", coverRef: nil,
+            createdByName: "Carla", code: "B9TW2HKN", coverRef: nil,
             standings: [
                 ChallengeStanding(id: UUID(), rank: 1, name: "Carla Souza", bikes: [gs], fuelUps: 1, km: 190, isMe: false),
                 ChallengeStanding(id: me, rank: 2, name: "Wagner Rosa", bikes: [iron], fuelUps: 1, km: 0, isMe: true),
@@ -136,7 +157,7 @@ enum ChallengePreview {
         return Challenge(
             id: UUID(), name: "Setembro na estrada", startDate: interval.start,
             endDate: cal.date(byAdding: .day, value: -1, to: interval.end)!,
-            createdByName: "Ana", code: "SETEMB", coverRef: "IMG_0003",
+            createdByName: "Ana", code: "MZ6RQ3VD", coverRef: "IMG_0003",
             standings: [
                 ChallengeStanding(id: UUID(), rank: 1, name: "Ana Paula", bikes: [cb500], fuelUps: 8, km: 2310, isMe: false),
                 ChallengeStanding(id: UUID(), rank: 2, name: "Wagner Rosa", bikes: [iron], fuelUps: 7, km: 1980, isMe: true),

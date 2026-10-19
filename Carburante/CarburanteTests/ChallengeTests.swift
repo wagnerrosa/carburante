@@ -24,7 +24,7 @@ final class ChallengeTests: XCTestCase {
 
     private func challenge(_ standings: [ChallengeStanding] = []) -> Challenge {
         Challenge(id: UUID(), name: "Turma da serra", startDate: date(2026, 10, 1), endDate: date(2026, 10, 31),
-                  createdByName: "Wagner", code: "SERRA7", coverRef: nil, standings: standings, entries: [])
+                  createdByName: "Wagner", code: "K7QM4XPR", coverRef: nil, standings: standings, entries: [])
     }
 
     // MARK: Prazo
@@ -84,6 +84,69 @@ final class ChallengeTests: XCTestCase {
         XCTAssertEqual(s.bikeLabel, "CB 500X")
         s.bikes.append(ChallengeBike(make: "Yamaha", model: "MT-07"))
         XCTAssertEqual(s.bikeLabel, "2 motos")
+    }
+
+    // MARK: Código do convite
+
+    func testInviteCode_acceptsWhatPeopleTypeOrPaste() {
+        XCTAssertEqual(InviteCode.normalized("K7QM4XPR"), "K7QM4XPR")
+        XCTAssertEqual(InviteCode.normalized(" k7qm-4xpr "), "K7QM4XPR")
+        XCTAssertEqual(InviteCode.normalized("K7QM 4XPR"), "K7QM4XPR")
+        XCTAssertEqual(InviteCode.normalized("https://carburante.motorcycles/d/?c=K7QM4XPR"), "K7QM4XPR")
+    }
+
+    func testInviteCode_rejectsWhatCannotBeACode() {
+        XCTAssertNil(InviteCode.normalized(""))
+        XCTAssertNil(InviteCode.normalized("SERRA7"), "curto e com vogal")
+        XCTAssertNil(InviteCode.normalized("K7QM4XP0"), "0 se confunde com O")
+        XCTAssertNil(InviteCode.normalized("K7QM4XP1"), "1 se confunde com I/L")
+        XCTAssertNil(InviteCode.normalized("K7QM4XPRB"), "longo demais")
+    }
+
+    func testInviteCode_formattedInTwoBlocks() {
+        XCTAssertEqual(InviteCode.formatted("K7QM4XPR"), "K7QM-4XPR")
+        XCTAssertEqual(InviteCode.formatted("ABC"), "ABC")
+    }
+
+    func testInviteCode_randomIsAlwaysValid() {
+        for _ in 0..<200 {
+            let code = InviteCode.random()
+            XCTAssertEqual(InviteCode.normalized(code), code)
+        }
+    }
+
+    // MARK: Comentários
+
+    func testComment_cleanedTrimsAndLimits() {
+        XCTAssertEqual(ChallengeComment.cleaned("  Que vista!\n"), "Que vista!")
+        XCTAssertNil(ChallengeComment.cleaned("   \n "))
+        XCTAssertNotNil(ChallengeComment.cleaned(String(repeating: "a", count: 200)))
+        XCTAssertNil(ChallengeComment.cleaned(String(repeating: "a", count: 201)))
+        // Emoji conta 1, como a pessoa vê (o servidor mede em code points: folga lá).
+        XCTAssertNotNil(ChallengeComment.cleaned(String(repeating: "👨‍👩‍👧", count: 200)))
+    }
+
+    func testComment_counterOnlyNearTheLimit() {
+        XCTAssertNil(ChallengeComment.remaining(String(repeating: "a", count: 179)))
+        XCTAssertEqual(ChallengeComment.remaining(String(repeating: "a", count: 180)), 20)
+        XCTAssertEqual(ChallengeComment.remaining(String(repeating: "a", count: 200)), 0)
+    }
+
+    func testComment_whoCanDelete() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        var c = challenge([ana, me])
+        let entry = UUID()
+        let mine = ChallengeComment(id: UUID(), entryID: entry, memberID: me.id, text: "Bora", date: date(2026, 10, 2))
+        let hers = ChallengeComment(id: UUID(), entryID: entry, memberID: ana.id, text: "Vamos", date: date(2026, 10, 1))
+        c.comments = [mine, hers]
+        XCTAssertTrue(c.canDelete(mine))
+        XCTAssertFalse(c.canDelete(hers))
+        c.createdByMe = true
+        XCTAssertTrue(c.canDelete(hers), "quem criou modera")
+        XCTAssertEqual(c.comments(on: entry).map(\.text), ["Vamos", "Bora"], "mais antigo primeiro")
+        XCTAssertEqual(c.commentCount(on: entry), 2)
+        XCTAssertEqual(c.commentCount(on: UUID()), 0)
     }
 
     // MARK: Período

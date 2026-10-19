@@ -275,6 +275,8 @@ enum ChallengeRoute: Hashable {
     case board(UUID)
     case details(UUID)
     case participant(challenge: UUID, member: UUID)
+    /// Um abastecimento do mural: fotos + comentários.
+    case entry(challenge: UUID, entry: UUID)
 }
 
 // MARK: - Resumo
