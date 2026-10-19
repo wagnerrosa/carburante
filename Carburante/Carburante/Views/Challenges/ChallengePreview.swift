@@ -130,14 +130,14 @@ enum ChallengePreview {
             c(noPhotoEntryID, 2, ago(minutes: 185), "Esqueci! Os km vão no próximo, juro 😅"),
             c(myEntryID, 4, day(1, 19, 10), "Essa Iron tá rodando mais que a minha Himalayan"),
         ]
-        func r(_ entry: UUID, _ who: Int, _ reaction: ChallengeReaction) -> ChallengeReactionMark {
-            ChallengeReactionMark(entryID: entry, memberID: ids[who], key: reaction.rawValue)
+        func r(_ entry: UUID, _ who: Int, _ emoji: String) -> ChallengeReactionMark {
+            ChallengeReactionMark(entryID: entry, memberID: ids[who], emoji: emoji)
         }
         let reactions = [
-            r(entryID, 2, .wow), r(entryID, 3, .wow), r(entryID, 1, .fire), r(entryID, 4, .moto),
-            r(noPhotoEntryID, 3, .laugh), r(noPhotoEntryID, 0, .laugh),
-            r(myEntryID, 0, .moto), r(myEntryID, 4, .moto), r(myEntryID, 3, .fire),
-            r(diegoEntryID, 0, .rain), r(diegoEntryID, 5, .clap), r(diegoEntryID, 2, .rain),
+            r(entryID, 2, "😍"), r(entryID, 3, "😍"), r(entryID, 1, "🔥"), r(entryID, 4, "🏍️"),
+            r(noPhotoEntryID, 3, "😂"), r(noPhotoEntryID, 0, "😂"), r(noPhotoEntryID, 5, "🙄"),
+            r(myEntryID, 0, "🏍️"), r(myEntryID, 4, "🤘"), r(myEntryID, 3, "🏍️"),
+            r(diegoEntryID, 0, "🌧️"), r(diegoEntryID, 5, "🥶"), r(diegoEntryID, 2, "🌧️"),
         ]
         return Challenge(id: UUID(), name: "Turma da serra", startDate: start, endDate: end,
                          createdByName: "Wagner", code: "K7QM4XPR", coverRef: "IMG_0005",

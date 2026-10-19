@@ -246,9 +246,9 @@ struct ChallengesView: View {
         challenges.first { $0.id == id }
     }
 
-    private func react(_ reaction: ChallengeReaction, on entry: ChallengeEntry, in id: UUID) {
+    private func react(_ emoji: String, on entry: ChallengeEntry, in id: UUID) {
         Haptics.selection()
-        update(id) { $0.react(reaction, on: entry) }
+        update(id) { $0.react(emoji, on: entry) }
     }
 
     private func update(_ id: UUID, _ change: (inout Challenge) -> Void) {
@@ -282,7 +282,9 @@ private struct InviteRequest: Identifiable {
 struct ChallengeBoard: View {
     let challenge: Challenge
     @State var segment: Segment
-    var onReact: (ChallengeReaction, ChallengeEntry) -> Void = { _, _ in }
+    var onReact: (String, ChallengeEntry) -> Void = { _, _ in }
+    /// Abastecimento esperando um emoji do teclado ("Outro emoji").
+    @State private var emojiTarget: ChallengeEntry?
 
     enum Segment: Hashable { case standings, activity }
 
@@ -310,12 +312,24 @@ struct ChallengeBoard: View {
                         .padding(.horizontal, 4)
                         .fixedSize(horizontal: false, vertical: true)
                 case .activity:
-                    ChallengeActivityFeed(challenge: challenge, onReact: onReact)
+                    ChallengeActivityFeed(challenge: challenge, onReact: onReact,
+                                          onMoreEmoji: { emojiTarget = $0 })
                 }
             }
             .padding()
         }
         .background(Color(.systemGroupedBackground))
+        // Fora da rolagem e com 1 pt: dentro dela, o UIKit rolava a lista
+        // para "mostrar" o campo quando o teclado abria.
+        .background {
+            EmojiKeyboard(isPresented: Binding(
+                get: { emojiTarget != nil },
+                set: { if !$0 { emojiTarget = nil } }
+            )) { emoji in
+                if let emojiTarget { onReact(emoji, emojiTarget) }
+            }
+            .frame(width: 1, height: 1)
+        }
     }
 }
 

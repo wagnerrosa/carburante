@@ -161,26 +161,38 @@ final class ChallengeTests: XCTestCase {
         let ana = standing(1, "Ana Paula", km: 0)
         var c = challenge([ana, me])
         let hers = entry(of: ana)
-        c.react(.moto, on: hers)
-        XCTAssertEqual(c.myReaction(on: hers.id), .moto)
-        c.react(.rain, on: hers)
-        XCTAssertEqual(c.myReaction(on: hers.id), .rain, "outro emoji troca: 1 por pessoa")
+        c.react("🏍️", on: hers)
+        XCTAssertEqual(c.myReaction(on: hers.id), "🏍️")
+        c.react("🤘", on: hers)
+        XCTAssertEqual(c.myReaction(on: hers.id), "🤘", "outro emoji troca: 1 por pessoa")
         XCTAssertEqual(c.reactions.count, 1)
-        c.react(.rain, on: hers)
+        c.react("🤘", on: hers)
         XCTAssertNil(c.myReaction(on: hers.id), "o mesmo de novo tira")
         XCTAssertTrue(c.reactions.isEmpty)
     }
 
-    func testReact_notOnYourOwnFuelUp() {
+    func testReact_notOnYourOwnFuelUpNorWithText() {
         let me = standing(1, "Wagner Rosa", km: 0, me: true)
-        var c = challenge([me])
-        let mine = entry(of: me)
-        XCTAssertFalse(c.canReact(to: mine))
-        c.react(.fire, on: mine)
-        XCTAssertTrue(c.reactions.isEmpty)
+        let ana = standing(2, "Ana Paula", km: 0)
+        var c = challenge([me, ana])
+        c.react("🔥", on: entry(of: me))
+        XCTAssertTrue(c.reactions.isEmpty, "ninguém reage ao próprio")
+        c.react("a", on: entry(of: ana))
+        c.react("🔥🔥", on: entry(of: ana))
+        XCTAssertTrue(c.reactions.isEmpty, "só um emoji")
     }
 
-    func testReactionTallies_mostUsedFirstAndYouFirst() {
+    func testIsSingleEmoji() {
+        for emoji in ["🏍️", "🤘", "👍🏽", "🇧🇷", "👨‍👩‍👧", "❤️", "1️⃣"] {
+            XCTAssertTrue(ChallengeReaction.isSingleEmoji(emoji), emoji)
+        }
+        for text in ["", "a", "1", "#", "©", "🔥🔥", "ok"] {
+            XCTAssertFalse(ChallengeReaction.isSingleEmoji(text), text)
+        }
+        XCTAssertTrue(ChallengeReaction.quick.allSatisfy(ChallengeReaction.isSingleEmoji))
+    }
+
+    func testReactionTallies_mostUsedFirstThenFirstToArrive() {
         let me = standing(2, "Wagner Rosa", km: 0, me: true)
         let ana = standing(1, "Ana Paula", km: 0)
         let bruno = standing(3, "Bruno Lima", km: 0)
@@ -188,23 +200,17 @@ final class ChallengeTests: XCTestCase {
         var c = challenge([ana, me, bruno, carla])
         let target = entry(of: carla)
         c.reactions = [
-            ChallengeReactionMark(entryID: target.id, memberID: ana.id, key: "rain"),
-            ChallengeReactionMark(entryID: target.id, memberID: bruno.id, key: "moto"),
-            ChallengeReactionMark(entryID: target.id, memberID: me.id, key: "moto"),
-            ChallengeReactionMark(entryID: target.id, memberID: carla.id, key: "sparkles"), // versão mais nova
+            ChallengeReactionMark(entryID: target.id, memberID: ana.id, emoji: "🌧️"),
+            ChallengeReactionMark(entryID: target.id, memberID: bruno.id, emoji: "🏍️"),
+            ChallengeReactionMark(entryID: target.id, memberID: me.id, emoji: "🏍️"),
+            ChallengeReactionMark(entryID: target.id, memberID: carla.id, emoji: "🤘"),
         ]
         let tallies = c.reactionTallies(on: target.id)
-        XCTAssertEqual(tallies.map(\.reaction), [.moto, .rain], "chave desconhecida some")
+        XCTAssertEqual(tallies.map(\.emoji), ["🏍️", "🌧️", "🤘"], "empate: quem chegou antes")
         XCTAssertEqual(tallies[0].count, 2)
         XCTAssertTrue(tallies[0].includesMe)
         XCTAssertEqual(tallies[0].names, ["Você", "Bruno"])
         XCTAssertFalse(tallies[1].includesMe)
-    }
-
-    func testReactionKeys_areFrozen() {
-        // Chaves vão para o servidor: nunca renomear (CLAUDE.md, enums persistidos).
-        XCTAssertEqual(ChallengeReaction.allCases.map(\.rawValue),
-                       ["moto", "fire", "clap", "wow", "laugh", "rain"])
     }
 
     // MARK: Período

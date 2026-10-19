@@ -21,7 +21,9 @@ struct ViewedPhoto: Identifiable {
 
 struct ChallengeActivityFeed: View {
     let challenge: Challenge
-    var onReact: (ChallengeReaction, ChallengeEntry) -> Void = { _, _ in }
+    var onReact: (String, ChallengeEntry) -> Void = { _, _ in }
+    /// "Outro emoji": o teclado mora fora da rolagem (`ChallengeBoard`).
+    var onMoreEmoji: (ChallengeEntry) -> Void = { _ in }
 
     /// Agrupado por dia, mais novo primeiro (dia relativo do Mail).
     private var days: [(date: Date, entries: [ChallengeEntry])] {
@@ -71,9 +73,9 @@ struct ChallengeActivityFeed: View {
                 ChallengeActivityRow(entry: entry, standing: standing)
             }
             .buttonStyle(.plain)
-            ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route) {
-                onReact($0, entry)
-            }
+            ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route,
+                                 onReact: { onReact($0, entry) },
+                                 onMoreEmoji: { onMoreEmoji(entry) })
         }
         .padding()
     }
@@ -187,7 +189,9 @@ struct ChallengeEntryFooter: View {
     /// No mural: o balão abre a conversa. nil na tela do abastecimento, onde
     /// a conversa vem logo abaixo — lá as reações quebram linha e mostram todas.
     var commentsRoute: ChallengeRoute?
-    var onReact: (ChallengeReaction) -> Void
+    var onReact: (String) -> Void
+    /// "Outro emoji": quem mostra a tela abre o teclado de emoji.
+    var onMoreEmoji: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
     /// No mural, até 4 emojis; o resto vira "+N" (tudo na tela do abastecimento).
@@ -214,13 +218,11 @@ struct ChallengeEntryFooter: View {
             VStack(alignment: .leading, spacing: 8) {
                 ReactionFlowLayout(spacing: 6) {
                     ForEach(tallies) { chip($0, enabled: canReact) }
-                    if canReact {
-                        ReactionPicker(current: challenge.myReaction(on: entry.id), onReact: onReact)
-                    }
+                    if canReact { picker }
                 }
                 if !tallies.isEmpty {
                     // Quem mandou o quê — a parte social da reação.
-                    Text(tallies.map { "\($0.reaction.emoji) \($0.names.joined(separator: ", "))" }
+                    Text(tallies.map { "\($0.emoji) \($0.names.joined(separator: ", "))" }
                         .joined(separator: " · "))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -238,13 +240,15 @@ struct ChallengeEntryFooter: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-        if canReact {
-            ReactionPicker(current: challenge.myReaction(on: entry.id), onReact: onReact)
-        }
+        if canReact { picker }
+    }
+
+    private var picker: some View {
+        ReactionPicker(current: challenge.myReaction(on: entry.id), onReact: onReact, onMore: onMoreEmoji)
     }
 
     private func chip(_ tally: ReactionTally, enabled: Bool) -> some View {
-        ReactionChip(tally: tally) { onReact(tally.reaction) }
+        ReactionChip(tally: tally) { onReact(tally.emoji) }
             .allowsHitTesting(enabled)
     }
 
@@ -274,7 +278,7 @@ struct ReactionChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Text(tally.reaction.emoji)
+                Text(tally.emoji)
                 Text("\(tally.count)")
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
@@ -290,31 +294,33 @@ struct ReactionChip: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(tally.reaction.label), \(tally.count)")
+        // O VoiceOver lê o nome do emoji sozinho.
+        .accessibilityLabel("\(tally.emoji), \(tally.count)")
         .accessibilityValue(tally.includesMe ? "inclui a sua" : "")
     }
 }
 
-/// Botão de reagir: abre a paleta de emojis (menu nativo, linha horizontal).
+/// Botão de reagir: menu nativo com os 6 atalhos em linha e "Outro emoji"
+/// (teclado de emoji) — o Tapback do iOS 18.
 struct ReactionPicker: View {
-    let current: ChallengeReaction?
-    let onReact: (ChallengeReaction) -> Void
+    let current: String?
+    let onReact: (String) -> Void
+    let onMore: () -> Void
 
     var body: some View {
         Menu {
             Picker("Reagir", selection: Binding(
                 get: { current },
-                set: { if let reaction = $0 { onReact(reaction) } }
+                set: { if let emoji = $0 { onReact(emoji) } }
             )) {
-                ForEach(ChallengeReaction.allCases) { reaction in
-                    Text(reaction.emoji)
-                        .accessibilityLabel(reaction.label)
-                        .tag(Optional(reaction))
+                ForEach(ChallengeReaction.quick, id: \.self) { emoji in
+                    Text(emoji).tag(Optional(emoji))
                 }
             }
             .pickerStyle(.palette)
             // Escolheu, fecha (Tapback). A paleta, sozinha, deixa o menu aberto.
             .menuActionDismissBehavior(.enabled)
+            Button("Outro emoji", systemImage: "face.smiling", action: onMore)
         } label: {
             HStack(spacing: 1) {
                 Image(systemName: "face.smiling")
@@ -589,9 +595,10 @@ struct ChallengeEntryView: View {
     let standing: ChallengeStanding
     var onPost: (String) -> Void = { _ in }
     var onDelete: (ChallengeComment) -> Void = { _ in }
-    var onReact: (ChallengeReaction) -> Void = { _ in }
+    var onReact: (String) -> Void = { _ in }
 
     @State private var draft = ""
+    @State private var pickingEmoji = false
     @State private var viewing: ViewedPhoto?
     @State private var reporting: ChallengeComment?
 
@@ -603,7 +610,8 @@ struct ChallengeEntryView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 12) {
                         ChallengeActivityRow(entry: entry, standing: standing, showsOdometer: true) { viewing = $0 }
-                        ChallengeEntryFooter(challenge: challenge, entry: entry, onReact: onReact)
+                        ChallengeEntryFooter(challenge: challenge, entry: entry,
+                                             onReact: onReact, onMoreEmoji: { pickingEmoji = true })
                     }
                     .padding()
                     .background(Color(.secondarySystemGroupedBackground),
@@ -639,6 +647,7 @@ struct ChallengeEntryView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
+        .background { EmojiKeyboard(isPresented: $pickingEmoji, onPick: onReact).frame(width: 1, height: 1) }
         .safeAreaInset(edge: .bottom) {
             CommentComposer(draft: $draft) {
                 guard let text = ChallengeComment.cleaned(draft) else { return }
