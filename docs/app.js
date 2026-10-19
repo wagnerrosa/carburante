@@ -120,6 +120,12 @@
     's.title': 'Made by someone who rides, too.',
     's.lede': 'I’m <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>, product designer and rider for over two decades. I built Carburante for a simple reason: logging a fuel-up has to fit in a gas-station stop.',
     'alt.wagner': 'Wagner Rosa riding on a mountain road',
+    'alt.sim0': 'Carburante screen asking for the bike’s odometer, with a Scan button to read it from a photo',
+    'alt.sim1': 'Odometer read from the photo: 22,039 km, 83 km since the last fuel-up',
+    'alt.sim2': 'Amount and liters screen of the fuel-up, still empty',
+    'alt.sim3': 'Amount and liters read from the receipt: R$ 28.49 and 4.135 liters, at R$ 6.890 per liter',
+    'alt.sim4': 'Fuel-up review before saving: 20.1 km/l on this tank, location on the map and full tank',
+    'alt.sim5': 'Bike summary: 20.2 km/l average, cost per km and spending this month',
     's.code': 'Read the code',
     'ft.by': 'Built with <span class="footer__moto" role="img" aria-label="motorcycle">🏍️</span> by <a href="https://wagnerrosa.com" target="_blank" rel="noopener">Wagner Rosa</a>',
     'ft.copy': '© 2026 Carburante. All rights reserved.',
@@ -135,7 +141,7 @@
       toggle: 'EN', toggleLabel: 'EN, switch to English', html: 'pt-BR'
     },
     en: {
-      title: 'Carburante · How much does your bike really burn?',
+      title: 'Carburante · Motorcycle fuel economy and maintenance app for iPhone',
       toggle: 'PT', toggleLabel: 'PT, mudar para português', html: 'en'
     }
   };
@@ -858,7 +864,10 @@
     var setShot = function (n, how) {
       var prev = shots[shot], next = shots[n];
       if (n === shot) return;
-      shots.forEach(function (s, k) { s.classList.toggle('is-on', k === n); });
+      shots.forEach(function (s, k) {
+        s.classList.toggle('is-on', k === n);
+        if (k === n) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true');
+      });
       shot = n;
       if (quick || !prev) return;
       if (how === 'push') {

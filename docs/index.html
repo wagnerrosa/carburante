@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Carburante · Quanto sua moto faz de verdade?</title>
+  <title>Carburante · App de consumo e manutenção da moto para iPhone</title>
   <meta name="description" content="Fotografe o hodômetro no posto: o Carburante calcula o consumo real da sua moto, de tanque cheio a tanque cheio, e avisa antes da troca de óleo. Grátis para iPhone, sem cadastro e sem anúncios.">
   <link rel="canonical" href="https://carburante.motorcycles/">
   <meta name="author" content="Wagner Rosa">
@@ -366,12 +366,13 @@
         </div>
         <div class="phone sim__phone">
           <div class="sim__screen">
-              <img class="sim__shot" data-shot="0" src="assets/sim/s0.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
-              <img class="sim__shot" data-shot="1" src="assets/sim/s1.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
-              <img class="sim__shot" data-shot="2" src="assets/sim/s2.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
-              <img class="sim__shot" data-shot="3" src="assets/sim/s3.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
-              <img class="sim__shot is-on" data-shot="4" src="assets/sim/s4.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
-              <img class="sim__shot" data-shot="5" src="assets/sim/s5.webp" alt="" width="600" height="1304" loading="lazy" decoding="async">
+              <!-- Só a tela .is-on fica visível; as outras levam aria-hidden (o app.js troca junto) -->
+              <img class="sim__shot" data-shot="0" src="assets/sim/s0.webp" alt="Tela do Carburante pedindo o hodômetro da moto, com o botão Escanear para ler pela foto" data-i18n-alt="alt.sim0" aria-hidden="true" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="1" src="assets/sim/s1.webp" alt="Hodômetro lido pela foto: 22.039 km, 83 km desde o último abastecimento" data-i18n-alt="alt.sim1" aria-hidden="true" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="2" src="assets/sim/s2.webp" alt="Tela de valor e litros do abastecimento, ainda em branco" data-i18n-alt="alt.sim2" aria-hidden="true" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="3" src="assets/sim/s3.webp" alt="Valor e litros lidos do comprovante: R$ 28,49 e 4,135 litros, a R$ 6,890 o litro" data-i18n-alt="alt.sim3" aria-hidden="true" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot is-on" data-shot="4" src="assets/sim/s4.webp" alt="Revisão do abastecimento antes de salvar: 20,1 km/l neste tanque, local no mapa e tanque cheio" data-i18n-alt="alt.sim4" width="600" height="1304" loading="lazy" decoding="async">
+              <img class="sim__shot" data-shot="5" src="assets/sim/s5.webp" alt="Resumo da moto: média de 20,2 km/l, custo por km e gasto do mês" data-i18n-alt="alt.sim5" aria-hidden="true" width="600" height="1304" loading="lazy" decoding="async">
             <div class="sim__drop" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>
               <span class="sim__drop-t">Arraste o hodômetro até aqui</span>
@@ -655,6 +656,6 @@
   <p class="footer__mark" aria-hidden="true"><span>Carburante</span></p>
 </footer>
 
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>
 </body>
 </html>
