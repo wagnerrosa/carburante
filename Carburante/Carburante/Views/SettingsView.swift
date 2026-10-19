@@ -80,7 +80,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Seus dados")
                 } footer: {
-                    Text("Planilhas com suas motos, abastecimentos e manutenções. Abrem no Numbers e no Excel.")
+                    Text("Planilhas com suas motos, abastecimentos, manutenções e outras despesas. Abrem no Numbers e no Excel.")
                 }
 
                 // Canal qualitativo fora do TestFlight (que tem feedback com print):
@@ -141,7 +141,8 @@ struct SettingsView: View {
             Analytics.dataExported(
                 bikeCount: motorcycles.count,
                 fuelLogCount: motorcycles.reduce(0) { $0 + $1.activeFuelLogs.count },
-                maintenanceCount: motorcycles.reduce(0) { $0 + $1.activeMaintenanceLogs.count }
+                maintenanceCount: motorcycles.reduce(0) { $0 + $1.activeMaintenanceLogs.count },
+                expenseCount: motorcycles.reduce(0) { $0 + $1.activeExpenses.count }
             )
         } catch {
             exportFailed = true

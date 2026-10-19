@@ -154,6 +154,28 @@ end $$;
 create index if not exists maintenance_logs_user_id_idx on public.maintenance_logs (user_id);
 create index if not exists maintenance_logs_motorcycle_id_idx on public.maintenance_logs (motorcycle_id);
 
+-- ---------- expenses ----------
+-- Outras despesas da moto (Custos v2, 2026-10-19): IPVA, licenciamento, seguro,
+-- financiamento, pedágio, estacionamento… `category` = chave congelada de
+-- `ExpenseCategory` no app (ASCII: ipva, licensing, insurance…). Sem hodômetro.
+create table if not exists public.expenses (
+    id             uuid primary key,
+    motorcycle_id  uuid not null references public.motorcycles (id) on delete cascade,
+    user_id        uuid not null references auth.users (id) on delete cascade,
+    category       text not null,
+    date           timestamptz not null,
+    amount         double precision not null,
+    notes          text not null default '',
+    -- Soft Revision — mesma tripla do fuel_logs.
+    updated_at     timestamptz not null default now(),
+    revision       integer not null default 0,
+    deleted_at     timestamptz,
+    created_at     timestamptz not null default now()
+);
+create index if not exists expenses_user_id_idx on public.expenses (user_id);
+create index if not exists expenses_motorcycle_id_idx on public.expenses (motorcycle_id);
+create index if not exists expenses_deleted_at_idx on public.expenses (deleted_at);
+
 -- ---------- badge_awards ----------
 -- Data em que cada medalha foi conquistada (estilo Garmin). O estado
 -- locked/unlocked continua DERIVADO no app (motor puro `BadgeEvaluator`); aqui
@@ -196,6 +218,7 @@ alter table public.users            enable row level security;
 alter table public.motorcycles      enable row level security;
 alter table public.fuel_logs        enable row level security;
 alter table public.maintenance_logs enable row level security;
+alter table public.expenses         enable row level security;
 alter table public.badge_awards     enable row level security;
 alter table public.motorcycle_ownerships enable row level security;
 
@@ -213,6 +236,10 @@ create policy "fuel_logs owner" on public.fuel_logs
 create policy "maintenance_logs owner" on public.maintenance_logs
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+drop policy if exists "expenses owner" on public.expenses;
+create policy "expenses owner" on public.expenses
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create policy "badge_awards owner" on public.badge_awards
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -225,7 +252,7 @@ create policy "motorcycle_ownerships owner" on public.motorcycle_ownerships
 -- chave publishable (não pode usar a Admin API p/ apagar usuários), então esta
 -- função SECURITY DEFINER apaga a linha do PRÓPRIO usuário em auth.users. O
 -- `on delete cascade` de todas as FKs para auth.users (motorcycles/fuel_logs/
--- maintenance_logs/badge_awards/motorcycle_ownerships/users) remove os dados.
+-- maintenance_logs/expenses/badge_awards/motorcycle_ownerships/users) remove os dados.
 -- Chamada via client.rpc("delete_current_user") — ver SyncService.deleteAccount.
 create or replace function public.delete_current_user()
 returns void
@@ -271,6 +298,11 @@ create trigger fuel_logs_keep_earliest_created_at
 drop trigger if exists maintenance_logs_keep_earliest_created_at on public.maintenance_logs;
 create trigger maintenance_logs_keep_earliest_created_at
     before update on public.maintenance_logs
+    for each row execute function public.keep_earliest_created_at();
+
+drop trigger if exists expenses_keep_earliest_created_at on public.expenses;
+create trigger expenses_keep_earliest_created_at
+    before update on public.expenses
     for each row execute function public.keep_earliest_created_at();
 
 -- Moto (2026-10-08): o app passou a enviar `created_at` da moto — base da regra

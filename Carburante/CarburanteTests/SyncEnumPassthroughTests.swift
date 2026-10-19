@@ -39,6 +39,14 @@ final class SyncEnumPassthroughTests: XCTestCase {
         )
     }
 
+    private func expenseDTO(category: String) -> ExpenseDTO {
+        ExpenseDTO(
+            id: UUID(), motorcycle_id: UUID(), user_id: UUID(),
+            category: category, date: now, amount: 120, notes: "",
+            updated_at: now, revision: 1, deleted_at: nil, created_at: now
+        )
+    }
+
     func testUnknownFuelTypeKeySurvivesPull() {
         let log = FuelLog(odometer: 1_000, liters: 10, totalCost: 60, fuelType: .etanol)
         SyncService.applyFuel(fuelDTO(fuelType: "E10"), to: log)
@@ -73,5 +81,22 @@ final class SyncEnumPassthroughTests: XCTestCase {
 
         XCTAssertEqual(log.type, .pneus)
         XCTAssertEqual(log.tirePosition, .traseiro)
+    }
+
+    func testUnknownExpenseCategoryKeySurvivesPull() {
+        let expense = Expense(amount: 10, category: .toll)
+        SyncService.applyExpense(expenseDTO(category: "vignette"), to: expense)
+
+        XCTAssertEqual(expense.categoryRaw, "vignette", "chave desconhecida não pode virar o fallback")
+        XCTAssertEqual(expense.category, .other, "a tela usa o fallback")
+        XCTAssertEqual(expense.categoryLabel, "vignette", "rótulo mostra a chave crua, não \"Outra\"")
+        XCTAssertEqual(expense.amount, 120)
+    }
+
+    func testKnownExpenseCategoryKeyStillDecodes() {
+        let expense = Expense(amount: 10, category: .toll)
+        SyncService.applyExpense(expenseDTO(category: ExpenseCategory.insurance.rawValue), to: expense)
+
+        XCTAssertEqual(expense.category, .insurance)
     }
 }

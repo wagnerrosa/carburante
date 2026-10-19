@@ -212,19 +212,42 @@ enum Analytics {
 
     /// Abriu a tela Custos (Premium MVP, PLAN/premium-mvp.md §2). Com a super
     /// property `is_premium`, separa quem viu a tela inteira de quem viu a trava.
-    static func costsViewed(hasMaintenanceCost: Bool) {
-        capture("costs_viewed", ["has_maintenance_cost": hasMaintenanceCost])
+    static func costsViewed(hasMaintenanceCost: Bool, hasOtherCost: Bool) {
+        capture("costs_viewed", [
+            "has_maintenance_cost": hasMaintenanceCost,
+            "has_other_cost": hasOtherCost,
+        ])
+    }
+
+    /// Registrou uma outra despesa (IPVA, seguro, pedágio… — Custos v2). Mede a
+    /// adoção e quais categorias importam; nunca o valor.
+    /// `entryPoint`: "costs" (tela Custos) ou "expense_list" (histórico).
+    static func expenseCreated(category: ExpenseCategory, isFirst: Bool, isBackdated: Bool,
+                               hasNotes: Bool, entryPoint: String) {
+        capture("expense_created", [
+            "category": category.rawValue,
+            "is_first_expense": isFirst,
+            "is_backdated": isBackdated,
+            "has_notes": hasNotes,
+            "entry_point": entryPoint,
+        ])
+    }
+
+    static func expenseDeleted(category: ExpenseCategory) {
+        capture("expense_deleted", ["category": category.rawValue])
     }
 
     // MARK: - Dados
 
     /// Exportou os próprios dados (Ajustes → "Exportar meus dados"). Mede a
     /// procura pela exportação — só contagens em faixa, nunca conteúdo.
-    static func dataExported(bikeCount: Int, fuelLogCount: Int, maintenanceCount: Int) {
+    static func dataExported(bikeCount: Int, fuelLogCount: Int, maintenanceCount: Int,
+                             expenseCount: Int) {
         capture("data_exported", [
             "bike_count": bikeCount,
             "fuel_log_count_band": countBand(fuelLogCount),
             "maintenance_count_band": countBand(maintenanceCount),
+            "expense_count_band": countBand(expenseCount),
         ])
     }
 

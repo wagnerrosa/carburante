@@ -47,6 +47,7 @@ struct CarburanteApp: App {
             Motorcycle.self,
             FuelLog.self,
             MaintenanceLog.self,
+            Expense.self,
             BadgeAward.self,
             MotorcycleOwnership.self,
         ])

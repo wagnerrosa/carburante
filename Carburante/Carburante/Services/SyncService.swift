@@ -310,6 +310,7 @@ final class SyncService {
     static func eraseLocalData(in context: ModelContext) throws {
         try deleteAll(FuelLog.self, in: context)
         try deleteAll(MaintenanceLog.self, in: context)
+        try deleteAll(Expense.self, in: context)
         try deleteAll(BadgeAward.self, in: context)
         try deleteAll(MotorcycleOwnership.self, in: context)
         try deleteAll(Motorcycle.self, in: context)
@@ -445,6 +446,28 @@ final class SyncService {
                 context.insert(log)
             }
 
+            // --- Outras despesas ---
+            let remoteExpenses: [ExpenseDTO] = try await client
+                .from("expenses").select().execute().value
+            let localExpenses = try context.fetch(FetchDescriptor<Expense>())
+            let expenseByID = Dictionary(uniqueKeysWithValues: localExpenses.map { ($0.id, $0) })
+            for dto in remoteExpenses {
+                if let existing = expenseByID[dto.id] {
+                    // Last-write-wins por `updated_at` (idem abastecimentos).
+                    if dto.updated_at > existing.updatedAt {
+                        Self.applyExpense(dto, to: existing)
+                    }
+                    healCreatedAt(&existing.createdAt, remote: dto.created_at)
+                    continue
+                }
+                guard let moto = motoByID[dto.motorcycle_id] else { continue }
+                let expense = Expense(date: dto.date, amount: dto.amount, category: .other,
+                                      notes: dto.notes, motorcycle: moto, createdAt: dto.created_at)
+                expense.id = dto.id
+                Self.applyExpense(dto, to: expense)
+                context.insert(expense)
+            }
+
             // --- Badges conquistadas (sem moto; só user_id) ---
             let remoteAwards: [BadgeAwardDTO] = try await client
                 .from("badge_awards").select().execute().value
@@ -564,6 +587,18 @@ final class SyncService {
         log.deletedAt = dto.deleted_at
     }
 
+    /// Aplica os campos de um `ExpenseDTO` a uma `Expense`. Categoria como chave
+    /// crua — mesmo motivo de `applyFuel`.
+    static func applyExpense(_ dto: ExpenseDTO, to expense: Expense) {
+        expense.date = dto.date
+        expense.amount = dto.amount
+        expense.categoryRaw = dto.category
+        expense.notes = dto.notes
+        expense.updatedAt = dto.updated_at
+        expense.revision = dto.revision
+        expense.deletedAt = dto.deleted_at
+    }
+
     /// Faz push de todas as motos do usuário (e seus filhos) para o Supabase.
     /// Chamada com um push já em voo (ex.: save durante o sync do launch numa
     /// rede lenta) não é descartada: marca `pushPending` e o push em voo roda de
@@ -629,6 +664,21 @@ final class SyncService {
             }
             if !maintDTOs.isEmpty {
                 try await client.from("maintenance_logs").upsert(maintDTOs).execute()
+            }
+
+            // Array CRU (com as soft-deletadas), pelo mesmo motivo dos logs.
+            let expenseDTOs = motorcycles.flatMap { m in
+                m.expenses.map { e in
+                    ExpenseDTO(
+                        id: e.id, motorcycle_id: m.id, user_id: uid, category: e.categoryRaw,
+                        date: e.date, amount: e.amount, notes: e.notes,
+                        updated_at: e.updatedAt, revision: e.revision, deleted_at: e.deletedAt,
+                        created_at: e.createdAt
+                    )
+                }
+            }
+            if !expenseDTOs.isEmpty {
+                try await client.from("expenses").upsert(expenseDTOs).execute()
             }
 
             // Badges conquistadas (data carimbada, estilo Garmin) — não têm moto;

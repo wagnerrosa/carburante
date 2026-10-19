@@ -3,9 +3,10 @@
 //  Carburante
 //
 //  Tela "Custos" (Premium — PLAN/premium-mvp.md §2): quanto a moto custou de
-//  verdade, gasolina + manutenção. Mesmo padrão da tela de Consumo (Saúde
-//  "Mostrar todos os dados"): seletor de período, número-herói, gráfico e
-//  cards. Alcançada pelo tile "Gasto este mês" do Resumo e pelo perfil da
+//  verdade, gasolina + manutenção + outras despesas (IPVA, seguro, pedágio… —
+//  Custos v2, registro grátis pelo `+` daqui ou pelo perfil). Mesmo padrão da
+//  tela de Consumo (Saúde "Mostrar todos os dados"): seletor de período,
+//  número-herói, gráfico e cards. Alcançada pelo tile "Gasto este mês" do Resumo e pelo perfil da
 //  moto. Cálculo em `CostCalculator`.
 //
 //  Sem Premium: o mês fica visível (o gasto do mês já é grátis no Resumo) e o
@@ -20,6 +21,7 @@ struct CostsView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var period: Period = .year
     @State private var showPaywall = false
+    @State private var showingAddExpense = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Period: String, CaseIterable, Identifiable {
@@ -33,7 +35,8 @@ struct CostsView: View {
     private var now: Date { Date() }
 
     private var fuel: [FuelEntry] { motorcycle.consumptionEntries }
-    private var maintenance: [MaintenanceCost] { motorcycle.maintenanceCosts }
+    private var maintenance: [CostItem] { motorcycle.maintenanceCosts }
+    private var other: [CostItem] { motorcycle.otherCosts }
 
     private var isPremium: Bool { PremiumService.shared.isPremium }
 
@@ -41,19 +44,19 @@ struct CostsView: View {
     private var shownPeriod: Period { isPremium ? period : .month }
 
     private var hasAnyCost: Bool {
-        fuel.contains { $0.totalCost > 0 } || !maintenance.isEmpty
+        fuel.contains { $0.totalCost > 0 } || !maintenance.isEmpty || !other.isEmpty
     }
 
     private var interval: DateInterval? {
         switch shownPeriod {
         case .month: calendar.dateInterval(of: .month, for: now)
         case .year: calendar.dateInterval(of: .year, for: now)
-        case .all: CostCalculator.allTimeInterval(fuel: fuel, maintenance: maintenance, now: now)
+        case .all: CostCalculator.allTimeInterval(fuel: fuel, maintenance: maintenance, other: other, now: now)
         }
     }
 
     private var summary: CostSummary {
-        interval.map { CostCalculator.summary(fuel: fuel, maintenance: maintenance, in: $0) } ?? .empty
+        interval.map { CostCalculator.summary(fuel: fuel, maintenance: maintenance, other: other, in: $0) } ?? .empty
     }
 
     var body: some View {
@@ -64,18 +67,38 @@ struct CostsView: View {
                 ContentUnavailableView {
                     Label("Nenhum custo registrado", systemImage: "brazilianrealsign.circle")
                 } description: {
-                    Text("Os gastos com gasolina e manutenção aparecem aqui conforme você registra.")
+                    Text("Os gastos com gasolina, manutenção e outras despesas aparecem aqui conforme você registra.")
+                } actions: {
+                    Button {
+                        showingAddExpense = true
+                    } label: {
+                        Label("Adicionar despesa", systemImage: "plus")
+                    }
                 }
             }
         }
         .navigationTitle("Custos")
         .navigationBarTitleDisplayMode(.inline)
         .tint(motorcycle.themeColor)
+        .toolbar {
+            // Como "Adicionar dados" do Saúde: registra o que só existe aqui
+            // (IPVA, seguro…). Grátis — a trava é só a dos números.
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingAddExpense = true
+                } label: {
+                    Label("Adicionar despesa", systemImage: "plus")
+                }
+            }
+        }
         .onAppear {
-            Analytics.costsViewed(hasMaintenanceCost: !maintenance.isEmpty)
+            Analytics.costsViewed(hasMaintenanceCost: !maintenance.isEmpty, hasOtherCost: !other.isEmpty)
         }
         .sheet(isPresented: $showPaywall) {
             PremiumPaywallView(reason: .costs)
+        }
+        .sheet(isPresented: $showingAddExpense) {
+            GarageGated(motorcycle) { ExpenseFormView(motorcycle: motorcycle, entryPoint: "costs") }
         }
     }
 
@@ -95,6 +118,9 @@ struct CostsView: View {
                     perKmCard
                     if !summary.maintenanceByType.isEmpty {
                         byTypeCard
+                    }
+                    if !summary.otherByCategory.isEmpty {
+                        otherCard
                     }
                     switch period {
                     case .year: yearCard
@@ -121,7 +147,7 @@ struct CostsView: View {
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .contentTransition(.numericText())
-            Text("Gasolina \(AppFormat.currency(summary.fuel)) · Manutenção \(AppFormat.currency(summary.maintenance))")
+            Text(breakdown)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Text(periodDescription)
@@ -130,6 +156,17 @@ struct CostsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.default, value: period)
+    }
+
+    /// "Gasolina R$ … · Manutenção R$ …", e "· Outras R$ …" quando a moto tem
+    /// outra despesa registrada (some para quem nunca registrou uma). Espaço
+    /// inseparável entre rótulo e valor: a linha quebra entre as partes, nunca
+    /// deixa "Outras" sozinho no fim da linha.
+    private var breakdown: String {
+        var parts = ["Gasolina\u{00A0}\(AppFormat.currency(summary.fuel))",
+                     "Manutenção\u{00A0}\(AppFormat.currency(summary.maintenance))"]
+        if !other.isEmpty { parts.append("Outras\u{00A0}\(AppFormat.currency(summary.other))") }
+        return parts.joined(separator: " · ")
     }
 
     private var periodDescription: String {
@@ -168,7 +205,7 @@ struct CostsView: View {
                         .accessibilityHidden(true)
                     Text("Custos completos")
                         .font(.headline)
-                    Text("O ano todo, o custo real por km e para onde vai o dinheiro da manutenção.")
+                    Text("O ano todo, o custo real por km e para onde vai o dinheiro.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -193,7 +230,9 @@ struct CostsView: View {
     // MARK: - Mês a mês
 
     private var monthlyCard: some View {
-        let months = CostCalculator.monthly(fuel: fuel, maintenance: maintenance, now: now)
+        let months = CostCalculator.monthly(fuel: fuel, maintenance: maintenance, other: other, now: now)
+        // "Outras" só entra (barra e legenda) para quem tem outra despesa.
+        let showsOther = !other.isEmpty
         return GroupedCard {
             VStack(alignment: .leading, spacing: 12) {
                 cardTitle("Últimos 12 meses", systemImage: "chart.bar.fill")
@@ -205,12 +244,23 @@ struct CostsView: View {
                         BarMark(x: .value("Mês", m.month, unit: .month),
                                 y: .value("Valor", m.maintenance))
                             .foregroundStyle(by: .value("Tipo", "Manutenção"))
+                        if showsOther {
+                            BarMark(x: .value("Mês", m.month, unit: .month),
+                                    y: .value("Valor", m.other))
+                                .foregroundStyle(by: .value("Tipo", "Outras"))
+                        }
                     }
                 }
-                .chartForegroundStyleScale([
-                    "Gasolina": motorcycle.themeColor,
-                    "Manutenção": Color(.systemGray3),
-                ])
+                // Gasolina no tema; manutenção e outras em cinzas neutros (cor
+                // escassa, DESIGN §4). Os dois cinzas se separam pela
+                // luminosidade (ΔE ≥ 18 em todo tipo de daltonismo, claro e
+                // escuro); a legenda nomeia.
+                .chartForegroundStyleScale(
+                    domain: showsOther ? ["Gasolina", "Manutenção", "Outras"] : ["Gasolina", "Manutenção"],
+                    range: showsOther
+                        ? [motorcycle.themeColor, Color(.systemGray3), Color(.systemGray)]
+                        : [motorcycle.themeColor, Color(.systemGray3)]
+                )
                 .chartLegend(position: .bottom, alignment: .leading)
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .month, count: 2)) { _ in
@@ -238,7 +288,7 @@ struct CostsView: View {
         GroupedCard {
             VStack(alignment: .leading, spacing: 12) {
                 cardTitle("Custo por km", systemImage: "road.lanes")
-                row("Real (gasolina + manutenção)", summary.costPerKm.map(AppFormat.currency) ?? "—", bold: true)
+                row("Real (todos os custos)", summary.costPerKm.map(AppFormat.currency) ?? "—", bold: true)
                 Divider()
                 row("Só gasolina", summary.fuelCostPerKm.map(AppFormat.currency) ?? "—")
                 Divider()
@@ -261,11 +311,40 @@ struct CostsView: View {
         }
     }
 
+    // MARK: - Outras despesas por categoria
+
+    private var otherCard: some View {
+        GroupedCard {
+            VStack(alignment: .leading, spacing: 12) {
+                cardTitle("Outras despesas", systemImage: "receipt.fill")
+                ForEach(Array(summary.otherByCategory.enumerated()), id: \.offset) { index, item in
+                    if index > 0 { Divider() }
+                    row(item.label, AppFormat.currency(item.amount))
+                }
+                Divider()
+                NavigationLink {
+                    ExpenseListView(motorcycle: motorcycle)
+                } label: {
+                    HStack {
+                        Text("Ver todas")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Color(.tertiaryLabel))
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.tint)
+            }
+        }
+    }
+
     // MARK: - Ritmo do ano / média
 
     @ViewBuilder
     private var yearCard: some View {
-        let pace = CostCalculator.yearPace(fuel: fuel, maintenance: maintenance, now: now)
+        let pace = CostCalculator.yearPace(fuel: fuel, maintenance: maintenance, other: other, now: now)
         if pace.projection != nil || pace.previousSamePeriod != nil {
             // String, não interpolação no título: `LocalizedStringKey` formata o
             // ano como número ("2.025").

@@ -99,6 +99,24 @@ struct MaintenanceLogDTO: Codable {
     let created_at: Date
 }
 
+/// Outra despesa (IPVA, seguro, pedágio…). `category` = chave congelada de
+/// `ExpenseCategory`, copiada crua no pull (compat. para frente).
+struct ExpenseDTO: Codable {
+    let id: UUID
+    let motorcycle_id: UUID
+    let user_id: UUID
+    let category: String
+    let date: Date
+    let amount: Double
+    let notes: String
+    // Soft Revision — mesma tripla do FuelLogDTO.
+    let updated_at: Date
+    let revision: Int
+    let deleted_at: Date?
+    /// Ver `FuelLogDTO.created_at`.
+    let created_at: Date
+}
+
 struct BadgeAwardDTO: Codable {
     let id: UUID
     let user_id: UUID

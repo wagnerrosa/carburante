@@ -24,7 +24,7 @@ final class LocalWipeTests: XCTestCase {
     private func makeOnDiskContext() throws -> ModelContext {
         storeDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: storeDir, withIntermediateDirectories: true)
-        let schema = Schema([Motorcycle.self, FuelLog.self, MaintenanceLog.self,
+        let schema = Schema([Motorcycle.self, FuelLog.self, MaintenanceLog.self, Expense.self,
                              BadgeAward.self, MotorcycleOwnership.self])
         let config = ModelConfiguration(schema: schema, url: storeDir.appendingPathComponent("wipe.store"))
         return ModelContext(try ModelContainer(for: schema, configurations: config))
@@ -39,6 +39,7 @@ final class LocalWipeTests: XCTestCase {
                                fuelType: .gasolinaComum, motorcycle: moto))
         }
         ctx.insert(MaintenanceLog(mileage: 1100, type: .oleo, motorcycle: moto))
+        ctx.insert(Expense(amount: 300, category: .ipva, motorcycle: moto))
         ctx.insert(FuelLog(odometer: 500, liters: 8, totalCost: 48, fuelType: .gasolinaComum))  // órfão
         ctx.insert(BadgeAward(badgeID: "first_fuel", earnedAt: Date()))
         ctx.insert(MotorcycleOwnership(motorcycleID: moto.id, userID: UUID()))
@@ -46,6 +47,7 @@ final class LocalWipeTests: XCTestCase {
         // Como nas telas: relacionamentos já carregados na memória.
         XCTAssertEqual(moto.fuelLogs.count, 3)
         XCTAssertEqual(moto.maintenanceLogs.count, 1)
+        XCTAssertEqual(moto.expenses.count, 1)
 
         try SyncService.eraseLocalData(in: ctx)
 
@@ -54,6 +56,7 @@ final class LocalWipeTests: XCTestCase {
         XCTAssertEqual(try disk.fetchCount(FetchDescriptor<Motorcycle>()), 0)
         XCTAssertEqual(try disk.fetchCount(FetchDescriptor<FuelLog>()), 0)
         XCTAssertEqual(try disk.fetchCount(FetchDescriptor<MaintenanceLog>()), 0)
+        XCTAssertEqual(try disk.fetchCount(FetchDescriptor<Expense>()), 0)
         XCTAssertEqual(try disk.fetchCount(FetchDescriptor<BadgeAward>()), 0)
         XCTAssertEqual(try disk.fetchCount(FetchDescriptor<MotorcycleOwnership>()), 0)
     }

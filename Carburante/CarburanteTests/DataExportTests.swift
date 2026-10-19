@@ -16,7 +16,7 @@ final class DataExportTests: XCTestCase {
     private func makeContext() throws -> ModelContext {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: Motorcycle.self, FuelLog.self, MaintenanceLog.self,
-                                           configurations: config)
+                                           Expense.self, configurations: config)
         return ModelContext(container)
     }
 
@@ -98,11 +98,33 @@ final class DataExportTests: XCTestCase {
         XCTAssertTrue(rows[1].contains(";\"Motul; 10W40\";"))  // observação com ; vai entre aspas
     }
 
+    func testExpenseRowsExcludeDeletedAndKeepUnknownCategoryRaw() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Yamaha", model: "MT-03", year: 2024, country: "Brasil")
+        ctx.insert(moto)
+        let ipva = Expense(date: Date(timeIntervalSince1970: 1_000_000), amount: 412.5,
+                           category: .ipva, notes: "Cota única; 3% desconto", motorcycle: moto)
+        let future = Expense(date: Date(timeIntervalSince1970: 2_000_000), amount: 15,
+                             category: .toll, motorcycle: moto)
+        let gone = Expense(amount: 99, category: .wash, motorcycle: moto)
+        for e in [future, ipva, gone] { ctx.insert(e) }
+        future.categoryRaw = "vignette"  // chave de um build mais novo
+        gone.deletedAt = Date()
+        try ctx.save()
+
+        let rows = lines(DataExport.expensesCSV([moto]))
+        XCTAssertEqual(rows.count, 3)  // cabeçalho + 2 ativos
+        XCTAssertEqual(rows[0], "Moto;ID da moto;Data;Categoria;Valor (R$);Observações;Registrado em")
+        XCTAssertTrue(rows[1].contains(";IPVA;412,50;\"Cota única; 3% desconto\";"))
+        XCTAssertTrue(rows[2].contains(";vignette;15,00;;"))
+    }
+
     func testFilesAreNamedByTypeAndDay() {
         let day = DateComponents(calendar: Calendar(identifier: .gregorian), year: 2026, month: 10, day: 8, hour: 12).date!
         let names = DataExport.files(for: [], date: day).map(\.name)
         XCTAssertEqual(names, ["carburante-motos-2026-10-08.csv",
                                "carburante-abastecimentos-2026-10-08.csv",
-                               "carburante-manutencoes-2026-10-08.csv"])
+                               "carburante-manutencoes-2026-10-08.csv",
+                               "carburante-despesas-2026-10-08.csv"])
     }
 }

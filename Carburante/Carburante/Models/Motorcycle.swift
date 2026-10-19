@@ -64,6 +64,10 @@ final class Motorcycle {
     @Relationship(deleteRule: .cascade, inverse: \MaintenanceLog.motorcycle)
     var maintenanceLogs: [MaintenanceLog] = []
 
+    /// Outras despesas (IPVA, seguro, pedágio…). Apagar a moto apaga as despesas.
+    @Relationship(deleteRule: .cascade, inverse: \Expense.motorcycle)
+    var expenses: [Expense] = []
+
     init(
         make: String,
         model: String,
@@ -125,14 +129,15 @@ extension Motorcycle {
         statusChangedAt = now
     }
 
-    /// Exclui a moto logicamente e, em cascata, seus abastecimentos e manutenções
-    /// (cada filho carimba o próprio `deletedAt`/`updatedAt` → o push propaga e o
-    /// pull LWW dos outros devices aplica). Idempotente.
+    /// Exclui a moto logicamente e, em cascata, seus abastecimentos, manutenções
+    /// e despesas (cada filho carimba o próprio `deletedAt`/`updatedAt` → o push
+    /// propaga e o pull LWW dos outros devices aplica). Idempotente.
     func softDelete(now: Date = Date()) {
         guard deletedAt == nil else { return }
         deletedAt = now
         for log in fuelLogs { log.softDelete(now: now) }
         for log in maintenanceLogs { log.softDelete(now: now) }
+        for expense in expenses { expense.softDelete(now: now) }
     }
 
     // MARK: - Eventos vivos (Soft Revision — Fase 1)
@@ -148,6 +153,11 @@ extension Motorcycle {
     /// Manutenções NÃO deletadas logicamente. Mesma regra de `activeFuelLogs`.
     var activeMaintenanceLogs: [MaintenanceLog] {
         maintenanceLogs.filter { $0.deletedAt == nil }
+    }
+
+    /// Despesas NÃO deletadas logicamente. Mesma regra de `activeFuelLogs`.
+    var activeExpenses: [Expense] {
+        expenses.filter { $0.deletedAt == nil }
     }
 
     /// Categoria tipada. Getter tolerante (valor desconhecido → `.other`),

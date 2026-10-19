@@ -799,20 +799,24 @@ struct CardHeader: View {
 }
 
 extension Motorcycle {
-    /// Texto de confirmação de exclusão com o resumo do cascade (abastecimentos
-    /// e manutenções que se perdem junto). Compartilhado entre a Garagem (swipe
-    /// em "Outras motos") e o perfil da moto ("Excluir moto").
+    /// Texto de confirmação de exclusão com o resumo do cascade (abastecimentos,
+    /// manutenções e despesas que se perdem junto). Compartilhado entre a
+    /// Garagem (swipe em "Outras motos") e o perfil da moto ("Excluir moto").
     var deletionConfirmationText: String {
         let fuel = activeFuelLogs.count
         let maint = activeMaintenanceLogs.count
+        let expenses = activeExpenses.count
         var parts: [String] = []
         if fuel > 0 { parts.append("\(fuel) abastecimento\(fuel == 1 ? "" : "s")") }
         if maint > 0 { parts.append("\(maint) manutenç\(maint == 1 ? "ão" : "ões")") }
+        if expenses > 0 { parts.append("\(expenses) despesa\(expenses == 1 ? "" : "s")") }
 
-        if parts.isEmpty {
+        guard let last = parts.last else {
             return "Excluir \(displayName)?"
         }
-        return "Excluir \(displayName) e \(parts.joined(separator: " e "))? Esta ação não pode ser desfeita."
+        // "A, B e C" — vírgula entre os primeiros, "e" só antes do último.
+        let list = parts.count == 1 ? last : parts.dropLast().joined(separator: ", ") + " e " + last
+        return "Excluir \(displayName) e \(list)? Esta ação não pode ser desfeita."
     }
 }
 
@@ -827,6 +831,22 @@ extension MaintenanceType {
         case .freios: .red
         case .revisao: .purple
         case .outro: .gray
+        }
+    }
+}
+
+extension ExpenseCategory {
+    /// Cor semântica do tile por categoria de despesa — por natureza, não uma
+    /// cor por item (cor escassa, DESIGN §4): governo (IPVA, licenciamento,
+    /// multa), contratos (seguro, financiamento), uso da rua (pedágio,
+    /// estacionamento), a moto em si (acessórios, lavagem). O símbolo diz qual.
+    var tint: Color {
+        switch self {
+        case .ipva, .licensing, .fine: .indigo
+        case .insurance, .financing: .green
+        case .toll, .parking: .blue
+        case .accessories, .wash: .orange
+        case .other: .gray
         }
     }
 }

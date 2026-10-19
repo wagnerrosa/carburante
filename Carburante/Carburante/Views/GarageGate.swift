@@ -43,7 +43,8 @@ extension GarageLimit {
 extension GarageLimit.Bike {
     init(_ motorcycle: Motorcycle) {
         let lastLog = (motorcycle.activeFuelLogs.map(\.createdAt)
-                       + motorcycle.activeMaintenanceLogs.map(\.createdAt)).max()
+                       + motorcycle.activeMaintenanceLogs.map(\.createdAt)
+                       + motorcycle.activeExpenses.map(\.createdAt)).max()
         self.init(id: motorcycle.id,
                   status: motorcycle.status,
                   createdAt: motorcycle.createdAt,
