@@ -36,7 +36,7 @@ enum PaywallReason: String {
     var message: String {
         switch self {
         case .settings:
-            "Sem anúncios. Seus dados não são vendidos. O Premium mantém o Carburante."
+            "O Carburante não tem anúncios e não vende seus dados. O Premium mantém o app assim."
         case .secondBike:
             "No plano grátis, a garagem tem uma moto ativa. Vai trocar de moto? Coloque a atual à venda e cadastre a nova."
         case .readOnlyBike:
