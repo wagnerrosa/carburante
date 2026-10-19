@@ -90,6 +90,17 @@ final class ExpenseTests: XCTestCase {
         XCTAssertEqual(moto.monthlySpending(now: now).map(\.total), [0, 0, 0, 0, 50, 480])
     }
 
+    /// "Repetir" só com chave conhecida (frozen keys): a nova despesa nasce no
+    /// form, que trocaria uma chave de build mais novo por "Outra".
+    func testOnlyKnownCategoriesAreRepeatable() {
+        let wash = Expense(amount: 100, category: .wash)
+        XCTAssertTrue(wash.isRepeatable)
+        let future = Expense(amount: 80, category: .other)
+        future.categoryRaw = "registration_fee"
+        XCTAssertFalse(future.isRepeatable)
+        XCTAssertEqual(future.categoryLabel, "registration_fee")
+    }
+
     func testDeletionTextListsExpensesWithCommaAndE() throws {
         let ctx = try makeContext()
         let moto = Motorcycle(make: "Honda", model: "CG 160", year: 2024, country: "Brasil")
