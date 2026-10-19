@@ -70,7 +70,8 @@ struct ChallengeActivityFeed: View {
         let route = ChallengeRoute.entry(challenge: challenge.id, entry: entry.id)
         return VStack(alignment: .leading, spacing: 10) {
             NavigationLink(value: route) {
-                ChallengeActivityRow(entry: entry, standing: standing)
+                ChallengeActivityRow(entry: entry, standing: standing,
+                                     verdict: challenge.photoVerdict(on: entry.id))
             }
             .buttonStyle(.plain)
             ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route,
@@ -88,6 +89,8 @@ struct ChallengeActivityRow: View {
     let entry: ChallengeEntry
     let standing: ChallengeStanding
     var showsOdometer = false
+    /// Conferência da turma: com "suspeito", o selo laranja logo abaixo do nome.
+    var verdict: PhotoVerdict?
     /// Na tela do abastecimento as fotos abrem em tela cheia. No mural é nil:
     /// o topo do card inteiro é um toque só.
     var onOpenPhoto: ((ViewedPhoto) -> Void)?
@@ -131,6 +134,10 @@ struct ChallengeActivityRow: View {
                 }
             }
             .accessibilityElement(children: .combine)
+
+            if verdict?.isSuspect == true {
+                SuspectPhotoLabel()
+            }
 
             if entry.challengePhotoRef != nil {
                 openable(entry.challengePhotoRef, title: "Foto do desafio") {
@@ -176,6 +183,90 @@ struct ChallengeActivityRow: View {
         } else {
             content()
         }
+    }
+}
+
+// MARK: - Foto suspeita
+
+/// Selo da conferência: a turma acha a foto do hodômetro suspeita. Não tira
+/// km — é a credibilidade do registro; a conversa vai para os comentários.
+struct SuspectPhotoLabel: View {
+    var body: some View {
+        Label("Foto do hodômetro suspeita", systemImage: "exclamationmark.triangle.fill")
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.orange)
+    }
+}
+
+/// "A foto confere?" na tela do abastecimento. Um voto por pessoa (toque de
+/// novo tira); quem registrou só vê o resultado.
+struct PhotoVoteControl: View {
+    let verdict: PhotoVerdict
+    let mine: PhotoVote?
+    let canVote: Bool
+    let onVote: (PhotoVote) -> Void
+
+    var body: some View {
+        if canVote || verdict.hasVotes {
+            VStack(alignment: .leading, spacing: 8) {
+                if canVote {
+                    Text("A foto do hodômetro confere?")
+                        .font(.subheadline.weight(.semibold))
+                    HStack(spacing: 8) {
+                        button(.ok, title: "Confere", symbol: "checkmark.circle",
+                               count: verdict.ok.count, color: .green)
+                        button(.suspect, title: "Suspeito", symbol: "exclamationmark.triangle",
+                               count: verdict.suspect.count, color: .orange)
+                    }
+                }
+                if verdict.hasVotes {
+                    Text(names)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("Não muda o km. Vira suspeito quando 2 ou mais acham e são maioria.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// "Suspeito: Carla, Diego · Confere: Ana" — voto com nome, entre amigos.
+    private var names: String {
+        var parts: [String] = []
+        if !verdict.suspect.isEmpty { parts.append("Suspeito: \(verdict.suspect.joined(separator: ", "))") }
+        if !verdict.ok.isEmpty { parts.append("Confere: \(verdict.ok.joined(separator: ", "))") }
+        return parts.joined(separator: " · ")
+    }
+
+    private func button(_ vote: PhotoVote, title: String, symbol: String, count: Int, color: Color) -> some View {
+        let selected = mine == vote
+        return Button {
+            onVote(vote)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: selected ? "\(symbol).fill" : symbol)
+                Text(title)
+                if count > 0 {
+                    Text("\(count)").monospacedDigit()
+                }
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(selected ? color : Color.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(selected ? AnyShapeStyle(color.opacity(0.15)) : AnyShapeStyle(Color(.tertiarySystemFill)),
+                        in: Capsule())
+            .overlay {
+                if selected { Capsule().strokeBorder(color, lineWidth: 1) }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title), \(count)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -429,6 +520,17 @@ struct ChallengeParticipantView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                    let suspects = challenge.suspectCount(of: standing.id)
+                    if suspects > 0 {
+                        // HStack, não Label: centralizado, o Label afastava o ícone do texto.
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                            Text(suspects == 1 ? "1 foto suspeita" : "\(suspects) fotos suspeitas")
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.orange)
+                        .padding(.top, 2)
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
@@ -458,7 +560,8 @@ struct ChallengeParticipantView: View {
                 ForEach(entries) { entry in
                     NavigationLink(value: ChallengeRoute.entry(challenge: challenge.id, entry: entry.id)) {
                         ParticipantEntryRow(entry: entry, showsBike: standing.bikes.count > 1,
-                                            commentCount: challenge.commentCount(on: entry.id))
+                                            commentCount: challenge.commentCount(on: entry.id),
+                                            isSuspect: challenge.photoVerdict(on: entry.id).isSuspect)
                     }
                 }
             } header: {
@@ -506,6 +609,7 @@ struct ParticipantEntryRow: View {
     let entry: ChallengeEntry
     var showsBike = false
     var commentCount = 0
+    var isSuspect = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var detail: String {
@@ -536,6 +640,11 @@ struct ParticipantEntryRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(AppFormat.relativeDay(entry.date))
+                    if isSuspect {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                     if entry.challengePhotoRef != nil {
                         Image(systemName: "photo")
                             .font(.caption)
@@ -579,6 +688,7 @@ struct ParticipantEntryRow: View {
         else if let title = entry.statusTitle { parts.append(title) }
         parts.append(detail)
         if entry.challengePhotoRef != nil { parts.append("com foto do desafio") }
+        if isSuspect { parts.append("foto do hodômetro suspeita") }
         if commentCount > 0 { parts.append(commentCount == 1 ? "1 comentário" : "\(commentCount) comentários") }
         return parts.joined(separator: ". ")
     }
@@ -596,6 +706,7 @@ struct ChallengeEntryView: View {
     var onPost: (String) -> Void = { _ in }
     var onDelete: (ChallengeComment) -> Void = { _ in }
     var onReact: (String) -> Void = { _ in }
+    var onVote: (PhotoVote) -> Void = { _ in }
 
     @State private var draft = ""
     @State private var pickingEmoji = false
@@ -609,7 +720,14 @@ struct ChallengeEntryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     VStack(alignment: .leading, spacing: 12) {
-                        ChallengeActivityRow(entry: entry, standing: standing, showsOdometer: true) { viewing = $0 }
+                        ChallengeActivityRow(entry: entry, standing: standing, showsOdometer: true,
+                                             verdict: challenge.photoVerdict(on: entry.id)) { viewing = $0 }
+                        if entry.odometerPhotoRef != nil {
+                            PhotoVoteControl(verdict: challenge.photoVerdict(on: entry.id),
+                                             mine: challenge.myVote(on: entry.id),
+                                             canVote: challenge.canVote(on: entry),
+                                             onVote: onVote)
+                        }
                         ChallengeEntryFooter(challenge: challenge, entry: entry,
                                              onReact: onReact, onMoreEmoji: { pickingEmoji = true })
                     }

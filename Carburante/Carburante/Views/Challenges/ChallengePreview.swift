@@ -6,7 +6,7 @@
 //  servidor. Só DEBUG, só em memória — não toca SwiftData nem Supabase.
 //
 //  Launch arg `-challengesPreview <tela>` liga a aba e abre a tela:
-//  board | activity | participant | entry | details | empty | invite | inviteAnon | form | resumo.
+//  board | activity | participant | entry | suspect | details | empty | invite | inviteAnon | form | resumo.
 //  Fotos: Documents/ChallengePreview/<ref>.jpg no simulador (sem elas, a
 //  capa padrão / um quadro cinza).
 //
@@ -16,7 +16,7 @@ import Foundation
 
 enum ChallengePreview {
     enum Screen: String {
-        case board, activity, participant, entry, details, empty, invite, inviteAnon, form, resumo
+        case board, activity, participant, entry, suspect, details, empty, invite, inviteAnon, form, resumo
     }
 
     static var screen: Screen? {
@@ -30,6 +30,7 @@ enum ChallengePreview {
         case .activity: .activity
         case .participant: .participant(participantID)
         case .entry: .entry(entryID)
+        case .suspect: .entry(suspectEntryID)
         case .details: .details
         case .invite: .invite(anonymous: false)
         case .inviteAnon: .invite(anonymous: true)
@@ -78,6 +79,8 @@ enum ChallengePreview {
     private static let noPhotoEntryID = UUID()
     private static let myEntryID = UUID()
     private static let diegoEntryID = UUID()
+    /// MT-07 do Bruno, foto da galeria: a turma desconfia.
+    static let suspectEntryID = UUID()
 
     // MARK: Turma da serra (mês corrente, ativo)
 
@@ -105,7 +108,7 @@ enum ChallengePreview {
             e(3, gs, day(2, 11, 20), 9_870, .counted(km: 190), gallery: true),
             e(4, himalayan, day(3, 16, 5), 31_400, .counted(km: 205), extra: "IMG_0004", id: diegoEntryID),
             e(0, cb500, day(4, 8, 40), 18_700, .counted(km: 310)),
-            e(2, mt07, day(4, 19, 15), 15_330, .counted(km: 520), gallery: true),
+            e(2, mt07, day(4, 19, 15), 15_330, .counted(km: 520), gallery: true, id: suspectEntryID),
             e(5, twin, day(5, 10, 0), 6_120, .start),
             e(1, iron, day(6, 17, 30), 21_725, .counted(km: 340)),
             e(3, gs, day(8, 9, 0), 9_680, .counted(km: 330), extra: "IMG_0005"),
@@ -129,6 +132,9 @@ enum ChallengePreview {
             c(noPhotoEntryID, 3, ago(minutes: 200), "Cadê a foto do hodômetro, Bruno? 👀"),
             c(noPhotoEntryID, 2, ago(minutes: 185), "Esqueci! Os km vão no próximo, juro 😅"),
             c(myEntryID, 4, day(1, 19, 10), "Essa Iron tá rodando mais que a minha Himalayan"),
+            c(suspectEntryID, 3, day(4, 20, 2), "520 km em 4 dias e foto da galeria? 🤔"),
+            c(suspectEntryID, 2, day(4, 20, 15), "Desci pra praia no feriado, pô! Tirei a foto no posto e registrei em casa"),
+            c(suspectEntryID, 4, day(4, 21, 0), "Esse painel não é de MT-07 não"),
         ]
         func r(_ entry: UUID, _ who: Int, _ emoji: String) -> ChallengeReactionMark {
             ChallengeReactionMark(entryID: entry, memberID: ids[who], emoji: emoji)
@@ -138,11 +144,17 @@ enum ChallengePreview {
             r(noPhotoEntryID, 3, "😂"), r(noPhotoEntryID, 0, "😂"), r(noPhotoEntryID, 5, "🙄"),
             r(myEntryID, 0, "🏍️"), r(myEntryID, 4, "🤘"), r(myEntryID, 3, "🏍️"),
             r(diegoEntryID, 0, "🌧️"), r(diegoEntryID, 5, "🥶"), r(diegoEntryID, 2, "🌧️"),
+            r(suspectEntryID, 4, "🤔"),
+        ]
+        let votes = [
+            ChallengePhotoVoteMark(entryID: suspectEntryID, memberID: ids[3], key: "suspect"),
+            ChallengePhotoVoteMark(entryID: suspectEntryID, memberID: ids[4], key: "suspect"),
+            ChallengePhotoVoteMark(entryID: suspectEntryID, memberID: ids[0], key: "ok"),
         ]
         return Challenge(id: UUID(), name: "Turma da serra", startDate: start, endDate: end,
                          createdByName: "Wagner", code: "K7QM4XPR", coverRef: "IMG_0005",
                          standings: standings, entries: entries, comments: comments,
-                         reactions: reactions, createdByMe: true)
+                         reactions: reactions, photoVotes: votes, createdByMe: true)
     }()
 
     // MARK: Bate-volta de domingo (1 semana, ativo, sem capa)

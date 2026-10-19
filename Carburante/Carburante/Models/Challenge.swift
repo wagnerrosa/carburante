@@ -28,6 +28,8 @@ struct Challenge: Identifiable, Hashable {
     var comments: [ChallengeComment] = []
     /// Reações (emoji livre) nos abastecimentos do mural — 1 por pessoa por abastecimento.
     var reactions: [ChallengeReactionMark] = []
+    /// Votos na foto do hodômetro (confere × suspeito) — 1 por pessoa por abastecimento.
+    var photoVotes: [ChallengePhotoVoteMark] = []
     /// Quem criou modera: troca o código e apaga comentário de qualquer um.
     var createdByMe = false
 
@@ -106,6 +108,44 @@ struct Challenge: Identifiable, Hashable {
             $0.count != $1.count ? $0.count > $1.count
                 : order.firstIndex(of: $0.emoji)! < order.firstIndex(of: $1.emoji)!
         }
+    }
+
+    // MARK: Foto suspeita
+
+    /// Vota quem está no desafio, na foto dos outros. Sem foto, nada a conferir.
+    func canVote(on entry: ChallengeEntry) -> Bool {
+        canReact(to: entry) && entry.odometerPhotoRef != nil
+    }
+
+    func myVote(on entryID: UUID) -> PhotoVote? {
+        guard let me else { return nil }
+        return photoVotes.first { $0.entryID == entryID && $0.memberID == me.id }?.vote
+    }
+
+    /// Mesmo jeito da reação: outro voto troca, o mesmo de novo tira.
+    mutating func vote(_ vote: PhotoVote, on entry: ChallengeEntry) {
+        guard let me, canVote(on: entry) else { return }
+        let previous = myVote(on: entry.id)
+        photoVotes.removeAll { $0.entryID == entry.id && $0.memberID == me.id }
+        if previous != vote {
+            photoVotes.append(ChallengePhotoVoteMark(entryID: entry.id, memberID: me.id, key: vote.rawValue))
+        }
+    }
+
+    func photoVerdict(on entryID: UUID) -> PhotoVerdict {
+        let marks = photoVotes.filter { $0.entryID == entryID }
+        func names(_ vote: PhotoVote) -> [String] {
+            marks.filter { $0.vote == vote }
+                .compactMap { standing(for: $0.memberID) }
+                .sorted { $0.isMe && !$1.isMe }
+                .map { $0.isMe ? "Você" : $0.firstName }
+        }
+        return PhotoVerdict(suspect: names(.suspect), ok: names(.ok))
+    }
+
+    /// Quantos registros do piloto estão marcados como suspeitos.
+    func suspectCount(of memberID: UUID) -> Int {
+        entries(of: memberID).count(where: { photoVerdict(on: $0.id).isSuspect })
     }
 
     enum Phase: Equatable {
@@ -262,6 +302,44 @@ struct ReactionTally: Hashable, Identifiable {
     let names: [String]
 
     var id: String { emoji }
+}
+
+/// Voto na foto do hodômetro. Chave ASCII congelada (vai para o servidor).
+enum PhotoVote: String, CaseIterable {
+    case ok, suspect
+}
+
+struct ChallengePhotoVoteMark: Hashable {
+    var entryID: UUID
+    var memberID: UUID
+    /// Chave crua; de versão mais nova do app, não conta.
+    var key: String
+
+    var vote: PhotoVote? { PhotoVote(rawValue: key) }
+}
+
+/// Resultado da conferência da foto. **Não mexe no km** — é a credibilidade
+/// do registro diante da turma; a conversa vai para os comentários.
+struct PhotoVerdict: Hashable {
+    /// Quem achou suspeito / quem disse que confere ("Você" primeiro).
+    let suspect: [String]
+    let ok: [String]
+
+    /// Uma pessoa sozinha não marca ninguém.
+    static let minimumSuspectVotes = 2
+
+    /// Suspeito: pelo menos 2 acham suspeito e são maioria (2 × 1 marca;
+    /// 1 × 0 e 2 × 2 não).
+    var isSuspect: Bool {
+        suspect.count >= Self.minimumSuspectVotes && suspect.count > ok.count
+    }
+
+    var hasVotes: Bool { !suspect.isEmpty || !ok.isEmpty }
+
+    /// "2 suspeito · 1 confere".
+    var tally: String {
+        "\(suspect.count) suspeito · \(ok.count) confere"
+    }
 }
 
 struct ChallengeBike: Hashable {

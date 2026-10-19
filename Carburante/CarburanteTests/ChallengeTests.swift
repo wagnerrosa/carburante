@@ -213,6 +213,55 @@ final class ChallengeTests: XCTestCase {
         XCTAssertFalse(tallies[1].includesMe)
     }
 
+    // MARK: Foto suspeita
+
+    func testVerdict_twoAndMajorityMarksSuspect() {
+        func verdict(_ suspect: Int, _ ok: Int) -> PhotoVerdict {
+            PhotoVerdict(suspect: Array(repeating: "A", count: suspect), ok: Array(repeating: "B", count: ok))
+        }
+        XCTAssertTrue(verdict(2, 1).isSuspect, "2 × 1: suspeito")
+        XCTAssertTrue(verdict(3, 1).isSuspect)
+        XCTAssertFalse(verdict(1, 0).isSuspect, "uma pessoa sozinha não marca")
+        XCTAssertFalse(verdict(2, 2).isSuspect, "empate não marca")
+        XCTAssertFalse(verdict(0, 3).isSuspect)
+    }
+
+    func testVote_swapRemoveAndWhoCanVote() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        var c = challenge([ana, me])
+        var hers = entry(of: ana)
+        XCTAssertFalse(c.canVote(on: hers), "sem foto do hodômetro, nada a conferir")
+        hers.odometerPhotoRef = "odometer"
+        c.vote(.suspect, on: hers)
+        XCTAssertEqual(c.myVote(on: hers.id), .suspect)
+        c.vote(.ok, on: hers)
+        XCTAssertEqual(c.myVote(on: hers.id), .ok, "outro voto troca")
+        XCTAssertEqual(c.photoVotes.count, 1)
+        c.vote(.ok, on: hers)
+        XCTAssertNil(c.myVote(on: hers.id), "o mesmo de novo tira")
+        var mine = entry(of: me)
+        mine.odometerPhotoRef = "odometer"
+        c.vote(.ok, on: mine)
+        XCTAssertTrue(c.photoVotes.isEmpty, "ninguém vota na própria foto")
+    }
+
+    func testSuspectCount_perPilot() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        let bruno = standing(3, "Bruno Lima", km: 0)
+        var c = challenge([ana, me, bruno])
+        let hers = entry(of: ana)
+        c.entries = [hers]
+        c.photoVotes = [
+            ChallengePhotoVoteMark(entryID: hers.id, memberID: me.id, key: "suspect"),
+            ChallengePhotoVoteMark(entryID: hers.id, memberID: bruno.id, key: "suspect"),
+        ]
+        XCTAssertEqual(c.suspectCount(of: ana.id), 1)
+        XCTAssertEqual(c.photoVerdict(on: hers.id).suspect, ["Você", "Bruno"])
+        XCTAssertEqual(PhotoVote.allCases.map(\.rawValue), ["ok", "suspect"], "chaves congeladas")
+    }
+
     // MARK: Período
 
     func testDayRange() {

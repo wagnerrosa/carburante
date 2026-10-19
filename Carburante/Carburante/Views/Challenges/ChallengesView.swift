@@ -237,6 +237,9 @@ struct ChallengesView: View {
                     update(challengeID) { $0.comments.removeAll { $0.id == comment.id } }
                 } onReact: { reaction in
                     react(reaction, on: entry, in: challengeID)
+                } onVote: { vote in
+                    Haptics.selection()
+                    update(challengeID) { $0.vote(vote, on: entry) }
                 }
             }
         }
