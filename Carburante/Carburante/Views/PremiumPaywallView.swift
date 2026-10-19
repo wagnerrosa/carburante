@@ -9,8 +9,8 @@
 //  links de Termos de Uso (EULA) e privacidade sob o botão (diretriz 3.1.2).
 //
 //  Contextual, nunca no launch: abre pela linha em Ajustes e no limite da
-//  garagem (moto a mais, moto só para consulta — `GarageGated`); nos próximos
-//  passos, em Custos completos e nos ícones de conquista.
+//  garagem (moto a mais, moto só para consulta — `GarageGated`), em Custos
+//  completos, nos ícones de conquista e no 2º desafio criado ao mesmo tempo.
 //  Identidade do Carburante, não da moto — "Apoie o Carburante" fala do app
 //  (DESIGN.md §1, exceção 3, como o onboarding).
 //
@@ -32,6 +32,8 @@ enum PaywallReason: String {
     case costs
     /// Escolheu um ícone de conquista sem Premium.
     case icons
+    /// Tentou criar um desafio com outro criado ainda em andamento.
+    case challenges
 
     var message: String {
         switch self {
@@ -45,6 +47,8 @@ enum PaywallReason: String {
             "O gasto do mês é grátis. Com o Premium, você vê o ano todo, o custo real por km e para onde vai o dinheiro."
         case .icons:
             "Com o Premium, a medalha que você conquistou vira o ícone do app."
+        case .challenges:
+            "No plano grátis, você cria um desafio por vez. Com o Premium, cria vários ao mesmo tempo. Entrar em desafios é sempre grátis."
         }
     }
 }
@@ -191,6 +195,9 @@ private struct PremiumHeader: View {
                     Benefit(symbol: "motorcycle", text: "Garagem ilimitada", compact: !art)
                     Benefit(symbol: "chart.bar.xaxis", text: "Custos completos, mês a mês", compact: !art)
                     Benefit(symbol: "medal", text: "Sua medalha vira o ícone do app", compact: !art)
+                    if ChallengeFeature.isEnabled {
+                        Benefit(symbol: "flag.checkered", text: "Vários desafios ao mesmo tempo", compact: !art)
+                    }
                 }
                 .padding(art ? 14 : 10)
                 .frame(maxWidth: .infinity, alignment: .leading)

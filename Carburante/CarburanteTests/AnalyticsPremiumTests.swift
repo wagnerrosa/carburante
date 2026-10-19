@@ -60,5 +60,6 @@ final class AnalyticsPremiumTests: XCTestCase {
         XCTAssertEqual(PaywallReason.readOnlyBike.rawValue, "read_only_bike")
         XCTAssertEqual(PaywallReason.costs.rawValue, "costs")
         XCTAssertEqual(PaywallReason.icons.rawValue, "icons")
+        XCTAssertEqual(PaywallReason.challenges.rawValue, "challenges")
     }
 }

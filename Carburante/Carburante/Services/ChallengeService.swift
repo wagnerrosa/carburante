@@ -109,16 +109,75 @@ final class ChallengeService {
 
     // MARK: Criar, entrar, sair
 
-    /// Cria o desafio; quem cria entra com `displayName`. Devolve o id.
+    /// Cria o desafio; quem cria entra com `displayName`. Com `cover` (JPEG
+    /// pronto, `ChallengeCover.jpeg`), sobe a capa logo depois. A capa que não
+    /// subiu não desfaz o desafio: `coverSaved` false e quem criou tenta de
+    /// novo nos detalhes.
     @discardableResult
-    func create(name: String, period: ChallengePeriod, displayName: String) async throws(ChallengeError) -> UUID {
+    func create(name: String, period: ChallengePeriod, displayName: String,
+                cover: Data? = nil) async throws(ChallengeError) -> (id: UUID, coverSaved: Bool) {
         let params = CreateParams(p_name: name, p_starts_at: period.startsAt, p_ends_at: period.endsAt,
                                   p_display_name: displayName, p_time_zone: period.timeZone.identifier)
         let created: ChallengeCreatedDTO = try await call { [client] in
             try await client.rpc("create_challenge", params: params).execute().value
         }
+        var coverSaved = true
+        if let cover {
+            do {
+                try await uploadCover(cover, for: created.id, replacing: nil)
+            } catch {
+                coverSaved = false
+            }
+        }
         await refresh()
-        return created.id
+        return (created.id, coverSaved)
+    }
+
+    /// Quem criou põe, troca (`jpeg`) ou tira (nil) a capa. O arquivo sobe
+    /// antes com nome novo; depois do `set_challenge_cover`, o anterior sai do
+    /// bucket.
+    func setCover(_ jpeg: Data?, for challengeID: UUID) async throws(ChallengeError) {
+        let current = challenges.first { $0.id == challengeID }?.coverRef
+        if let jpeg {
+            try await uploadCover(jpeg, for: challengeID, replacing: current)
+        } else {
+            try await call { [client] in
+                try await client.rpc("set_challenge_cover", params: CoverParams(p_challenge_id: challengeID,
+                                                                                 p_cover_path: nil))
+                    .execute()
+            }
+            await removeCoverFile(current)
+        }
+        await refresh()
+    }
+
+    private func uploadCover(_ jpeg: Data, for challengeID: UUID,
+                             replacing old: String?) async throws(ChallengeError) {
+        let path = ChallengeCover.path(challengeID: challengeID)
+        try await call { [client] in
+            try await client.storage.from(ChallengeCover.bucket).upload(
+                path, data: jpeg, options: FileOptions(contentType: "image/jpeg")
+            )
+        }
+        ChallengeImageStore.shared.store(jpeg, for: path)
+        do {
+            try await call { [client] in
+                try await client.rpc("set_challenge_cover", params: CoverParams(p_challenge_id: challengeID,
+                                                                                 p_cover_path: path))
+                    .execute()
+            }
+        } catch {
+            // A capa nova não entrou: o arquivo não serve para nada.
+            await removeCoverFile(path)
+            throw Self.challengeError(error)
+        }
+        await removeCoverFile(old)
+    }
+
+    /// Melhor esforço: arquivo que sobra no bucket só ocupa espaço.
+    private func removeCoverFile(_ path: String?) async {
+        guard let path, ChallengeCover.isRemote(path) else { return }
+        _ = try? await client.storage.from(ChallengeCover.bucket).remove(paths: [path])
     }
 
     /// Prévia do convite pelo código digitado/colado/do link. nil = o código
@@ -198,6 +257,20 @@ private struct CreateParams: Encodable {
     let p_ends_at: Date
     let p_display_name: String
     let p_time_zone: String
+}
+
+/// `p_cover_path` nil vai como `null` (tirar a capa), não some do corpo.
+private struct CoverParams: Encodable {
+    let p_challenge_id: UUID
+    let p_cover_path: String?
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(p_challenge_id, forKey: .p_challenge_id)
+        try container.encode(p_cover_path, forKey: .p_cover_path)
+    }
+
+    private enum CodingKeys: String, CodingKey { case p_challenge_id, p_cover_path }
 }
 
 private struct EntriesParams: Encodable {

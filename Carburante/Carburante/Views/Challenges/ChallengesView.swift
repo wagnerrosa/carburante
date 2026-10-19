@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ChallengesView: View {
     /// O que a aba mostra. Ao vivo = cópia do `ChallengeService` (comentar e
@@ -28,7 +29,10 @@ struct ChallengesView: View {
     @State private var selectedID: UUID?
     @State private var path: [ChallengeRoute] = []
     @State private var invite: InviteRequest?
-    @State private var showingNewChallenge = false
+    /// Criar desafio: o form, ou a assinatura quando o grátis já tem um
+    /// desafio criado em andamento. Decidido no toque — criar o 1º não pode
+    /// virar paywall com a folha aberta.
+    @State private var newChallenge: NewChallengeSheet?
     @State private var showingCodeEntry = false
     @State private var showingAccount = false
     /// O que fazer depois de entrar com a Apple (criar desafio).
@@ -36,6 +40,8 @@ struct ChallengesView: View {
     @State private var code = ""
     @State private var isCheckingCode = false
     @State private var alert: ChallengeAlert?
+    /// Aviso para depois que a folha fechar (alerta com folha aberta não aparece).
+    @State private var alertAfterSheet: ChallengeAlert?
     @State private var didApplyStart = false
 
     private var active: [Challenge] { challenges.filter { !$0.isFinished() } }
@@ -101,9 +107,17 @@ struct ChallengesView: View {
                 path = []
             }
         }
-        .sheet(isPresented: $showingNewChallenge) {
-            ChallengeFormView(prefillName: start == .form ? "Turma da serra" : "") { name, period, pilot in
-                try await create(name, period: period, pilotName: pilot)
+        .sheet(item: $newChallenge, onDismiss: {
+            alert = alertAfterSheet
+            alertAfterSheet = nil
+        }) { sheet in
+            switch sheet {
+            case .form:
+                ChallengeFormView(prefillName: start == .form ? "Turma da serra" : "") { name, period, pilot, cover in
+                    try await create(name, period: period, pilotName: pilot, cover: cover)
+                }
+            case .paywall:
+                PremiumPaywallView(reason: .challenges)
             }
         }
         .sheet(isPresented: $showingAccount, onDismiss: {
@@ -213,7 +227,7 @@ struct ChallengesView: View {
     @ViewBuilder
     private var createAndJoinButtons: some View {
         Button {
-            requireAccount { showingNewChallenge = true }
+            requireAccount(then: openNewChallenge)
         } label: {
             Label("Criar desafio", systemImage: "plus")
         }
@@ -235,7 +249,7 @@ struct ChallengesView: View {
                 } description: {
                     Text("Num desafio, os km de cada abastecimento viram a classificação da turma.")
                 } actions: {
-                    Button("Criar desafio") { requireAccount { showingNewChallenge = true } }
+                    Button("Criar desafio") { requireAccount(then: openNewChallenge) }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                     Button("Entrar com código") { showingCodeEntry = true }
@@ -296,6 +310,7 @@ struct ChallengesView: View {
                 // Trocar o código chega com a D8 (função nova no servidor).
                 ChallengeDetailsView(challenge: challenge,
                                      onNewCode: isLive ? nil : { update(id) { $0.code = InviteCode.random() } },
+                                     onSetCover: coverSetter(id),
                                      onLeave: { leave(id) })
             }
         case .participant(let challengeID, let memberID):
@@ -324,6 +339,22 @@ struct ChallengesView: View {
         }
     }
 
+    /// Trocar a capa nos detalhes. Protótipo D0: só na memória (a foto fica
+    /// no cache do aparelho, nada sobe).
+    private func coverSetter(_ id: UUID) -> (Data?) async throws -> Void {
+        guard isLive else {
+            return { jpeg in
+                let path = jpeg.map { data in
+                    let path = ChallengeCover.path(challengeID: id)
+                    ChallengeImageStore.shared.store(data, for: path)
+                    return path
+                }
+                update(id) { $0.coverRef = path }
+            }
+        }
+        return { jpeg in try await service.setCover(jpeg, for: id) }
+    }
+
     private func challenge(_ id: UUID) -> Challenge? {
         challenges.first { $0.id == id }
     }
@@ -341,17 +372,29 @@ struct ChallengesView: View {
     // MARK: Servidor
 
     /// Criar exige conta Apple; anônimo passa antes pela folha da Apple.
-    private func requireAccount(_ action: @escaping () -> Void) {
+    private func requireAccount(then action: @escaping () -> Void) {
         guard isLive, sync.isAnonymous else { return action() }
         afterAccount = action
         showingAccount = true
     }
 
-    private func create(_ name: String, period: ChallengePeriod, pilotName: String) async throws(ChallengeError) {
+    /// Grátis cria um desafio por vez (`ChallengeCreationLimit`); com outro
+    /// ainda em andamento, abre a assinatura.
+    private func openNewChallenge() {
+        let allowed = ChallengeCreationLimit.canCreate(challenges, isPremium: PremiumService.shared.isPremium)
+        newChallenge = allowed ? .form : .paywall
+    }
+
+    private func create(_ name: String, period: ChallengePeriod, pilotName: String,
+                        cover: Data?) async throws(ChallengeError) {
         guard isLive else { return }
-        let id = try await service.create(name: name, period: period, displayName: pilotName)
-        selectedID = id
+        let created = try await service.create(name: name, period: period, displayName: pilotName, cover: cover)
+        selectedID = created.id
         path = []
+        if !created.coverSaved {
+            alertAfterSheet = ChallengeAlert(title: "Desafio criado sem a capa",
+                                             message: "A foto não subiu. Tente de novo em Detalhes do desafio → Trocar capa.")
+        }
     }
 
     /// Código digitado → prévia do convite. Anônimo também vê a prévia (a
@@ -422,7 +465,7 @@ struct ChallengesView: View {
         case .entry(let entry): path = [.entry(challenge: first.id, entry: entry)]
         case .invite(let anonymous):
             invite = InviteRequest(invite: ChallengeInvite(challenge: first), previewAnonymous: anonymous)
-        case .form: showingNewChallenge = true
+        case .form: newChallenge = .form
         }
     }
 }
@@ -430,6 +473,11 @@ struct ChallengesView: View {
 private struct ChallengeAlert {
     let title: String
     let message: String
+}
+
+private enum NewChallengeSheet: Identifiable {
+    case form, paywall
+    var id: Self { self }
 }
 
 private struct InviteRequest: Identifiable {
@@ -540,9 +588,14 @@ struct ChallengeDetailsView: View {
     let challenge: Challenge
     /// nil = trocar o código ainda não existe no servidor (D8).
     var onNewCode: (() -> Void)? = nil
+    /// Quem criou põe, troca (JPEG pronto) ou tira (nil) a capa. nil = sem a seção.
+    var onSetCover: ((Data?) async throws -> Void)? = nil
     var onLeave: () -> Void = {}
     @State private var confirmingLeave = false
     @State private var confirmingNewCode = false
+    @State private var coverItem: PhotosPickerItem?
+    @State private var isSavingCover = false
+    @State private var coverError: String?
 
     private var code: String { InviteCode.formatted(challenge.code) }
 
@@ -587,6 +640,10 @@ struct ChallengeDetailsView: View {
                      : "Quem recebe o link ou o código entra no desafio.")
             }
 
+            if challenge.createdByMe, onSetCover != nil {
+                coverSection
+            }
+
             Section("Como funciona") {
                 ChallengeRules()
             }
@@ -601,6 +658,58 @@ struct ChallengeDetailsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Sair de \(challenge.name)?", isPresented: $confirmingLeave, titleVisibility: .visible) {
             Button("Sair do desafio", action: onLeave)
+        }
+        .onChange(of: coverItem) { _, item in
+            guard let item else { return }
+            coverItem = nil
+            saveCover {
+                guard let data = try? await item.loadTransferable(type: Data.self),
+                      let jpeg = await ChallengeCover.prepare(data) else {
+                    throw ChallengeError.unknown("cover_unreadable")
+                }
+                return jpeg
+            }
+        }
+    }
+
+    private var coverSection: some View {
+        Section {
+            PhotosPicker(selection: $coverItem, matching: .images) {
+                Label(challenge.coverRef == nil ? "Escolher capa" : "Trocar capa", systemImage: "photo")
+            }
+            .disabled(isSavingCover)
+            if challenge.coverRef != nil {
+                Button("Usar a capa do Carburante", systemImage: "flag.checkered") {
+                    saveCover { nil }
+                }
+                .disabled(isSavingCover)
+            }
+        } header: {
+            Text("Capa")
+        } footer: {
+            if isSavingCover {
+                Text("Salvando a capa…")
+            } else if let coverError {
+                Text(coverError).foregroundStyle(.red)
+            } else {
+                Text("A turma e quem abrir o convite veem a capa.")
+            }
+        }
+    }
+
+    private func saveCover(_ jpeg: @escaping () async throws -> Data?) {
+        guard let onSetCover else { return }
+        isSavingCover = true
+        coverError = nil
+        Task {
+            do {
+                try await onSetCover(try await jpeg())
+                Haptics.success()
+            } catch {
+                coverError = "A capa não mudou. " + ChallengeService.challengeError(error).message
+                Haptics.warning()
+            }
+            isSavingCover = false
         }
     }
 }

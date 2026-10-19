@@ -3,7 +3,8 @@
 //  Carburante
 //
 //  Novo desafio: nome, prazo em 1 toque (1 semana | 1 mês | Até…), capa.
-//  Métrica fixa = km rodados (PLAN/desafios.md §Telas).
+//  Métrica fixa = km rodados (PLAN/desafios.md §Telas). A capa já sai daqui
+//  recortada e reduzida (`ChallengeCover.jpeg`): o que a pessoa vê é o que sobe.
 //
 
 import SwiftUI
@@ -11,8 +12,10 @@ import PhotosUI
 
 struct ChallengeFormView: View {
     var prefillName = ""
-    /// Cria no servidor. D0 passa um que não faz nada.
-    var onCreate: (_ name: String, _ period: ChallengePeriod, _ pilotName: String) async throws -> Void = { _, _, _ in }
+    /// Cria no servidor (com a capa em JPEG, ou nil = capa padrão). D0 passa
+    /// um que não faz nada.
+    var onCreate: (_ name: String, _ period: ChallengePeriod, _ pilotName: String,
+                   _ cover: Data?) async throws -> Void = { _, _, _, _ in }
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
@@ -21,7 +24,9 @@ struct ChallengeFormView: View {
     @State private var startDate = Calendar.current.startOfDay(for: Date())
     @State private var untilDate = Calendar.current.date(byAdding: .day, value: 14, to: Date())!
     @State private var coverItem: PhotosPickerItem?
-    @State private var coverImage: UIImage?
+    /// Capa pronta para subir e a imagem dela para a prévia.
+    @State private var cover: (jpeg: Data, image: UIImage)?
+    @State private var isPreparingCover = false
     @State private var isSaving = false
     @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
@@ -41,7 +46,9 @@ struct ChallengeFormView: View {
         ChallengeName.cleaned(pilotName, maxLength: ChallengeName.pilotMaxLength)
     }
 
-    private var canSave: Bool { cleanName != nil && cleanPilotName != nil && !isSaving }
+    private var canSave: Bool {
+        cleanName != nil && cleanPilotName != nil && !isSaving && !isPreparingCover
+    }
 
     var body: some View {
         NavigationStack {
@@ -97,11 +104,14 @@ struct ChallengeFormView: View {
                     Color.clear
                         .frame(height: 150)
                         .overlay {
-                            if let coverImage {
-                                Image(uiImage: coverImage).resizable().scaledToFill()
+                            if let cover {
+                                Image(uiImage: cover.image).resizable().scaledToFill()
                             } else {
                                 ChallengeCoverImage(ref: nil)
                             }
+                        }
+                        .overlay {
+                            if isPreparingCover { ProgressView().tint(.white) }
                         }
                         .overlay(alignment: .bottomLeading) {
                             Text(name.isEmpty ? "Turma da serra" : name)
@@ -114,12 +124,21 @@ struct ChallengeFormView: View {
                         .listRowInsets(EdgeInsets())
                         .accessibilityHidden(true)
                     PhotosPicker(selection: $coverItem, matching: .images) {
-                        Label(coverImage == nil ? "Escolher foto" : "Trocar foto", systemImage: "photo")
+                        Label(cover == nil ? "Escolher foto" : "Trocar foto", systemImage: "photo")
+                    }
+                    .disabled(isPreparingCover)
+                    if cover != nil {
+                        Button("Usar a capa do Carburante", systemImage: "flag.checkered") {
+                            cover = nil
+                            coverItem = nil
+                        }
                     }
                 } header: {
                     Text("Capa")
                 } footer: {
-                    Text("Sem foto, o desafio usa a capa do Carburante.")
+                    Text(cover == nil
+                         ? "Sem foto, o desafio usa a capa do Carburante."
+                         : "A turma e quem abrir o convite veem a capa.")
                 }
 
                 Section {
@@ -149,10 +168,15 @@ struct ChallengeFormView: View {
                 }
             }
             .onChange(of: coverItem) { _, item in
+                guard let item else { return }
+                isPreparingCover = true
                 Task {
-                    if let data = try? await item?.loadTransferable(type: Data.self) {
-                        coverImage = UIImage(data: data)
+                    if let data = try? await item.loadTransferable(type: Data.self),
+                       let jpeg = await ChallengeCover.prepare(data),
+                       let image = UIImage(data: jpeg) {
+                        cover = (jpeg, image)
                     }
+                    isPreparingCover = false
                 }
             }
             .onAppear {
@@ -168,9 +192,10 @@ struct ChallengeFormView: View {
         isSaving = true
         errorMessage = nil
         let period = period
+        let jpeg = cover?.jpeg
         Task {
             do {
-                try await onCreate(cleanName, period, cleanPilotName)
+                try await onCreate(cleanName, period, cleanPilotName, jpeg)
                 UserDefaults.standard.set(cleanPilotName, forKey: ChallengeName.pilotNameKey)
                 Haptics.success()
                 dismiss()

@@ -148,8 +148,8 @@ enum Analytics {
     }
 
     /// Abriu a tela de assinatura. `trigger` = de onde (`PaywallReason`:
-    /// `settings`, `second_bike`, `read_only_bike`, `costs`, `icons`) — mede
-    /// qual gatilho converte.
+    /// `settings`, `second_bike`, `read_only_bike`, `costs`, `icons`,
+    /// `challenges`) — mede qual gatilho converte.
     static func paywallViewed(trigger: String) {
         capture("paywall_viewed", ["trigger": trigger])
     }

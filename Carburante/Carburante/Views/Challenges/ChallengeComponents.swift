@@ -46,25 +46,44 @@ struct ChallengePhoto: View {
     }
 }
 
-/// Capa do desafio. Sem foto = capa padrão com a arte do app (chama).
+/// Capa do desafio. Sem foto = capa padrão com a arte do app (chama). Foto
+/// do Storage: do cache na hora; senão um quadro neutro enquanto baixa (a
+/// capa padrão piscando antes da foto pareceria outra capa).
 struct ChallengeCoverImage: View {
     let ref: String?
+    @State private var loaded: (ref: String, image: UIImage)?
+
+    private var image: UIImage? {
+        if let loaded, loaded.ref == ref { return loaded.image }
+        return ChallengeImageStore.shared.cachedImage(ref)
+    }
 
     var body: some View {
-        if let image = ChallengeImageLoader.image(ref) {
+        if let image {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
-        } else {
-            BrandTheme.flame
-                .overlay(alignment: .trailing) {
-                    Image(systemName: "flag.checkered")
-                        .font(.system(size: 120, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.18))
-                        .rotationEffect(.degrees(-12))
-                        .offset(x: 20)
+        } else if ChallengeCover.isRemote(ref) {
+            Rectangle()
+                .fill(Color(.tertiarySystemFill))
+                .task(id: ref) {
+                    guard let ref, let image = await ChallengeImageStore.shared.image(ref) else { return }
+                    loaded = (ref, image)
                 }
+        } else {
+            Self.defaultCover
         }
+    }
+
+    static var defaultCover: some View {
+        BrandTheme.flame
+            .overlay(alignment: .trailing) {
+                Image(systemName: "flag.checkered")
+                    .font(.system(size: 120, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.18))
+                    .rotationEffect(.degrees(-12))
+                    .offset(x: 20)
+            }
     }
 }
 
