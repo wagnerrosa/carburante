@@ -4,7 +4,9 @@
 //
 //  Tela "Custos" (Premium — PLAN/premium-mvp.md §2): quanto a moto custou de
 //  verdade, gasolina + manutenção + outras despesas (IPVA, seguro, pedágio… —
-//  Custos v2, registro grátis pelo `+` daqui ou pelo perfil). Mesmo padrão da
+//  Custos v2, registro grátis pelo `+` daqui ou pelo perfil). O `+` daqui é um
+//  menu com os três tipos que a tela soma — um `+` que só criasse despesa
+//  fazia gasolina virar "Outra" (o `+` cria o que a tela lista). Mesmo padrão da
 //  tela de Consumo (Saúde "Mostrar todos os dados"): seletor de período,
 //  número-herói, gráfico e cards. Alcançada pelo tile "Gasto este mês" do Resumo e pelo perfil da
 //  moto. Cálculo em `CostCalculator`.
@@ -22,6 +24,8 @@ struct CostsView: View {
     @State private var period: Period = .year
     @State private var showPaywall = false
     @State private var showingAddExpense = false
+    @State private var showingAddFuel = false
+    @State private var showingAddMaintenance = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     enum Period: String, CaseIterable, Identifiable {
@@ -69,11 +73,7 @@ struct CostsView: View {
                 } description: {
                     Text("Os gastos com gasolina, manutenção e outras despesas aparecem aqui conforme você registra.")
                 } actions: {
-                    Button {
-                        showingAddExpense = true
-                    } label: {
-                        Label("Adicionar despesa", systemImage: "plus")
-                    }
+                    addMenu
                 }
             }
         }
@@ -81,14 +81,9 @@ struct CostsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .tint(motorcycle.themeColor)
         .toolbar {
-            // Como "Adicionar dados" do Saúde: registra o que só existe aqui
-            // (IPVA, seguro…). Grátis — a trava é só a dos números.
+            // Grátis — a trava é só a dos números.
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingAddExpense = true
-                } label: {
-                    Label("Adicionar despesa", systemImage: "plus")
-                }
+                addMenu
             }
         }
         .onAppear {
@@ -97,8 +92,38 @@ struct CostsView: View {
         .sheet(isPresented: $showPaywall) {
             PremiumPaywallView(reason: .costs)
         }
+        .sheet(isPresented: $showingAddFuel) {
+            GarageGated(motorcycle) { FuelLogFormView(motorcycle: motorcycle, entryPoint: "costs") }
+        }
+        .sheet(isPresented: $showingAddMaintenance) {
+            GarageGated(motorcycle) { MaintenanceFormView(motorcycle: motorcycle) }
+        }
         .sheet(isPresented: $showingAddExpense) {
             GarageGated(motorcycle) { ExpenseFormView(motorcycle: motorcycle, entryPoint: "costs") }
+        }
+    }
+
+    /// Mesma ordem da quebra e do gráfico (Gasolina, Manutenção, Outras) e os
+    /// mesmos símbolos das linhas do perfil.
+    private var addMenu: some View {
+        Menu {
+            Button {
+                showingAddFuel = true
+            } label: {
+                Label("Abastecimento", systemImage: "fuelpump.fill")
+            }
+            Button {
+                showingAddMaintenance = true
+            } label: {
+                Label("Manutenção", systemImage: "wrench.and.screwdriver.fill")
+            }
+            Button {
+                showingAddExpense = true
+            } label: {
+                Label("Outra despesa", systemImage: "receipt.fill")
+            }
+        } label: {
+            Label("Adicionar", systemImage: "plus")
         }
     }
 
