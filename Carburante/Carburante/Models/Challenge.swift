@@ -4,7 +4,8 @@
 //
 //  Desafios em grupo (PLAN/desafios.md). Tipos de LEITURA: o servidor calcula
 //  a classificação (`challenge_leaderboard`) e o app só exibe. Valores puros,
-//  sem SwiftData — nada disso é fonte de verdade no aparelho.
+//  sem SwiftData — nada disso é fonte de verdade no aparelho. Quem fala com o
+//  servidor é o `ChallengeService`.
 //
 
 import Foundation
@@ -12,10 +13,12 @@ import Foundation
 struct Challenge: Identifiable, Hashable {
     let id: UUID
     var name: String
-    /// Primeiro e último dia do período (o último conta inteiro).
+    /// Primeiro e último dia do período (o último conta inteiro), no fuso
+    /// `timeZone`.
     var startDate: Date
     var endDate: Date
-    var createdByName: String
+    /// Nome de quem criou, como a turma vê. nil = não veio do servidor.
+    var createdByName: String?
     /// Código do convite, normalizado (`InviteCode`). Vai no link
     /// `carburante.motorcycles/d/?c=<código>`.
     var code: String
@@ -32,6 +35,12 @@ struct Challenge: Identifiable, Hashable {
     var photoVotes: [ChallengePhotoVoteMark] = []
     /// Quem criou modera: troca o código e apaga comentário de qualquer um.
     var createdByMe = false
+    /// Fuso do desafio: decide onde começa e termina cada dia do período.
+    var timeZone: TimeZone = .current
+
+    var period: ChallengePeriod {
+        ChallengePeriod(firstDay: startDate, lastDay: endDate, timeZone: timeZone)
+    }
 
     /// Dias depois do fim para registrar o abastecimento que cobre os últimos
     /// dias. A classificação só fecha depois deles.
@@ -148,45 +157,14 @@ struct Challenge: Identifiable, Hashable {
         entries(of: memberID).count(where: { photoVerdict(on: $0.id).isSuspect })
     }
 
-    enum Phase: Equatable {
-        case upcoming(daysToStart: Int)
-        case running(daysLeft: Int)
-        /// Período acabou; a classificação ainda aceita o último abastecimento.
-        case closing(daysToClose: Int)
-        case finished
-    }
+    typealias Phase = ChallengePeriod.Phase
 
-    func phase(now: Date = Date(), calendar: Calendar = .current) -> Phase {
-        let today = calendar.startOfDay(for: now)
-        let start = calendar.startOfDay(for: startDate)
-        let end = calendar.startOfDay(for: endDate)
-        func days(_ from: Date, _ to: Date) -> Int {
-            calendar.dateComponents([.day], from: from, to: to).day ?? 0
-        }
-        if today < start { return .upcoming(daysToStart: days(today, start)) }
-        if today <= end { return .running(daysLeft: days(today, end)) }
-        let daysAfterEnd = days(end, today)
-        if daysAfterEnd <= Self.closingGraceDays {
-            return .closing(daysToClose: Self.closingGraceDays - daysAfterEnd)
-        }
-        return .finished
-    }
+    func phase(now: Date = Date()) -> Phase { period.phase(now: now) }
 
     func isFinished(now: Date = Date()) -> Bool { phase(now: now) == .finished }
 
     /// "faltam 12 dias", "último dia", "classificação fecha em 2 dias"…
-    func phaseText(now: Date = Date()) -> String {
-        switch phase(now: now) {
-        case .upcoming(let d): return d == 1 ? "começa amanhã" : "começa em \(d) dias"
-        case .running(0): return "último dia"
-        case .running(1): return "falta 1 dia"
-        case .running(let d): return "faltam \(d) dias"
-        case .closing(0): return "classificação fecha hoje"
-        case .closing(1): return "classificação fecha amanhã"
-        case .closing(let d): return "classificação fecha em \(d) dias"
-        case .finished: return "encerrado"
-        }
-    }
+    func phaseText(now: Date = Date()) -> String { period.phaseText(now: now) }
 
     var pilotsText: String { memberCount == 1 ? "1 piloto" : "\(memberCount) pilotos" }
 
@@ -205,6 +183,256 @@ struct Challenge: Identifiable, Hashable {
         guard let ahead = standings.first(where: { $0.rank == me.rank - 1 }) else { return nil }
         let gap = ahead.km - me.km
         return gap > 0 ? "\(ahead.firstName) está \(AppFormat.km(gap)) à frente." : "Empatado com \(ahead.firstName)."
+    }
+}
+
+/// Período do desafio em dias inteiros, no fuso do desafio. O servidor guarda
+/// `[starts_at, ends_at)`: o início do 1º dia e o início do dia seguinte ao
+/// último — o último dia conta inteiro.
+struct ChallengePeriod: Hashable {
+    /// Início do 1º e do último dia.
+    let firstDay: Date
+    let lastDay: Date
+    let timeZone: TimeZone
+
+    /// O servidor aceita até 366 dias de `starts_at` a `ends_at`; 365 deixa
+    /// folga para a mudança de horário de outros fusos.
+    static let maxDays = 365
+
+    init(firstDay: Date, lastDay: Date, timeZone: TimeZone = .current) {
+        let calendar = Self.calendar(timeZone)
+        self.firstDay = calendar.startOfDay(for: firstDay)
+        self.lastDay = max(self.firstDay, calendar.startOfDay(for: lastDay))
+        self.timeZone = timeZone
+    }
+
+    /// O que o servidor devolve → dias.
+    init(startsAt: Date, endsAt: Date, timeZone: TimeZone) {
+        let last = Self.calendar(timeZone).date(byAdding: .day, value: -1, to: endsAt) ?? endsAt
+        self.init(firstDay: startsAt, lastDay: last, timeZone: timeZone)
+    }
+
+    var startsAt: Date { firstDay }
+    var endsAt: Date { calendar.date(byAdding: .day, value: 1, to: lastDay) ?? lastDay }
+    var dayCount: Int { days(firstDay, lastDay) + 1 }
+
+    var calendar: Calendar { Self.calendar(timeZone) }
+
+    static func calendar(_ timeZone: TimeZone) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar
+    }
+
+    private func days(_ from: Date, _ to: Date) -> Int {
+        calendar.dateComponents([.day], from: from, to: to).day ?? 0
+    }
+
+    enum Phase: Equatable {
+        case upcoming(daysToStart: Int)
+        case running(daysLeft: Int)
+        /// Período acabou; a classificação ainda aceita o último abastecimento.
+        case closing(daysToClose: Int)
+        case finished
+    }
+
+    func phase(now: Date = Date()) -> Phase {
+        let today = calendar.startOfDay(for: now)
+        if today < firstDay { return .upcoming(daysToStart: days(today, firstDay)) }
+        if today <= lastDay { return .running(daysLeft: days(today, lastDay)) }
+        let daysAfterEnd = days(lastDay, today)
+        if daysAfterEnd <= Challenge.closingGraceDays {
+            return .closing(daysToClose: Challenge.closingGraceDays - daysAfterEnd)
+        }
+        return .finished
+    }
+
+    /// "faltam 12 dias", "último dia", "classificação fecha em 2 dias"…
+    func phaseText(now: Date = Date()) -> String {
+        switch phase(now: now) {
+        case .upcoming(let d): return d == 1 ? "começa amanhã" : "começa em \(d) dias"
+        case .running(0): return "último dia"
+        case .running(1): return "falta 1 dia"
+        case .running(let d): return "faltam \(d) dias"
+        case .closing(0): return "classificação fecha hoje"
+        case .closing(1): return "classificação fecha amanhã"
+        case .closing(let d): return "classificação fecha em \(d) dias"
+        case .finished: return "encerrado"
+        }
+    }
+}
+
+/// Prazo em 1 toque no form: 1 semana, 1 mês ou até uma data escolhida.
+enum ChallengeDuration: Hashable, CaseIterable, Identifiable {
+    case week, month, until
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .week: "1 semana"
+        case .month: "1 mês"
+        case .until: "Até…"
+        }
+    }
+
+    /// Período começando no dia de `start`. `until` (o último dia) só vale
+    /// para `.until`; fica entre o 1º dia e o máximo do servidor.
+    func period(from start: Date, until: Date, timeZone: TimeZone = .current) -> ChallengePeriod {
+        let calendar = ChallengePeriod.calendar(timeZone)
+        let first = calendar.startOfDay(for: start)
+        let last: Date
+        switch self {
+        case .week:
+            last = calendar.date(byAdding: .day, value: 6, to: first)!
+        case .month:
+            let next = calendar.date(byAdding: .month, value: 1, to: first)!
+            last = calendar.date(byAdding: .day, value: -1, to: next)!
+        case .until:
+            let longest = calendar.date(byAdding: .day, value: ChallengePeriod.maxDays - 1, to: first)!
+            last = min(max(until, first), longest)
+        }
+        return ChallengePeriod(firstDay: first, lastDay: last, timeZone: timeZone)
+    }
+}
+
+/// Nome do desafio e do piloto, com a mesma limpeza do servidor
+/// (`challenge_clean_name`): espaços repetidos viram um, pontas cortadas.
+enum ChallengeName {
+    static let challengeMaxLength = 40
+    static let pilotMaxLength = 30
+
+    /// 1º nome que a Apple mandou no login (só vem na 1ª vez).
+    static let appleGivenNameKey = "appleGivenName"
+    /// Último nome de piloto usado num desafio.
+    static let pilotNameKey = "challengePilotName"
+
+    /// Nome do piloto que vem preenchido: o último usado, senão o 1º nome da
+    /// Apple, senão vazio (a pessoa digita).
+    static func suggestedPilotName(_ defaults: UserDefaults = .standard) -> String {
+        for key in [pilotNameKey, appleGivenNameKey] {
+            if let name = defaults.string(forKey: key).flatMap({ cleaned($0, maxLength: pilotMaxLength) }) {
+                return name
+            }
+        }
+        return ""
+    }
+
+    /// Pronto para enviar, ou nil (vazio ou longo demais). Conta como o
+    /// Postgres (`char_length` = code points: 👨‍👩‍👧 vale 5), senão o servidor
+    /// recusaria o que o app aceitou.
+    static func cleaned(_ text: String, maxLength: Int) -> String? {
+        let collapsed = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard !collapsed.isEmpty, collapsed.unicodeScalars.count <= maxLength else { return nil }
+        return collapsed
+    }
+
+    /// Corta o que passou do limite enquanto a pessoa digita, sem partir um
+    /// emoji no meio.
+    static func truncated(_ text: String, maxLength: Int) -> String {
+        var result = ""
+        var scalars = 0
+        for character in text {
+            scalars += character.unicodeScalars.count
+            if scalars > maxLength { break }
+            result.append(character)
+        }
+        return result
+    }
+}
+
+/// Erro dos desafios. As chaves vêm do servidor (`raise exception` em
+/// `supabase/challenges.sql`), ASCII congeladas — o app só traduz. Chave que
+/// este app não conhece (servidor mais novo) cai na mensagem genérica.
+enum ChallengeError: Error, Hashable {
+    case noSession, appleAccountRequired, invalidName, invalidPeriod, notFound
+    case notAMember, notTheCreator, full, ended, removed, cannotRemoveSelf
+    case tooManyAttempts, invalidCoverPath
+    /// Sem internet ou servidor fora do ar.
+    case offline
+    /// Chave ou erro desconhecido (o texto cru vai só para o log).
+    case unknown(String)
+
+    init(serverKey: String) {
+        switch serverKey {
+        case "no_session": self = .noSession
+        case "apple_account_required": self = .appleAccountRequired
+        case "invalid_name": self = .invalidName
+        case "invalid_period": self = .invalidPeriod
+        case "challenge_not_found": self = .notFound
+        case "not_a_member": self = .notAMember
+        case "not_the_creator": self = .notTheCreator
+        case "challenge_full": self = .full
+        case "challenge_ended": self = .ended
+        case "removed_from_challenge": self = .removed
+        case "cannot_remove_self": self = .cannotRemoveSelf
+        case "too_many_attempts": self = .tooManyAttempts
+        case "invalid_cover_path": self = .invalidCoverPath
+        default: self = .unknown(serverKey)
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .noSession: "Não deu para identificar sua conta. Tente de novo."
+        case .appleAccountRequired: "Desafios precisam da conta Apple. Entre com a Apple e tente de novo."
+        case .invalidName: "Confira o nome: está vazio ou longo demais."
+        case .invalidPeriod: "Confira as datas: o desafio começa a partir de hoje e dura até 1 ano."
+        case .notFound: "Este desafio não existe mais."
+        case .notAMember: "Você não está mais neste desafio."
+        case .notTheCreator: "Só quem criou o desafio pode fazer isso."
+        case .full: "Este desafio já está com o máximo de pilotos."
+        case .ended: "Este desafio já acabou."
+        case .removed: "Você foi removido deste desafio por quem criou."
+        case .cannotRemoveSelf: "Para sair, use “Sair do desafio”."
+        case .tooManyAttempts: "Muitas tentativas com código errado. Espere um pouco e tente de novo."
+        case .invalidCoverPath: "Não deu para salvar a capa. Tente de novo."
+        case .offline: "Sem conexão. Confira a internet e tente de novo."
+        case .unknown: "Algo deu errado. Tente de novo."
+        }
+    }
+}
+
+/// Prévia do convite (`challenge_preview`): o que convence a entrar, antes de
+/// estar no desafio. Funciona com sessão anônima.
+struct ChallengeInvite: Identifiable, Hashable {
+    let id: UUID
+    /// Código normalizado que abriu a prévia (é ele que entra).
+    var code: String
+    var name: String
+    var period: ChallengePeriod
+    var coverRef: String?
+    var createdByName: String?
+    /// Quem está no desafio, contando quem criou.
+    var memberCount: Int
+    /// Até 3 nomes de quem já entrou (sem quem criou), por ordem de chegada.
+    var memberNames: [String]
+    var maxMembers: Int
+    var isMember = false
+    var isRemoved = false
+    var hasEnded = false
+
+    var isFull: Bool { memberCount >= maxMembers }
+
+    /// "Bruno e Diego já estão", "Bruno, Diego e mais 3 já estão".
+    var membersText: String {
+        let names = memberNames.prefix(2).map { ChallengeStanding.firstName(of: $0) }
+        // Quem criou já aparece na capa; aqui só quem entrou depois.
+        let rest = max(0, memberCount - 1 - names.count)
+        switch (names.count, rest) {
+        case (0, _): return "Ninguém entrou ainda"
+        case (1, 0): return "\(names[0]) já está"
+        case (2, 0): return "\(names[0]) e \(names[1]) já estão"
+        default: return "\(names.joined(separator: ", ")) e mais \(rest) já estão"
+        }
+    }
+
+    /// Por que não dá para entrar (nil = dá).
+    var blocker: String? {
+        if isRemoved { return ChallengeError.removed.message }
+        if hasEnded { return ChallengeError.ended.message }
+        if isFull && !isMember { return ChallengeError.full.message }
+        return nil
     }
 }
 
@@ -360,12 +588,19 @@ struct ChallengeStanding: Identifiable, Hashable {
     var fuelUps: Int
     var km: Double
     var isMe: Bool
+    /// Último abastecimento que contou no período ("há 2 dias").
+    var lastEntryAt: Date? = nil
 
     var displayName: String { isMe ? "Você" : name }
-    var firstName: String { name.split(separator: " ").first.map(String.init) ?? name }
+    var firstName: String { Self.firstName(of: name) }
+    var initials: String { Self.initials(of: name) }
+
+    static func firstName(of name: String) -> String {
+        name.split(separator: " ").first.map(String.init) ?? name
+    }
 
     /// Monograma (padrão Contatos): 1ª letra do primeiro e do último nome.
-    var initials: String {
+    static func initials(of name: String) -> String {
         let words = name.split(separator: " ")
         let letters = [words.first, words.count > 1 ? words.last : nil].compactMap { $0?.first }
         return String(letters).uppercased()
@@ -407,12 +642,15 @@ struct ChallengeEntry: Identifiable, Hashable {
 
     enum Reason: Hashable {
         case historical, impossible, gap
+        /// Situação que este app não conhece (servidor mais novo).
+        case unknown
 
         var text: String {
             switch self {
             case .historical: "Registrado dias depois: registro antigo não conta."
             case .impossible: "Mais de 80 km por litro: trecho impossível."
             case .gap: "Teve um abastecimento pulado antes deste."
+            case .unknown: "Este registro não contou."
             }
         }
     }

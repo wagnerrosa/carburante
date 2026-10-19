@@ -11,44 +11,37 @@ import PhotosUI
 
 struct ChallengeFormView: View {
     var prefillName = ""
+    /// Cria no servidor. D0 passa um que não faz nada.
+    var onCreate: (_ name: String, _ period: ChallengePeriod, _ pilotName: String) async throws -> Void = { _, _, _ in }
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
-    @State private var duration: Duration = .month
+    @State private var pilotName = ChallengeName.suggestedPilotName()
+    @State private var duration: ChallengeDuration = .month
     @State private var startDate = Calendar.current.startOfDay(for: Date())
     @State private var untilDate = Calendar.current.date(byAdding: .day, value: 14, to: Date())!
     @State private var coverItem: PhotosPickerItem?
     @State private var coverImage: UIImage?
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     @FocusState private var nameFocused: Bool
 
-    enum Duration: Hashable, CaseIterable, Identifiable {
-        case week, month, until
-        var id: Self { self }
-        var label: String {
-            switch self {
-            case .week: "1 semana"
-            case .month: "1 mês"
-            case .until: "Até…"
-            }
-        }
-    }
-
     private var calendar: Calendar { .current }
+    private var today: Date { calendar.startOfDay(for: Date()) }
 
-    /// Último dia do período (conta inteiro).
-    private var endDate: Date {
-        switch duration {
-        case .week:
-            return calendar.date(byAdding: .day, value: 6, to: startDate)!
-        case .month:
-            let next = calendar.date(byAdding: .month, value: 1, to: startDate)!
-            return calendar.date(byAdding: .day, value: -1, to: next)!
-        case .until:
-            return max(untilDate, startDate)
-        }
+    private var period: ChallengePeriod {
+        duration.period(from: startDate, until: untilDate)
     }
 
-    private var canSave: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty }
+    private var cleanName: String? {
+        ChallengeName.cleaned(name, maxLength: ChallengeName.challengeMaxLength)
+    }
+
+    private var cleanPilotName: String? {
+        ChallengeName.cleaned(pilotName, maxLength: ChallengeName.pilotMaxLength)
+    }
+
+    private var canSave: Bool { cleanName != nil && cleanPilotName != nil && !isSaving }
 
     var body: some View {
         NavigationStack {
@@ -59,26 +52,45 @@ struct ChallengeFormView: View {
                             .multilineTextAlignment(.trailing)
                             .focused($nameFocused)
                             .submitLabel(.done)
+                            .onChange(of: name) { _, typed in
+                                let cut = ChallengeName.truncated(typed, maxLength: ChallengeName.challengeMaxLength)
+                                if cut != typed { name = cut }
+                            }
                     }
                 }
 
                 Section {
                     Picker("Duração", selection: $duration) {
-                        ForEach(Duration.allCases) { Text($0.label).tag($0) }
+                        ForEach(ChallengeDuration.allCases) { Text($0.label).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     DatePicker("Começa", selection: $startDate,
-                               in: calendar.startOfDay(for: Date())...,
+                               in: today...calendar.date(byAdding: .day, value: ChallengePeriod.maxDays, to: today)!,
                                displayedComponents: .date)
                     if duration == .until {
                         DatePicker("Termina", selection: $untilDate,
-                                   in: calendar.date(byAdding: .day, value: 1, to: startDate)!...,
+                                   in: calendar.date(byAdding: .day, value: 1, to: startDate)!
+                                    ... calendar.date(byAdding: .day, value: ChallengePeriod.maxDays - 1, to: startDate)!,
                                    displayedComponents: .date)
                     }
                 } header: {
                     Text("Prazo")
                 } footer: {
-                    Text("Termina em \(AppFormat.dayMonth(endDate)) e a classificação fecha 3 dias depois, para dar tempo de registrar o último abastecimento.")
+                    Text("Termina em \(AppFormat.dayMonth(period.lastDay)) e a classificação fecha 3 dias depois, para dar tempo de registrar o último abastecimento.")
+                }
+
+                Section {
+                    LabeledContent("Seu nome") {
+                        TextField("Nome", text: $pilotName)
+                            .multilineTextAlignment(.trailing)
+                            .textContentType(.givenName)
+                            .onChange(of: pilotName) { _, typed in
+                                let cut = ChallengeName.truncated(typed, maxLength: ChallengeName.pilotMaxLength)
+                                if cut != typed { pilotName = cut }
+                            }
+                    }
+                } footer: {
+                    Text("É o nome que a turma vê na classificação.")
                 }
 
                 Section {
@@ -113,7 +125,12 @@ struct ChallengeFormView: View {
                 Section {
                     LabeledContent("Conta", value: "Km rodados")
                 } footer: {
-                    Text("Só contam abastecimentos registrados na hora, com foto do hodômetro. Todas as motos de cada piloto somam.")
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                    } else {
+                        Text("Só contam abastecimentos registrados na hora, com foto do hodômetro. Todas as motos de cada piloto somam.")
+                    }
                 }
             }
             .navigationTitle("Novo desafio")
@@ -123,11 +140,12 @@ struct ChallengeFormView: View {
                     Button("Cancelar") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Criar") {
-                        Haptics.success()
-                        dismiss()
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Criar", action: save)
+                            .disabled(!canSave)
                     }
-                    .disabled(!canSave)
                 }
             }
             .onChange(of: coverItem) { _, item in
@@ -141,6 +159,26 @@ struct ChallengeFormView: View {
                 name = prefillName
                 if name.isEmpty { nameFocused = true }
             }
+            .interactiveDismissDisabled(isSaving)
+        }
+    }
+
+    private func save() {
+        guard let cleanName, let cleanPilotName else { return }
+        isSaving = true
+        errorMessage = nil
+        let period = period
+        Task {
+            do {
+                try await onCreate(cleanName, period, cleanPilotName)
+                UserDefaults.standard.set(cleanPilotName, forKey: ChallengeName.pilotNameKey)
+                Haptics.success()
+                dismiss()
+            } catch {
+                errorMessage = ChallengeService.challengeError(error).message
+                Haptics.warning()
+            }
+            isSaving = false
         }
     }
 }

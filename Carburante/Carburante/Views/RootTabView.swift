@@ -2,8 +2,8 @@
 //  RootTabView.swift
 //  Carburante
 //
-//  Raiz do app: Resumo + Garagem (2 tabs). Ajustes vive na ⚙️ da Garagem
-//  (a tab Ajustes morreu). Padrão iOS (TabView).
+//  Raiz do app: Resumo + Garagem (+ Desafios, atrás de `ChallengeFeature`).
+//  Ajustes vive na ⚙️ da Garagem (a tab Ajustes morreu). Padrão iOS (TabView).
 //
 
 import SwiftUI
@@ -43,16 +43,11 @@ struct RootTabView: View {
                 DashboardView()
                     .syncDegradedBanner()
             }
-            #if DEBUG
-            // D0 dos Desafios (PLAN/desafios.md): protótipo com dados fictícios,
-            // só com o launch arg `-challengesPreview <tela>`.
-            if ChallengePreview.isEnabled {
+            if ChallengeFeature.isEnabled {
                 Tab("Desafios", systemImage: "flag.checkered", value: AppTab.challenges) {
-                    ChallengesView(challenges: ChallengePreview.challenges,
-                                   start: ChallengePreview.startScreen)
+                    challengesTab
                 }
             }
-            #endif
             Tab("Garagem", systemImage: "motorcycle", value: AppTab.garage) {
                 GarageView()
                     .syncDegradedBanner()
@@ -125,6 +120,21 @@ struct RootTabView: View {
         // Limite da garagem no plano grátis (GarageGate.swift). Por último na
         // cadeia: o onboarding e a sheet acima também recebem.
         .environment(\.garageAccess, GarageLimit.access(for: motorcycles))
+    }
+
+    /// Aba Desafios: servidor de verdade; em DEBUG, `-challengesPreview <tela>`
+    /// troca pelo protótipo D0 (dados fictícios, PLAN/desafios.md).
+    @ViewBuilder
+    private var challengesTab: some View {
+        #if DEBUG
+        if ChallengePreview.isEnabled {
+            ChallengesView(challenges: ChallengePreview.challenges, start: ChallengePreview.startScreen)
+        } else {
+            ChallengesView(challenges: [], isLive: true)
+        }
+        #else
+        ChallengesView(challenges: [], isLive: true)
+        #endif
     }
 
     /// Decide a pergunta do lembrete depois do cadastro de moto (uma vez só).

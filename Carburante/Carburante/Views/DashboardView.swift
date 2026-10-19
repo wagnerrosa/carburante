@@ -267,8 +267,9 @@ struct DashboardView: View {
                 }
 
                 #if DEBUG
-                // D0 dos Desafios: card do desafio ativo (dados fictícios).
-                if let challenge = ChallengePreview.summaryChallenge {
+                // D0 dos Desafios: card do desafio ativo (dados fictícios). O
+                // card de verdade chega na D5.
+                if ChallengePreview.isEnabled, let challenge = ChallengePreview.summaryChallenge {
                     Button { openChallenges() } label: {
                         ChallengeSummaryCard(challenge: challenge)
                     }

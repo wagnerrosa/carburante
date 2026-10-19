@@ -271,4 +271,122 @@ final class ChallengeTests: XCTestCase {
         XCTAssertEqual(AppFormat.dayRange(date(2026, 12, 20), date(2027, 1, 19), now: now),
                        "20 de dez. de 2026 – 19 de jan. de 2027")
     }
+
+    // MARK: Período e prazo (D2)
+
+    private let brt = TimeZone(identifier: "America/Sao_Paulo")!
+
+    private func brtDay(_ year: Int, _ month: Int, _ day: Int, hour: Int = 0) -> Date {
+        ChallengePeriod.calendar(brt).date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
+    }
+
+    func testPeriod_serverBoundsAreStartOfFirstDayAndStartOfDayAfterLast() {
+        let period = ChallengePeriod(firstDay: brtDay(2026, 10, 5, hour: 15), lastDay: brtDay(2026, 10, 11, hour: 9),
+                                     timeZone: brt)
+        XCTAssertEqual(period.startsAt, ISO8601DateFormatter().date(from: "2026-10-05T03:00:00Z"))
+        XCTAssertEqual(period.endsAt, ISO8601DateFormatter().date(from: "2026-10-12T03:00:00Z"))
+        XCTAssertEqual(period.dayCount, 7)
+        // Ida e volta pelo formato do servidor.
+        let back = ChallengePeriod(startsAt: period.startsAt, endsAt: period.endsAt, timeZone: brt)
+        XCTAssertEqual(back, period)
+    }
+
+    func testPeriod_lastDayNeverBeforeFirst() {
+        let period = ChallengePeriod(firstDay: brtDay(2026, 10, 5), lastDay: brtDay(2026, 10, 1), timeZone: brt)
+        XCTAssertEqual(period.lastDay, period.firstDay)
+        XCTAssertEqual(period.dayCount, 1)
+    }
+
+    func testDuration_weekMonthAndUntil() {
+        let start = brtDay(2026, 10, 19, hour: 14)
+        let week = ChallengeDuration.week.period(from: start, until: start, timeZone: brt)
+        XCTAssertEqual(week.firstDay, brtDay(2026, 10, 19))
+        XCTAssertEqual(week.lastDay, brtDay(2026, 10, 25))
+        XCTAssertEqual(week.dayCount, 7)
+
+        let month = ChallengeDuration.month.period(from: start, until: start, timeZone: brt)
+        XCTAssertEqual(month.lastDay, brtDay(2026, 11, 18))
+
+        // 31 de janeiro + 1 mês = 28 de fevereiro → último dia 27.
+        let january = ChallengeDuration.month.period(from: brtDay(2027, 1, 31), until: start, timeZone: brt)
+        XCTAssertEqual(january.lastDay, brtDay(2027, 2, 27))
+
+        let until = ChallengeDuration.until.period(from: start, until: brtDay(2026, 12, 24, hour: 20), timeZone: brt)
+        XCTAssertEqual(until.lastDay, brtDay(2026, 12, 24))
+    }
+
+    func testDuration_untilIsCappedToWhatTheServerAccepts() {
+        let start = brtDay(2026, 10, 19)
+        let tooLong = ChallengeDuration.until.period(from: start, until: brtDay(2028, 1, 1), timeZone: brt)
+        XCTAssertEqual(tooLong.dayCount, ChallengePeriod.maxDays)
+        // Servidor: ends_at - starts_at <= 366 dias.
+        XCTAssertLessThanOrEqual(tooLong.endsAt.timeIntervalSince(tooLong.startsAt), 366 * 86_400)
+    }
+
+    func testPhase_usesTheChallengeTimeZone() {
+        // Último dia 11/10 em Brasília. 12/10 01:00 em Brasília = 04:00 UTC:
+        // já fechando, mesmo que o aparelho esteja em outro fuso.
+        let period = ChallengePeriod(firstDay: brtDay(2026, 10, 5), lastDay: brtDay(2026, 10, 11), timeZone: brt)
+        XCTAssertEqual(period.phase(now: brtDay(2026, 10, 11, hour: 23)), .running(daysLeft: 0))
+        XCTAssertEqual(period.phase(now: brtDay(2026, 10, 12, hour: 1)), .closing(daysToClose: 2))
+        XCTAssertEqual(period.phase(now: brtDay(2026, 10, 14, hour: 23)), .closing(daysToClose: 0))
+        XCTAssertEqual(period.phase(now: brtDay(2026, 10, 15, hour: 0)), .finished)
+    }
+
+    // MARK: Nomes (mesma limpeza do servidor)
+
+    func testName_collapsesSpacesAndTrims() {
+        XCTAssertEqual(ChallengeName.cleaned("  Turma   da\nserra ", maxLength: 40), "Turma da serra")
+        XCTAssertNil(ChallengeName.cleaned("   ", maxLength: 40))
+        XCTAssertNil(ChallengeName.cleaned("", maxLength: 30))
+    }
+
+    func testName_countsLikePostgres() {
+        // char_length conta code points: a família tem 5.
+        let family = "👨‍👩‍👧"
+        XCTAssertEqual(family.unicodeScalars.count, 5)
+        XCTAssertNotNil(ChallengeName.cleaned(String(repeating: "a", count: 25) + family, maxLength: 30))
+        XCTAssertNil(ChallengeName.cleaned(String(repeating: "a", count: 26) + family, maxLength: 30))
+        // Cortar não parte o emoji no meio.
+        XCTAssertEqual(ChallengeName.truncated(String(repeating: "a", count: 26) + family, maxLength: 30),
+                       String(repeating: "a", count: 26))
+        XCTAssertEqual(ChallengeName.truncated("Turma", maxLength: 40), "Turma")
+    }
+
+    func testSuggestedPilotName_lastUsedThenAppleThenEmpty() {
+        let defaults = UserDefaults(suiteName: "ChallengeTests.\(UUID())")!
+        XCTAssertEqual(ChallengeName.suggestedPilotName(defaults), "")
+        defaults.set("Wagner", forKey: ChallengeName.appleGivenNameKey)
+        XCTAssertEqual(ChallengeName.suggestedPilotName(defaults), "Wagner")
+        defaults.set("Wagner R.", forKey: ChallengeName.pilotNameKey)
+        XCTAssertEqual(ChallengeName.suggestedPilotName(defaults), "Wagner R.")
+    }
+
+    // MARK: Prévia do convite
+
+    private func invite(count: Int, names: [String], member: Bool = false, removed: Bool = false,
+                        ended: Bool = false) -> ChallengeInvite {
+        ChallengeInvite(id: UUID(), code: "K7QM4XPR", name: "Turma da serra",
+                        period: ChallengePeriod(firstDay: brtDay(2026, 10, 5), lastDay: brtDay(2026, 10, 11),
+                                                timeZone: brt),
+                        coverRef: nil, createdByName: "Ana", memberCount: count, memberNames: names,
+                        maxMembers: 50, isMember: member, isRemoved: removed, hasEnded: ended)
+    }
+
+    func testInvite_membersTextLeavesTheCreatorOut() {
+        XCTAssertEqual(invite(count: 1, names: []).membersText, "Ninguém entrou ainda")
+        XCTAssertEqual(invite(count: 2, names: ["Bruno Lima"]).membersText, "Bruno já está")
+        XCTAssertEqual(invite(count: 3, names: ["Bruno", "Diego"]).membersText, "Bruno e Diego já estão")
+        XCTAssertEqual(invite(count: 6, names: ["Bruno", "Diego", "Carla"]).membersText,
+                       "Bruno, Diego e mais 3 já estão")
+    }
+
+    func testInvite_blocker() {
+        XCTAssertNil(invite(count: 3, names: []).blocker)
+        XCTAssertEqual(invite(count: 3, names: [], removed: true).blocker, ChallengeError.removed.message)
+        XCTAssertEqual(invite(count: 3, names: [], ended: true).blocker, ChallengeError.ended.message)
+        XCTAssertEqual(invite(count: 50, names: []).blocker, ChallengeError.full.message)
+        // Já está dentro: cheio não impede abrir.
+        XCTAssertNil(invite(count: 50, names: [], member: true).blocker)
+    }
 }

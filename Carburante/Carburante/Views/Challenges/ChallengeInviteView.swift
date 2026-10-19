@@ -11,18 +11,30 @@ import SwiftUI
 import AuthenticationServices
 
 struct ChallengeInviteView: View {
-    let challenge: Challenge
-    var isAnonymous: Bool
+    let invite: ChallengeInvite
+    /// D0: mostra o passo da Apple sem tocar na conta. nil = conta de verdade.
+    var previewAnonymous: Bool? = nil
+    /// Entra no desafio com o nome escolhido.
+    var onJoin: (String) async throws -> Void = { _ in }
+    /// Já está no desafio: abre ele.
+    var onOpen: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    @State private var nickname = "Wagner"
-    /// D0: a conta Apple "entra" sem chamar o servidor.
-    @State private var linked = false
+    @State private var nickname = ChallengeName.suggestedPilotName()
+    @State private var previewLinked = false
+    @State private var isJoining = false
+    @State private var errorMessage: String?
     @ScaledMetric(relativeTo: .largeTitle) private var coverHeight: CGFloat = 320
 
-    /// Quem já está no desafio (o convidado ainda não está).
-    private var members: [ChallengeStanding] { challenge.standings.filter { !$0.isMe } }
+    private var needsAccount: Bool {
+        if let previewAnonymous { return previewAnonymous && !previewLinked }
+        return SyncService.shared.isAnonymous
+    }
+
+    private var cleanNickname: String? {
+        ChallengeName.cleaned(nickname, maxLength: ChallengeName.pilotMaxLength)
+    }
 
     var body: some View {
         NavigationStack {
@@ -38,7 +50,13 @@ struct ChallengeInviteView: View {
                                 ChallengeRules()
                             }
                         }
-                        if isAnonymous && !linked {
+                        if invite.isMember {
+                            memberStep
+                        } else if let blocker = invite.blocker {
+                            Label(blocker, systemImage: "exclamationmark.circle")
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else if needsAccount {
                             appleStep
                         } else {
                             joinStep
@@ -61,17 +79,19 @@ struct ChallengeInviteView: View {
         Color.clear
             .frame(height: coverHeight)
             .frame(maxWidth: .infinity)
-            .overlay { ChallengeCoverImage(ref: challenge.coverRef) }
+            .overlay { ChallengeCoverImage(ref: invite.coverRef) }
             .overlay(alignment: .bottomLeading) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Convite para o desafio")
                         .font(.subheadline.weight(.semibold))
                         .opacity(0.85)
-                    Text(challenge.name)
+                    Text(invite.name)
                         .font(.largeTitle.weight(.bold))
-                    Text("Criado por \(challenge.createdByName)")
-                        .font(.headline)
-                        .opacity(0.9)
+                    if let createdBy = invite.createdByName {
+                        Text("Criado por \(createdBy)")
+                            .font(.headline)
+                            .opacity(0.9)
+                    }
                 }
                 .foregroundStyle(.white)
                 .padding()
@@ -93,9 +113,9 @@ struct ChallengeInviteView: View {
                     .foregroundStyle(.tint)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(AppFormat.dayRange(challenge.startDate, challenge.endDate))
+                    Text(AppFormat.dayRange(invite.period.firstDay, invite.period.lastDay))
                         .font(.body.weight(.semibold))
-                    Text(AppFormat.sentenceCased(challenge.phaseText()))
+                    Text(AppFormat.sentenceCased(invite.period.phaseText()))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -105,13 +125,14 @@ struct ChallengeInviteView: View {
             HStack(spacing: 12) {
                 // Monogramas sobrepostos (os convidados do Convites).
                 HStack(spacing: -10) {
-                    ForEach(members.prefix(4)) { member in
-                        member.monogram(size: 34, ring: Color(.systemGroupedBackground))
+                    ForEach(Array(invite.memberNames.prefix(4).enumerated()), id: \.offset) { _, name in
+                        PilotMonogram(initials: ChallengeStanding.initials(of: name), make: nil,
+                                      size: 34, ringColor: Color(.systemGroupedBackground))
                             .padding(2)
                             .background(Color(.systemGroupedBackground), in: Circle())
                     }
                 }
-                Text(membersText)
+                Text(invite.membersText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -120,32 +141,35 @@ struct ChallengeInviteView: View {
         }
     }
 
-    private var membersText: String {
-        let names = members.prefix(2).map(\.firstName)
-        let rest = members.count - names.count
-        switch (names.count, rest) {
-        case (0, _): return "Ninguém entrou ainda"
-        case (1, 0): return "\(names[0]) já está"
-        case (2, 0): return "\(names[0]) e \(names[1]) já estão"
-        default: return "\(names.joined(separator: ", ")) e mais \(rest) já estão"
-        }
-    }
-
     private var appleStep: some View {
         VStack(spacing: 10) {
-            SignInWithAppleButton(.continue) { request in
-                request.requestedScopes = [.fullName]
-            } onCompletion: { _ in
-                withAnimation { linked = true }
+            if previewAnonymous != nil {
+                // D0: não mexe na conta do simulador.
+                SignInWithAppleButton(.continue) { request in
+                    request.requestedScopes = [.fullName]
+                } onCompletion: { _ in
+                    withAnimation { previewLinked = true }
+                }
+                .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+                .frame(height: 50)
+            } else {
+                AppleSignInButton(errorMessage: $errorMessage) {
+                    // A Apple acabou de mandar o 1º nome (só vem na 1ª vez).
+                    if nickname.isEmpty { nickname = ChallengeName.suggestedPilotName() }
+                }
             }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(height: 50)
 
             Text("A classificação fica na sua conta Apple: se trocar de iPhone, sua posição continua. Seus registros continuam os mesmos.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
         }
     }
 
@@ -156,6 +180,10 @@ struct ChallengeInviteView: View {
                     TextField("Nome", text: $nickname)
                         .multilineTextAlignment(.trailing)
                         .textContentType(.givenName)
+                        .onChange(of: nickname) { _, typed in
+                            let cut = ChallengeName.truncated(typed, maxLength: ChallengeName.pilotMaxLength)
+                            if cut != typed { nickname = cut }
+                        }
                 }
                 .padding()
                 .background(Color(.secondarySystemGroupedBackground),
@@ -167,15 +195,66 @@ struct ChallengeInviteView: View {
             }
 
             Button {
-                Haptics.success()
-                dismiss()
+                join()
             } label: {
-                Text("Entrar no desafio")
-                    .frame(maxWidth: .infinity)
+                Group {
+                    if isJoining {
+                        ProgressView()
+                    } else {
+                        Text("Entrar no desafio")
+                    }
+                }
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(nickname.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(cleanNickname == nil || isJoining)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
+    }
+
+    private var memberStep: some View {
+        Button {
+            dismiss()
+            onOpen()
+        } label: {
+            Text("Abrir desafio")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+    }
+
+    private func join() {
+        guard let name = cleanNickname else { return }
+        isJoining = true
+        errorMessage = nil
+        Task {
+            do {
+                try await onJoin(name)
+                UserDefaults.standard.set(name, forKey: ChallengeName.pilotNameKey)
+                Haptics.success()
+                dismiss()
+            } catch {
+                errorMessage = ChallengeService.challengeError(error).message
+            }
+            isJoining = false
+        }
+    }
+}
+
+extension ChallengeInvite {
+    /// Prévia de um desafio que o app já tem (protótipo D0).
+    init(challenge: Challenge) {
+        let others = challenge.standings.filter { !$0.isMe }
+        self.init(id: challenge.id, code: challenge.code, name: challenge.name,
+                  period: challenge.period, coverRef: challenge.coverRef,
+                  createdByName: challenge.createdByName, memberCount: others.count + 1,
+                  memberNames: others.prefix(3).map(\.name), maxMembers: 50)
     }
 }
