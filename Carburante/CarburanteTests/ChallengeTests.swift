@@ -149,6 +149,64 @@ final class ChallengeTests: XCTestCase {
         XCTAssertEqual(c.commentCount(on: UUID()), 0)
     }
 
+    // MARK: Reações
+
+    private func entry(of member: ChallengeStanding) -> ChallengeEntry {
+        ChallengeEntry(id: UUID(), memberID: member.id, date: date(2026, 10, 5),
+                       bike: ChallengeBike(make: "Honda", model: "CB 500X"), odometer: 1000, status: .start)
+    }
+
+    func testReact_putSwapAndRemove() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        var c = challenge([ana, me])
+        let hers = entry(of: ana)
+        c.react(.moto, on: hers)
+        XCTAssertEqual(c.myReaction(on: hers.id), .moto)
+        c.react(.rain, on: hers)
+        XCTAssertEqual(c.myReaction(on: hers.id), .rain, "outro emoji troca: 1 por pessoa")
+        XCTAssertEqual(c.reactions.count, 1)
+        c.react(.rain, on: hers)
+        XCTAssertNil(c.myReaction(on: hers.id), "o mesmo de novo tira")
+        XCTAssertTrue(c.reactions.isEmpty)
+    }
+
+    func testReact_notOnYourOwnFuelUp() {
+        let me = standing(1, "Wagner Rosa", km: 0, me: true)
+        var c = challenge([me])
+        let mine = entry(of: me)
+        XCTAssertFalse(c.canReact(to: mine))
+        c.react(.fire, on: mine)
+        XCTAssertTrue(c.reactions.isEmpty)
+    }
+
+    func testReactionTallies_mostUsedFirstAndYouFirst() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        let bruno = standing(3, "Bruno Lima", km: 0)
+        let carla = standing(4, "Carla Souza", km: 0)
+        var c = challenge([ana, me, bruno, carla])
+        let target = entry(of: carla)
+        c.reactions = [
+            ChallengeReactionMark(entryID: target.id, memberID: ana.id, key: "rain"),
+            ChallengeReactionMark(entryID: target.id, memberID: bruno.id, key: "moto"),
+            ChallengeReactionMark(entryID: target.id, memberID: me.id, key: "moto"),
+            ChallengeReactionMark(entryID: target.id, memberID: carla.id, key: "sparkles"), // versão mais nova
+        ]
+        let tallies = c.reactionTallies(on: target.id)
+        XCTAssertEqual(tallies.map(\.reaction), [.moto, .rain], "chave desconhecida some")
+        XCTAssertEqual(tallies[0].count, 2)
+        XCTAssertTrue(tallies[0].includesMe)
+        XCTAssertEqual(tallies[0].names, ["Você", "Bruno"])
+        XCTAssertFalse(tallies[1].includesMe)
+    }
+
+    func testReactionKeys_areFrozen() {
+        // Chaves vão para o servidor: nunca renomear (CLAUDE.md, enums persistidos).
+        XCTAssertEqual(ChallengeReaction.allCases.map(\.rawValue),
+                       ["moto", "fire", "clap", "wow", "laugh", "rain"])
+    }
+
     // MARK: Período
 
     func testDayRange() {

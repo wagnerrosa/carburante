@@ -39,7 +39,8 @@ struct ChallengesView: View {
             Group {
                 if let selected {
                     ChallengeBoard(challenge: selected,
-                                   segment: start == .activity ? .activity : .standings)
+                                   segment: start == .activity ? .activity : .standings,
+                                   onReact: { react($0, on: $1, in: selected.id) })
                         .id(selected.id)
                 } else {
                     emptyState
@@ -207,7 +208,8 @@ struct ChallengesView: View {
         switch route {
         case .board(let id):
             if let challenge = challenge(id) {
-                ChallengeBoard(challenge: challenge, segment: .standings)
+                ChallengeBoard(challenge: challenge, segment: .standings,
+                               onReact: { react($0, on: $1, in: id) })
                     .navigationTitle(challenge.name)
                     .navigationBarTitleDisplayMode(.inline)
             }
@@ -233,6 +235,8 @@ struct ChallengesView: View {
                     }
                 } onDelete: { comment in
                     update(challengeID) { $0.comments.removeAll { $0.id == comment.id } }
+                } onReact: { reaction in
+                    react(reaction, on: entry, in: challengeID)
                 }
             }
         }
@@ -240,6 +244,11 @@ struct ChallengesView: View {
 
     private func challenge(_ id: UUID) -> Challenge? {
         challenges.first { $0.id == id }
+    }
+
+    private func react(_ reaction: ChallengeReaction, on entry: ChallengeEntry, in id: UUID) {
+        Haptics.selection()
+        update(id) { $0.react(reaction, on: entry) }
     }
 
     private func update(_ id: UUID, _ change: (inout Challenge) -> Void) {
@@ -273,6 +282,7 @@ private struct InviteRequest: Identifiable {
 struct ChallengeBoard: View {
     let challenge: Challenge
     @State var segment: Segment
+    var onReact: (ChallengeReaction, ChallengeEntry) -> Void = { _, _ in }
 
     enum Segment: Hashable { case standings, activity }
 
@@ -300,7 +310,7 @@ struct ChallengeBoard: View {
                         .padding(.horizontal, 4)
                         .fixedSize(horizontal: false, vertical: true)
                 case .activity:
-                    ChallengeActivityFeed(challenge: challenge)
+                    ChallengeActivityFeed(challenge: challenge, onReact: onReact)
                 }
             }
             .padding()

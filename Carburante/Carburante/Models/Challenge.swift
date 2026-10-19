@@ -26,6 +26,8 @@ struct Challenge: Identifiable, Hashable {
     var entries: [ChallengeEntry]
     /// Comentários nos abastecimentos do mural.
     var comments: [ChallengeComment] = []
+    /// Reações (emoji) nos abastecimentos do mural — 1 por pessoa por abastecimento.
+    var reactions: [ChallengeReactionMark] = []
     /// Quem criou modera: troca o código e apaga comentário de qualquer um.
     var createdByMe = false
 
@@ -61,6 +63,50 @@ struct Challenge: Identifiable, Hashable {
     /// Quem escreveu apaga o seu; quem criou o desafio apaga qualquer um.
     func canDelete(_ comment: ChallengeComment) -> Bool {
         createdByMe || comment.memberID == me?.id
+    }
+
+    // MARK: Reações
+
+    /// Ninguém reage ao próprio abastecimento.
+    func canReact(to entry: ChallengeEntry) -> Bool {
+        guard let me else { return false }
+        return entry.memberID != me.id
+    }
+
+    func myReaction(on entryID: UUID) -> ChallengeReaction? {
+        guard let me else { return nil }
+        return reactions.first { $0.entryID == entryID && $0.memberID == me.id }?.reaction
+    }
+
+    /// Tocar num emoji: põe; outro emoji troca; o mesmo de novo tira
+    /// (Tapback do Mensagens).
+    mutating func react(_ reaction: ChallengeReaction, on entry: ChallengeEntry) {
+        guard let me, canReact(to: entry) else { return }
+        let previous = myReaction(on: entry.id)
+        reactions.removeAll { $0.entryID == entry.id && $0.memberID == me.id }
+        if previous != reaction {
+            reactions.append(ChallengeReactionMark(entryID: entry.id, memberID: me.id, key: reaction.rawValue))
+        }
+    }
+
+    /// Emojis de um abastecimento, o mais usado primeiro (empate = ordem da
+    /// paleta). Chave desconhecida (versão mais nova do app) não aparece.
+    func reactionTallies(on entryID: UUID) -> [ReactionTally] {
+        let marks = reactions.filter { $0.entryID == entryID }
+        let tallies: [ReactionTally] = ChallengeReaction.allCases.compactMap { reaction in
+            let who = marks.filter { $0.key == reaction.rawValue }
+            guard !who.isEmpty else { return nil }
+            let people = who.compactMap { standing(for: $0.memberID) }
+            return ReactionTally(reaction: reaction, count: who.count,
+                                 includesMe: people.contains(where: \.isMe),
+                                 names: people.sorted { $0.isMe && !$1.isMe }.map { $0.isMe ? "Você" : $0.firstName })
+        }
+        // `sorted` não é estável: desempata pela posição na paleta.
+        let order = ChallengeReaction.allCases
+        return tallies.sorted {
+            $0.count != $1.count ? $0.count > $1.count
+                : order.firstIndex(of: $0.reaction)! < order.firstIndex(of: $1.reaction)!
+        }
     }
 
     enum Phase: Equatable {
@@ -183,6 +229,59 @@ struct ChallengeComment: Identifiable, Hashable {
         let left = maxLength - draft.count
         return left <= counterThreshold ? left : nil
     }
+}
+
+/// Paleta fechada de reações: cobre o que a turma quer dizer (moto, chuva,
+/// foto bonita) sem moderar emoji livre. 6, como o Tapback do Mensagens — é o
+/// que cabe na linha do menu sem rolar. Chave = ASCII congelada (é o que vai
+/// para o servidor); a tela mostra o `emoji`.
+enum ChallengeReaction: String, CaseIterable, Identifiable {
+    case moto, fire, clap, wow, laugh, rain
+
+    var id: Self { self }
+
+    var emoji: String {
+        switch self {
+        case .moto: "🏍️"
+        case .fire: "🔥"
+        case .clap: "👏"
+        case .wow: "😍"
+        case .laugh: "😂"
+        case .rain: "🌧️"
+        }
+    }
+
+    /// Nome para o VoiceOver.
+    var label: String {
+        switch self {
+        case .moto: "moto"
+        case .fire: "fogo"
+        case .clap: "palmas"
+        case .wow: "que lindo"
+        case .laugh: "risada"
+        case .rain: "chuva"
+        }
+    }
+}
+
+/// Uma reação gravada: quem, em qual abastecimento, qual chave.
+struct ChallengeReactionMark: Hashable {
+    var entryID: UUID
+    var memberID: UUID
+    /// Chave crua (`ChallengeReaction.rawValue`); pode ser de versão mais nova.
+    var key: String
+
+    var reaction: ChallengeReaction? { ChallengeReaction(rawValue: key) }
+}
+
+/// Um emoji com a contagem e quem mandou ("Você" primeiro).
+struct ReactionTally: Hashable, Identifiable {
+    let reaction: ChallengeReaction
+    let count: Int
+    let includesMe: Bool
+    let names: [String]
+
+    var id: ChallengeReaction { reaction }
 }
 
 struct ChallengeBike: Hashable {

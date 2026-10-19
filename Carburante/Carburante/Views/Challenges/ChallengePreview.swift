@@ -77,6 +77,7 @@ enum ChallengePreview {
     static let entryID = UUID()
     private static let noPhotoEntryID = UUID()
     private static let myEntryID = UUID()
+    private static let diegoEntryID = UUID()
 
     // MARK: Turma da serra (mês corrente, ativo)
 
@@ -102,7 +103,7 @@ enum ChallengePreview {
             e(2, biz, day(0, 9, 10), 41_205, .noPhoto, photo: false, id: noPhotoEntryID),
             e(1, iron, day(1, 18, 45), 22_035, .counted(km: 310), extra: "IMG_0001", id: myEntryID),
             e(3, gs, day(2, 11, 20), 9_870, .counted(km: 190), gallery: true),
-            e(4, himalayan, day(3, 16, 5), 31_400, .counted(km: 205), extra: "IMG_0004"),
+            e(4, himalayan, day(3, 16, 5), 31_400, .counted(km: 205), extra: "IMG_0004", id: diegoEntryID),
             e(0, cb500, day(4, 8, 40), 18_700, .counted(km: 310)),
             e(2, mt07, day(4, 19, 15), 15_330, .counted(km: 520), gallery: true),
             e(5, twin, day(5, 10, 0), 6_120, .start),
@@ -129,9 +130,19 @@ enum ChallengePreview {
             c(noPhotoEntryID, 2, ago(minutes: 185), "Esqueci! Os km vão no próximo, juro 😅"),
             c(myEntryID, 4, day(1, 19, 10), "Essa Iron tá rodando mais que a minha Himalayan"),
         ]
+        func r(_ entry: UUID, _ who: Int, _ reaction: ChallengeReaction) -> ChallengeReactionMark {
+            ChallengeReactionMark(entryID: entry, memberID: ids[who], key: reaction.rawValue)
+        }
+        let reactions = [
+            r(entryID, 2, .wow), r(entryID, 3, .wow), r(entryID, 1, .fire), r(entryID, 4, .moto),
+            r(noPhotoEntryID, 3, .laugh), r(noPhotoEntryID, 0, .laugh),
+            r(myEntryID, 0, .moto), r(myEntryID, 4, .moto), r(myEntryID, 3, .fire),
+            r(diegoEntryID, 0, .rain), r(diegoEntryID, 5, .clap), r(diegoEntryID, 2, .rain),
+        ]
         return Challenge(id: UUID(), name: "Turma da serra", startDate: start, endDate: end,
                          createdByName: "Wagner", code: "K7QM4XPR", coverRef: "IMG_0005",
-                         standings: standings, entries: entries, comments: comments, createdByMe: true)
+                         standings: standings, entries: entries, comments: comments,
+                         reactions: reactions, createdByMe: true)
     }()
 
     // MARK: Bate-volta de domingo (1 semana, ativo, sem capa)
