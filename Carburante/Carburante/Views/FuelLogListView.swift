@@ -3,7 +3,9 @@
 //  Carburante
 //
 //  Histórico de abastecimentos de uma moto — ordem cronológica decrescente.
-//  Tocar item edita; swipe exclui.
+//  Tocar item edita; swipe exclui. Abastecimento antigo não tem porta aqui:
+//  o `+` já oferece "Foi em outro dia?" no fluxo, e o lote do passado de uma
+//  moto usada entra pelo perfil ("Adicionar histórico") — um verbo só por tela.
 //
 
 import SwiftUI
@@ -14,8 +16,6 @@ struct FuelLogListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingLog: FuelLog?
     @State private var showingAdd = false
-    /// "Adicionar histórico": abastecimento antigo (fluxo com data primeiro).
-    @State private var showingHistory = false
     @Environment(\.garageAccess) private var garageAccess
 
     private var logs: [FuelLog] {
@@ -49,11 +49,6 @@ struct FuelLogListView: View {
                 } actions: {
                     Button("Registrar abastecimento") { showingAdd = true }
                         .buttonStyle(.borderedProminent)
-                    Button {
-                        showingHistory = true
-                    } label: {
-                        Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
-                    }
                 }
             } else {
                 let kmpl = motorcycle.kmPerLiterByOdometer
@@ -80,16 +75,6 @@ struct FuelLogListView: View {
                             MonthHeader(title: group.title, totalCost: group.totalCost)
                         }
                     }
-                    // Secundário e no fim: o `+` segue sendo o caminho do dia a dia.
-                    Section {
-                        Button {
-                            showingHistory = true
-                        } label: {
-                            Label("Adicionar histórico", systemImage: "clock.arrow.circlepath")
-                        }
-                    } footer: {
-                        Text("Abastecimentos antigos entram no consumo da moto, mas não nas conquistas.")
-                    }
                 }
             }
         }
@@ -108,11 +93,6 @@ struct FuelLogListView: View {
         }
         .sheet(isPresented: $showingAdd) {
             GarageGated(motorcycle) { FuelLogFormView(motorcycle: motorcycle, entryPoint: "fuel_list") }
-        }
-        .sheet(isPresented: $showingHistory) {
-            GarageGated(motorcycle) {
-                FuelLogFormView(motorcycle: motorcycle, entryPoint: "history_fuel_list", isHistoryEntry: true)
-            }
         }
         .sheet(item: $editingLog) { log in
             GarageGated(motorcycle) { FuelLogFormView(motorcycle: motorcycle, fuelLog: log) }
