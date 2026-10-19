@@ -66,6 +66,30 @@ final class ExpenseTests: XCTestCase {
         XCTAssertEqual(moto.totalSpentEver, 60 + 120 + 300)
     }
 
+    /// O card "Gasto este mês" do Resumo abre a tela Custos: os dois somam
+    /// gasolina, manutenção e outras despesas do mês (antes o card só via gasolina).
+    func testSpentThisMonthMatchesCostsTotal() throws {
+        let ctx = try makeContext()
+        let moto = Motorcycle(make: "Honda", model: "CG 160", year: 2024, country: "Brasil")
+        ctx.insert(moto)
+        let cal = Calendar.current
+        let now = cal.date(from: DateComponents(year: 2026, month: 10, day: 19, hour: 12))!
+        let lastMonth = cal.date(byAdding: .month, value: -1, to: now)!
+        ctx.insert(FuelLog(date: now, odometer: 1000, liters: 10, totalCost: 60,
+                           fuelType: .gasolinaComum, motorcycle: moto))
+        ctx.insert(MaintenanceLog(date: now, mileage: 1000, cost: 120, type: .oleo, motorcycle: moto))
+        ctx.insert(Expense(date: now, amount: 300, category: .ipva, motorcycle: moto))
+        ctx.insert(Expense(date: lastMonth, amount: 50, category: .wash, motorcycle: moto))
+        try ctx.save()
+
+        XCTAssertEqual(moto.spentThisMonth(now: now), 60 + 120 + 300)
+        let month = cal.dateInterval(of: .month, for: now)!
+        let costs = CostCalculator.summary(fuel: moto.consumptionEntries, maintenance: moto.maintenanceCosts,
+                                           other: moto.otherCosts, in: month)
+        XCTAssertEqual(moto.spentThisMonth(now: now), costs.total)
+        XCTAssertEqual(moto.monthlySpending(now: now).map(\.total), [0, 0, 0, 0, 50, 480])
+    }
+
     func testDeletionTextListsExpensesWithCommaAndE() throws {
         let ctx = try makeContext()
         let moto = Motorcycle(make: "Honda", model: "CG 160", year: 2024, country: "Brasil")

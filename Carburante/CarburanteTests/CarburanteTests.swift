@@ -727,30 +727,6 @@ final class CarburanteTests: XCTestCase {
         FuelEntry(odometer: odo, liters: liters, totalCost: cost, isFullTank: true, date: day(y, m, d))
     }
 
-    /// Gasto por mês: soma por mês-civil, janela de N meses até `now`, com zeros.
-    func testMonthlyExpenseBucketsAndZeros() {
-        let entries = [
-            entryOn(2026, 4, 5,  odo: 1000, liters: 10, cost: 50),
-            entryOn(2026, 4, 20, odo: 1100, liters: 10, cost: 60),   // mesmo mês → soma 110
-            entryOn(2026, 6, 3,  odo: 1300, liters: 10, cost: 80),   // mai. fica zero
-        ]
-        let series = ConsumptionCalculator.monthlyExpense(
-            from: entries, monthCount: 3, now: day(2026, 6, 18))
-        XCTAssertEqual(series.count, 3)
-        XCTAssertEqual(series.map(\.total), [110, 0, 80])   // abr, mai, jun
-    }
-
-    /// Abastecimentos fora da janela não entram.
-    func testMonthlyExpenseIgnoresOutsideWindow() {
-        let entries = [
-            entryOn(2026, 1, 5, odo: 900, liters: 10, cost: 999),   // fora (jan, janela = abr-jun)
-            entryOn(2026, 6, 3, odo: 1300, liters: 10, cost: 80),
-        ]
-        let series = ConsumptionCalculator.monthlyExpense(
-            from: entries, monthCount: 3, now: day(2026, 6, 18))
-        XCTAssertEqual(series.map(\.total), [0, 0, 80])
-    }
-
     /// km rodados/mês: o km de cada passo entre leituras é repartido pelos dias
     /// que ele atravessa (odômetro interpolado); a parte fora da janela some.
     func testMonthlyDistanceSpreadsStepsAcrossMonths() {
@@ -1576,7 +1552,7 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(moto.kmPerLiterByOdometer[150] ?? 0, 10, accuracy: 0.001)
 
         let now = day(2026, 9, 30)
-        XCTAssertEqual(moto.expenseThisMonth(now: now), 80, "gasto bate com o total do mês na lista")
+        XCTAssertEqual(moto.spentThisMonth(now: now), 80, "gasto bate com o total do mês na lista")
         XCTAssertEqual(moto.distanceThisMonth(now: now), 149, accuracy: 0.001)
         XCTAssertEqual(moto.averagePricePerLiter ?? 0, 80 / 15.5, accuracy: 0.001)
 

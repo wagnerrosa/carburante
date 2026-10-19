@@ -181,16 +181,6 @@ extension Motorcycle {
 
     // MARK: - Métricas do Resumo (gasto / preço por litro)
 
-    /// Gasto somado por mês para a sparkline (últimos 6 meses, com zeros).
-    func monthlyExpenseSeries(now: Date = Date()) -> [(month: Date, total: Double)] {
-        ConsumptionCalculator.monthlyExpense(from: consumptionEntries, now: now)
-    }
-
-    /// Gasto do mês-civil atual.
-    func expenseThisMonth(now: Date = Date()) -> Double {
-        monthlyExpenseSeries(now: now).last?.total ?? 0
-    }
-
     /// Preço por litro de cada abastecimento (série da sparkline).
     var pricePerLiterSeries: [Double] {
         ConsumptionCalculator.pricePerLiterSeries(from: consumptionEntries)
@@ -396,34 +386,9 @@ enum ConsumptionCalculator {
 
     // MARK: - Séries para os mini-gráficos do Resumo
     //
-    // Despesa e preço/litro valem por ABASTECIMENTO (não dependem de tanque
-    // cheio, ao contrário do consumo). Funções puras, ordenam internamente,
+    // Preço/litro e km valem por ABASTECIMENTO (não dependem de tanque cheio,
+    // ao contrário do consumo). O gasto do mês mora em `CostCalculator`. Funções puras, ordenam internamente,
     // recebem `now`/`calendar` por parâmetro → testáveis e determinísticas.
-
-    /// Gasto somado por mês-civil, dos `monthCount` meses até `now` (inclusive),
-    /// na ordem mais antigo → mais novo. Meses sem abastecimento entram com 0
-    /// (série contínua → sparkline sem buracos). O `Date` é o 1º dia do mês.
-    static func monthlyExpense(
-        from entries: [FuelEntry],
-        monthCount: Int = 6,
-        now: Date,
-        calendar: Calendar = .current
-    ) -> [(month: Date, total: Double)] {
-        guard monthCount > 0 else { return [] }
-        let thisMonth = calendar.dateInterval(of: .month, for: now)?.start ?? now
-        // Eixo de meses: thisMonth, mês anterior, … (monthCount posições).
-        let months: [Date] = (0..<monthCount).reversed().compactMap {
-            calendar.date(byAdding: .month, value: -$0, to: thisMonth)
-        }
-        // Soma os gastos no balde do mês correspondente.
-        var totals: [Date: Double] = Dictionary(uniqueKeysWithValues: months.map { ($0, 0) })
-        for e in entries {
-            guard let m = calendar.dateInterval(of: .month, for: e.date)?.start,
-                  totals[m] != nil else { continue }
-            totals[m, default: 0] += e.totalCost
-        }
-        return months.map { (month: $0, total: totals[$0] ?? 0) }
-    }
 
     /// km rodados por mês-civil, dos `monthCount` meses até `now` (inclusive),
     /// mais antigo → mais novo. Os km de cada passo entre leituras são

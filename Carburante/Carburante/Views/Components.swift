@@ -226,6 +226,10 @@ struct MetricTile: View {
     var sparkline: [Double]?
     /// Série de distância semanal (barras + grid + rótulos). nil = sem barras.
     var distanceBars: [DistanceBar]?
+    /// Tile que abre outra tela: chevron cinza ao lado do número (mesma regra
+    /// dos cards, DESIGN §6b) — sem ele, nada diferencia o tile tocável dos
+    /// estáticos da grade.
+    var navigates = false
 
     /// Altura reservada para o gráfico. Inclui espaço para os rótulos de mês do
     /// eixo X das barras (Fitness rotula 00/06/12/18 abaixo do gráfico).
@@ -233,10 +237,19 @@ struct MetricTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(value)
-                .font(.title2.weight(.semibold))
-                .monospacedDigit()
-                .contentTransition(.numericText())
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.title2.weight(.semibold))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                if navigates {
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .accessibilityHidden(true)
+                }
+            }
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)

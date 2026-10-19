@@ -183,15 +183,19 @@ struct CostsView: View {
         .animation(.default, value: period)
     }
 
-    /// "Gasolina R$ … · Manutenção R$ …", e "· Outras R$ …" quando a moto tem
-    /// outra despesa registrada (some para quem nunca registrou uma). Espaço
-    /// inseparável entre rótulo e valor: a linha quebra entre as partes, nunca
-    /// deixa "Outras" sozinho no fim da linha.
+    /// Partes do total no período. Parte zerada some (mesma regra do total 0
+    /// do `MonthHeader`): "Gasolina R$ 0,00 · Manutenção R$ 0,00 · Outras
+    /// R$ 1.627,00" vira "Outras R$ 1.627,00". Tudo zerado → só a gasolina, para
+    /// a linha não sumir. Espaço inseparável entre rótulo e valor: a linha
+    /// quebra entre as partes, nunca deixa "Outras" sozinho no fim da linha.
     private var breakdown: String {
-        var parts = ["Gasolina\u{00A0}\(AppFormat.currency(summary.fuel))",
-                     "Manutenção\u{00A0}\(AppFormat.currency(summary.maintenance))"]
-        if !other.isEmpty { parts.append("Outras\u{00A0}\(AppFormat.currency(summary.other))") }
-        return parts.joined(separator: " · ")
+        let parts = [("Gasolina", summary.fuel), ("Manutenção", summary.maintenance),
+                     ("Outras", summary.other)]
+            .filter { $0.1 > 0 }
+            .map { "\($0.0)\u{00A0}\(AppFormat.currency($0.1))" }
+        return parts.isEmpty
+            ? "Gasolina\u{00A0}\(AppFormat.currency(0))"
+            : parts.joined(separator: " · ")
     }
 
     private var periodDescription: String {

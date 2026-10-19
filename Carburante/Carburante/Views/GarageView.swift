@@ -298,7 +298,9 @@ struct GarageView: View {
             StatRow(label: "Abastecimentos", value: String(motorcycles.fleetFuelLogCount))
             StatRow(label: "Distância", value: AppFormat.km(summary.totalDistance))
             StatRow(label: "Litros", value: AppFormat.liters(motorcycles.fleetTotalLitersEver))
-            StatRow(label: "Gasto", value: AppFormat.currency(motorcycles.fleetTotalCostEver))
+            // Só gasolina (a seção é de abastecimento); o custo completo é o
+            // "Custos" do perfil — o rótulo diz qual é qual.
+            StatRow(label: "Gasto com gasolina", value: AppFormat.currency(motorcycles.fleetTotalCostEver))
             if let avg = summary.averageKmPerLiter {
                 StatRow(label: "Consumo médio", value: AppFormat.kmPerLiter(avg))
             }
