@@ -18,6 +18,9 @@ struct ChallengesView: View {
     var start: StartScreen = .board
     /// Dados do servidor. false = protótipo D0.
     var isLive = false
+    /// Código de um link de convite que abriu o app (`RootTabView`). A aba
+    /// abre a prévia e zera.
+    var incomingInviteCode: Binding<String?> = .constant(nil)
 
     enum StartScreen: Equatable {
         case board, activity, details, participant(UUID), entry(UUID), invite(anonymous: Bool), form
@@ -66,6 +69,11 @@ struct ChallengesView: View {
             .onChange(of: service.challenges) { _, loaded in
                 if isLive { challenges = loaded }
             }
+            .onChange(of: incomingInviteCode.wrappedValue, initial: true) { _, code in
+                guard let code else { return }
+                incomingInviteCode.wrappedValue = nil
+                openInviteLink(code)
+            }
     }
 
     private var navigation: some View {
@@ -83,6 +91,13 @@ struct ChallengesView: View {
                 }
             }
             .refreshable { if isLive { await service.refresh() } }
+            .overlay {
+                if isCheckingCode {
+                    ProgressView("Abrindo convite…")
+                        .padding(24)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+            }
             .navigationTitle("Desafios")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -162,7 +177,7 @@ struct ChallengesView: View {
         HStack(spacing: 0) {
             ShareLink(item: challenge.inviteURL,
                       subject: Text(challenge.name),
-                      message: Text("Bora pro desafio \(challenge.name) no Carburante? Os km saem dos abastecimentos.")) {
+                      message: Text(challenge.inviteMessage())) {
                 Image(systemName: "person.badge.plus")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.tint)
@@ -430,6 +445,27 @@ struct ChallengesView: View {
         }
     }
 
+    /// Link de convite que abriu o app: fecha o que estiver aberto na aba e
+    /// abre a prévia. Mesmo código já na tela = nada a fazer.
+    private func openInviteLink(_ code: String) {
+        if invite?.invite.code == code { return }
+        let presenting = invite != nil || newChallenge != nil || showingAccount
+            || showingCodeEntry || alert != nil
+        invite = nil
+        newChallenge = nil
+        showingAccount = false
+        afterAccount = nil
+        showingCodeEntry = false
+        alert = nil
+        alertAfterSheet = nil
+        path = []
+        Task {
+            // Uma apresentação por vez: espera a anterior sair da tela.
+            if presenting { try? await Task.sleep(for: .milliseconds(600)) }
+            openCode(code)
+        }
+    }
+
     private func join(_ invite: ChallengeInvite, as name: String) async throws(ChallengeError) {
         guard isLive else { return }
         // nil = o código foi trocado entre a prévia e o "Entrar".
@@ -613,7 +649,8 @@ struct ChallengeDetailsView: View {
             }
 
             Section {
-                ShareLink(item: challenge.inviteURL, subject: Text(challenge.name)) {
+                ShareLink(item: challenge.inviteURL, subject: Text(challenge.name),
+                          message: Text(challenge.inviteMessage())) {
                     Label("Convidar", systemImage: "person.badge.plus")
                 }
                 LabeledContent("Código", value: code)
@@ -714,19 +751,52 @@ struct ChallengeDetailsView: View {
     }
 }
 
-/// As três regras do desafio — no convite e nos detalhes, mesmo texto.
+/// As regras do desafio — no convite e nos detalhes, mesmo texto. No convite
+/// a terceira sai: o "O que a turma vê" (`ChallengeSharing`) diz o mesmo em
+/// detalhe.
 struct ChallengeRules: View {
-    var body: some View {
-        rule("fuelpump.fill", "Os km saem dos seus abastecimentos, registrados na hora.")
-        rule("camera.fill", "Só contam abastecimentos com foto do hodômetro.")
-        rule("person.2.fill", "Os pilotos veem seus abastecimentos deste período e as fotos.")
-    }
+    var includesSharing = true
 
-    private func rule(_ symbol: String, _ text: String) -> some View {
+    var body: some View {
+        ChallengeInfoRow(symbol: "fuelpump.fill", text: "Os km saem dos seus abastecimentos, registrados na hora.")
+        ChallengeInfoRow(symbol: "camera.fill", text: "Só contam abastecimentos com foto do hodômetro.")
+        if includesSharing {
+            ChallengeInfoRow(symbol: "person.2.fill", text: "Os pilotos veem seus abastecimentos deste período e as fotos.")
+        }
+    }
+}
+
+/// Consentimento: o que a turma vê de quem está no desafio, mostrado ao
+/// criar e ao entrar. Espelha o que `challenge_leaderboard` e
+/// `challenge_entries` devolvem (supabase/challenges.sql) — mudou lá, muda
+/// aqui.
+enum ChallengeSharing {
+    static let title = "O que a turma vê"
+    /// O que nunca sai do aparelho/da conta da pessoa.
+    static let privateNote = "Litros, valor e lugar dos abastecimentos ficam só com você."
+    static let joinConsent = "Ao entrar, você mostra isso à turma até sair do desafio."
+    static let createConsent = "Ao criar, você mostra isso à turma até sair do desafio."
+
+    struct Rows: View {
+        var body: some View {
+            ChallengeInfoRow(symbol: "fuelpump.fill", text: "Seus abastecimentos do período: dia, hora, hodômetro e km")
+            ChallengeInfoRow(symbol: "motorcycle", text: "Marca e modelo da moto")
+            ChallengeInfoRow(symbol: "photo.on.rectangle", text: "Fotos do hodômetro e do desafio")
+        }
+    }
+}
+
+/// Linha de explicação com símbolo (regras, consentimento).
+struct ChallengeInfoRow: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: symbol)
                 .foregroundStyle(.tint)
                 .frame(width: 24)
+                .accessibilityHidden(true)
             Text(text)
                 .fixedSize(horizontal: false, vertical: true)
         }

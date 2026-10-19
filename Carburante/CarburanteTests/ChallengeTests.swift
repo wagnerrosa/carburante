@@ -115,6 +115,50 @@ final class ChallengeTests: XCTestCase {
         }
     }
 
+    // MARK: Link do convite
+
+    func testInviteLink_roundTrip() {
+        let link = InviteCode.link(for: "K7QM4XPR")
+        XCTAssertEqual(link.absoluteString, "https://carburante.motorcycles/d/?c=K7QM4XPR")
+        XCTAssertEqual(InviteCode.code(fromLink: link), "K7QM4XPR")
+        XCTAssertEqual(challenge().inviteURL, link)
+    }
+
+    func testInviteLink_acceptsWhatTheShareSheetAndBrowsersProduce() {
+        let links = [
+            "https://www.carburante.motorcycles/d/?c=K7QM4XPR",
+            "https://carburante.motorcycles/d?c=K7QM4XPR",
+            "https://carburante.motorcycles/d/index.html?c=K7QM4XPR",
+            "https://CARBURANTE.motorcycles/d/?c=k7qm-4xpr",
+            "https://carburante.motorcycles/d/?utm_source=whatsapp&c=K7QM4XPR",
+        ]
+        for link in links {
+            XCTAssertEqual(InviteCode.code(fromLink: URL(string: link)!), "K7QM4XPR", link)
+        }
+    }
+
+    func testInviteLink_ignoresTheRestOfTheSite() {
+        let links = [
+            "https://carburante.motorcycles/",
+            "https://carburante.motorcycles/ajuda/?c=K7QM4XPR",
+            "https://carburante.motorcycles/d/",
+            "https://carburante.motorcycles/d/?c=SERRA7",
+            "https://carburante.motorcycles/d/K7QM4XPR",
+            "http://carburante.motorcycles/d/?c=K7QM4XPR",
+            "https://carburante.motorcycles.evil.com/d/?c=K7QM4XPR",
+        ]
+        for link in links {
+            XCTAssertNil(InviteCode.code(fromLink: URL(string: link)!), link)
+        }
+    }
+
+    func testInviteMessage_carriesNameDeadlineAndCode() {
+        let message = challenge().inviteMessage(now: date(2026, 10, 19))
+        XCTAssertTrue(message.contains("“Turma da serra”"), message)
+        XCTAssertTrue(message.contains("até 31 de out."), message)
+        XCTAssertTrue(message.hasSuffix("Código: K7QM-4XPR"), message)
+    }
+
     // MARK: Comentários
 
     func testComment_cleanedTrimsAndLimits() {

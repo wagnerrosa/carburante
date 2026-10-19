@@ -32,6 +32,9 @@ struct ChallengeInviteView: View {
         return SyncService.shared.isAnonymous
     }
 
+    /// Ainda vai entrar: mostra o que a turma vai ver (consentimento).
+    private var canJoin: Bool { !invite.isMember && invite.blocker == nil }
+
     private var cleanNickname: String? {
         ChallengeName.cleaned(nickname, maxLength: ChallengeName.pilotMaxLength)
     }
@@ -47,8 +50,11 @@ struct ChallengeInviteView: View {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Como funciona")
                                     .font(.headline)
-                                ChallengeRules()
+                                ChallengeRules(includesSharing: !canJoin)
                             }
+                        }
+                        if canJoin {
+                            sharing
                         }
                         if invite.isMember {
                             memberStep
@@ -141,6 +147,22 @@ struct ChallengeInviteView: View {
         }
     }
 
+    /// Consentimento: o que a turma vê, antes da conta e do nome — quem lê
+    /// decide antes de entrar com a Apple.
+    private var sharing: some View {
+        GroupedCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(ChallengeSharing.title)
+                    .font(.headline)
+                ChallengeSharing.Rows()
+                Text(ChallengeSharing.privateNote)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     private var appleStep: some View {
         VStack(spacing: 10) {
             if previewAnonymous != nil {
@@ -209,6 +231,15 @@ struct ChallengeInviteView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .disabled(cleanNickname == nil || isJoining)
+
+            // Colado ao botão: tocar em "Entrar" é aceitar.
+            Text(ChallengeSharing.joinConsent)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, -10)
 
             if let errorMessage {
                 Text(errorMessage)
