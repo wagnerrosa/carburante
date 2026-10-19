@@ -59,12 +59,19 @@ struct MotorcycleProfileView: View {
                     navRow(icon: "wrench.and.screwdriver.fill",
                            title: "Manutenções", value: motorcycle.activeMaintenanceLogs.count.formatted())
                 }
-                // Custos completos (gasolina + manutenção) — PLAN/premium-mvp.md §2.
+                // IPVA, seguro, pedágio… — registro grátis (Custos v2).
+                NavigationLink {
+                    ExpenseListView(motorcycle: motorcycle)
+                } label: {
+                    navRow(icon: "receipt.fill",
+                           title: "Outras despesas", value: motorcycle.activeExpenses.count.formatted())
+                }
+                // Custos completos (tudo somado) — PLAN/premium-mvp.md §2.
                 NavigationLink {
                     CostsView(motorcycle: motorcycle)
                 } label: {
                     navRow(icon: "brazilianrealsign.circle.fill",
-                           title: "Custos", value: AppFormat.currency(totalSpent))
+                           title: "Custos", value: AppFormat.currency(motorcycle.totalSpentEver))
                 }
             }
 
@@ -242,11 +249,6 @@ struct MotorcycleProfileView: View {
         Analytics.motorcycleDeleted(hadFuelLogs: hadLogs, fuelLogCount: count,
                                     remainingBikeCount: remaining)
         dismiss()
-    }
-
-    /// Tudo o que a moto já custou (gasolina + manutenção), para a linha Custos.
-    private var totalSpent: Double {
-        motorcycle.totalCostEver + motorcycle.maintenanceCosts.reduce(0) { $0 + $1.amount }
     }
 
     private func navRow(icon: String, title: String, value: String) -> some View {

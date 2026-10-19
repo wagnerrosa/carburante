@@ -3,8 +3,8 @@
 //  Carburante
 //
 //  "Exportar meus dados" — grátis, sempre (dado nunca é refém; ver
-//  PLAN/monetizacao.md). Três planilhas CSV: motos, abastecimentos e
-//  manutenções, só registros ativos (soft-delete fica fora).
+//  PLAN/monetizacao.md). Quatro planilhas CSV: motos, abastecimentos,
+//  manutenções e outras despesas, só registros ativos (soft-delete fica fora).
 //
 //  Formato da planilha brasileira, para abrir direto no Excel e no Numbers:
 //  `;` separa colunas, vírgula decimal sem separador de milhar, data
@@ -25,13 +25,14 @@ enum DataExport {
         let contents: String
     }
 
-    /// As três planilhas das motos informadas (passe só as ativas).
+    /// As quatro planilhas das motos informadas (passe só as ativas).
     static func files(for motorcycles: [Motorcycle], date: Date = Date()) -> [File] {
         let day = fileDate.string(from: date)
         return [
             File(name: "carburante-motos-\(day).csv", contents: motorcyclesCSV(motorcycles)),
             File(name: "carburante-abastecimentos-\(day).csv", contents: fuelLogsCSV(motorcycles)),
             File(name: "carburante-manutencoes-\(day).csv", contents: maintenanceCSV(motorcycles)),
+            File(name: "carburante-despesas-\(day).csv", contents: expensesCSV(motorcycles)),
         ]
     }
 
@@ -118,6 +119,25 @@ enum DataExport {
                     yesNo(log.partOfMaintenanceID != nil),
                     yesNo(log.isHistorical),
                     dateTime(log.createdAt),
+                ]
+            }
+        }
+        return csv([header] + rows)
+    }
+
+    static func expensesCSV(_ motorcycles: [Motorcycle]) -> String {
+        let header = ["Moto", "ID da moto", "Data", "Categoria", "Valor (R$)", "Observações",
+                      "Registrado em"]
+        let rows = motorcycles.flatMap { m in
+            m.activeExpenses.sorted { $0.date < $1.date }.map { expense in
+                [
+                    bikeName(m),
+                    m.id.uuidString,
+                    dateTime(expense.date),
+                    expense.categoryLabel,
+                    number(expense.amount, min: 2, max: 2),
+                    expense.notes,
+                    dateTime(expense.createdAt),
                 ]
             }
         }

@@ -40,12 +40,20 @@ final class PersistedEnumKeyTests: XCTestCase {
         ])
     }
 
+    func testExpenseCategoryKeysAreFrozen() {
+        XCTAssertEqual(ExpenseCategory.allCases.map(\.rawValue), [
+            "ipva", "licensing", "insurance", "financing", "toll", "parking",
+            "accessories", "fine", "wash", "other",
+        ])
+    }
+
     /// Todo caso tem rótulo próprio e não-vazio (o `label` é o que se traduz).
     func testEveryCaseHasALabel() {
         let labels = FuelType.allCases.map(\.label)
             + MaintenanceType.allCases.map(\.label)
             + TirePosition.allCases.map(\.label)
             + MotorcycleCategory.allCases.map(\.label)
+            + ExpenseCategory.allCases.map(\.label)
         XCTAssertFalse(labels.contains(where: \.isEmpty))
     }
 

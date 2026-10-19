@@ -35,8 +35,8 @@ final class CostSummaryTests: XCTestCase {
             fuel(day(2026, 4, 2), odometer: 2100, cost: 80),  // fora (abril)
         ]
         let maintenance = [
-            MaintenanceCost(date: day(2026, 3, 10), amount: 250, label: "Troca de óleo"),
-            MaintenanceCost(date: day(2026, 2, 10), amount: 900, label: "Pneus"),  // fora (fevereiro)
+            CostItem(date: day(2026, 3, 10), amount: 250, label: "Troca de óleo"),
+            CostItem(date: day(2026, 2, 10), amount: 900, label: "Pneus"),  // fora (fevereiro)
         ]
         let march = calendar.dateInterval(of: .month, for: day(2026, 3, 15))!
         let s = CostCalculator.summary(fuel: entries, maintenance: maintenance, in: march)
@@ -52,7 +52,7 @@ final class CostSummaryTests: XCTestCase {
     }
 
     func testNoDistanceMeansNoCostPerKm() {
-        let s = CostCalculator.summary(fuel: [], maintenance: [MaintenanceCost(date: day(2026, 5, 1), amount: 100, label: "Freios")],
+        let s = CostCalculator.summary(fuel: [], maintenance: [CostItem(date: day(2026, 5, 1), amount: 100, label: "Freios")],
                                        in: calendar.dateInterval(of: .month, for: day(2026, 5, 1))!)
         XCTAssertNil(s.costPerKm)
         XCTAssertEqual(s.total, 100)
@@ -60,10 +60,10 @@ final class CostSummaryTests: XCTestCase {
 
     func testMaintenanceByTypeIsGroupedAndSortedByAmount() {
         let maintenance = [
-            MaintenanceCost(date: day(2026, 1, 5), amount: 200, label: "Troca de óleo"),
-            MaintenanceCost(date: day(2026, 6, 5), amount: 220, label: "Troca de óleo"),
-            MaintenanceCost(date: day(2026, 3, 5), amount: 1200, label: "Pneu traseiro"),
-            MaintenanceCost(date: day(2026, 4, 5), amount: 90, label: "Freios"),
+            CostItem(date: day(2026, 1, 5), amount: 200, label: "Troca de óleo"),
+            CostItem(date: day(2026, 6, 5), amount: 220, label: "Troca de óleo"),
+            CostItem(date: day(2026, 3, 5), amount: 1200, label: "Pneu traseiro"),
+            CostItem(date: day(2026, 4, 5), amount: 90, label: "Freios"),
         ]
         let year = calendar.dateInterval(of: .year, for: day(2026, 6, 1))!
         let s = CostCalculator.summary(fuel: [], maintenance: maintenance, in: year)
@@ -79,7 +79,7 @@ final class CostSummaryTests: XCTestCase {
     func testMonthlyKeepsEmptyMonthsAndSplitsFuelFromMaintenance() {
         let months = CostCalculator.monthly(
             fuel: [fuel(day(2026, 9, 3), odometer: 100, cost: 70)],
-            maintenance: [MaintenanceCost(date: day(2026, 9, 20), amount: 300, label: "Revisão geral")],
+            maintenance: [CostItem(date: day(2026, 9, 20), amount: 300, label: "Revisão geral")],
             monthCount: 3, now: day(2026, 10, 8), calendar: calendar)
         XCTAssertEqual(months.count, 3)  // ago, set, out
         XCTAssertEqual(months[0], MonthCost(month: calendar.dateInterval(of: .month, for: day(2026, 8, 1))!.start,
@@ -130,12 +130,64 @@ final class CostSummaryTests: XCTestCase {
 
     func testAllTimeStartsAtFirstRecordAndAveragesPerMonth() {
         let entries = [fuel(day(2026, 3, 10), odometer: 1, cost: 100)]
-        let maintenance = [MaintenanceCost(date: day(2026, 1, 20), amount: 200, label: "Freios")]
+        let maintenance = [CostItem(date: day(2026, 1, 20), amount: 200, label: "Freios")]
         let now = day(2026, 10, 8)
         let interval = CostCalculator.allTimeInterval(fuel: entries, maintenance: maintenance, now: now)!
         XCTAssertEqual(interval.start, day(2026, 1, 20))
         // jan…out = 10 meses
         XCTAssertEqual(CostCalculator.monthlyAverage(total: 300, since: interval.start, now: now, calendar: calendar), 30)
         XCTAssertNil(CostCalculator.allTimeInterval(fuel: [], maintenance: [], now: now))
+    }
+
+    // MARK: - Outras despesas (Custos v2)
+
+    func testOtherExpensesEnterTotalAndCostPerKm() {
+        let entries = [
+            fuel(day(2026, 3, 1), odometer: 1000, cost: 60),
+            fuel(day(2026, 3, 31), odometer: 2000, cost: 100),
+        ]
+        let other = [
+            CostItem(date: day(2026, 3, 5), amount: 300, label: "IPVA"),
+            CostItem(date: day(2026, 3, 20), amount: 12, label: "Pedágio"),
+            CostItem(date: day(2026, 3, 22), amount: 8, label: "Pedágio"),
+            CostItem(date: day(2026, 4, 5), amount: 500, label: "Seguro"),  // fora (abril)
+        ]
+        let march = calendar.dateInterval(of: .month, for: day(2026, 3, 15))!
+        let s = CostCalculator.summary(fuel: entries, maintenance: [], other: other, in: march)
+
+        XCTAssertEqual(s.other, 320)
+        XCTAssertEqual(s.total, 480)
+        XCTAssertEqual(s.otherByCategory, [
+            .init(label: "IPVA", amount: 300),
+            .init(label: "Pedágio", amount: 20),
+        ])
+        XCTAssertEqual(s.maintenanceByType, [])
+        // Custo real conta tudo; "só gasolina" segue igual ao Resumo.
+        XCTAssertEqual(s.costPerKm!, 480 / s.distance, accuracy: 0.0001)
+        XCTAssertEqual(s.fuelCostPerKm!, 160 / s.distance, accuracy: 0.0001)
+    }
+
+    func testMonthlySplitsOtherExpensesIntoTheirOwnSeries() {
+        let months = CostCalculator.monthly(
+            fuel: [fuel(day(2026, 9, 3), odometer: 100, cost: 70)],
+            maintenance: [CostItem(date: day(2026, 9, 20), amount: 300, label: "Revisão geral")],
+            other: [CostItem(date: day(2026, 10, 2), amount: 450, label: "Seguro")],
+            monthCount: 2, now: day(2026, 10, 8), calendar: calendar)
+        XCTAssertEqual(months.map(\.other), [0, 450])
+        XCTAssertEqual(months.map(\.maintenance), [300, 0])
+        XCTAssertEqual(months.map(\.fuel), [70, 0])
+    }
+
+    func testOtherExpensesCountForYearPaceAndAllTime() {
+        let other = [CostItem(date: day(2025, 12, 1), amount: 200, label: "Licenciamento"),
+                     CostItem(date: day(2026, 2, 1), amount: 600, label: "IPVA")]
+        let now = day(2026, 7, 2)
+        let pace = CostCalculator.yearPace(fuel: [], maintenance: [], other: other, now: now, calendar: calendar)
+        XCTAssertEqual(pace.soFar, 600)
+        // Só uma despesa de dezembro: não havia registro no começo de 2025.
+        XCTAssertNil(pace.previousSamePeriod)
+
+        let interval = CostCalculator.allTimeInterval(fuel: [], maintenance: [], other: other, now: now)!
+        XCTAssertEqual(interval.start, day(2025, 12, 1))
     }
 }
