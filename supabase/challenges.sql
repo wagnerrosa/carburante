@@ -1,0 +1,877 @@
+-- Carburante — Desafios em grupo (D1, ver PLAN/desafios.md)
+-- Rodar DEPOIS do schema.sql (usa fuel_logs/motorcycles e as colunas
+-- fuel_logs.odometer_photo_source/challenge_photo_url). Idempotente: pode
+-- rodar de novo. Testes: supabase/tests/challenges_test.sql.
+--
+-- Decisões:
+-- - Desafio é ONLINE (sem SwiftData): o app lê e escreve só por funções (RPC).
+--   As tabelas têm RLS ligado e NENHUMA policy → acesso direto negado; as
+--   funções SECURITY DEFINER validam e devolvem só o que a turma pode ver.
+-- - Ninguém lê fuel_logs de outra pessoa. Classificação, mural e registros do
+--   participante saem de `challenge_scores` (regra do km) — nunca litros,
+--   valor nem local.
+-- - O participante é identificado por `challenge_members.id` (member_id),
+--   nunca pelo user_id (a turma não vê o id da conta).
+-- - Tudo exige conta Apple (sessão anônima recusada), menos a prévia do
+--   convite (quem chega pelo link ainda é anônimo).
+-- - Erros: `raise exception '<chave>'`, chaves ASCII congeladas que o app
+--   traduz: no_session, apple_account_required, invalid_name, invalid_period,
+--   challenge_not_found, not_a_member, not_the_creator, challenge_full,
+--   challenge_ended, removed_from_challenge, cannot_remove_self,
+--   too_many_attempts, invalid_cover_path. Código de convite errado NÃO é
+--   exceção: devolve null (a exceção desfaria o registro da tentativa, e o
+--   limite contra força bruta conta as tentativas).
+
+-- ---------- challenges ----------
+-- Período = [starts_at, ends_at): o app manda o início do 1º dia e o início do
+-- dia seguinte ao último, no fuso `time_zone`. A classificação fecha 3 dias
+-- depois do fim (tempo de registrar o abastecimento que cobre os últimos dias)
+-- e congela em challenge_members.final_* (`finalized_at`).
+create table if not exists public.challenges (
+    id            uuid primary key default gen_random_uuid(),
+    name          text not null check (char_length(name) between 1 and 40),
+    -- Chave congelada; só 'km' na v1.
+    metric        text not null default 'km',
+    starts_at     timestamptz not null,
+    ends_at       timestamptz not null,
+    time_zone     text not null default 'America/Sao_Paulo',
+    -- Conta apagada: o desafio segue sem dono.
+    created_by    uuid references auth.users (id) on delete set null,
+    -- 8 caracteres sem vogais (não forma palavra) e sem 0/1/L (InviteCode no app).
+    invite_code   text not null unique check (invite_code ~ '^[BCDFGHJKMNPQRSTVWXYZ2-9]{8}$'),
+    -- Path no bucket challenge-covers ("<challenge_id>/cover.jpg"); nulo = capa padrão.
+    cover_path    text,
+    max_members   integer not null default 50,
+    finalized_at  timestamptz,
+    created_at    timestamptz not null default now(),
+    deleted_at    timestamptz,
+    check (ends_at > starts_at)
+);
+create index if not exists challenges_created_by_idx on public.challenges (created_by);
+
+-- ---------- challenge_members ----------
+-- Saiu = left_at; removido por quem criou = left_at + removed_at (não volta).
+-- Voltar depois de sair reusa a linha (mesmo member_id).
+create table if not exists public.challenge_members (
+    challenge_id    uuid not null references public.challenges (id) on delete cascade,
+    user_id         uuid not null references auth.users (id) on delete cascade,
+    id              uuid not null unique default gen_random_uuid(),
+    display_name    text not null check (char_length(display_name) between 1 and 30),
+    joined_at       timestamptz not null default now(),
+    left_at         timestamptz,
+    removed_at      timestamptz,
+    removed_by      uuid references auth.users (id) on delete set null,
+    -- Classificação congelada no fechamento (edição/exclusão depois não mexe).
+    final_km        double precision,
+    final_fuel_ups  integer,
+    primary key (challenge_id, user_id)
+);
+create index if not exists challenge_members_user_id_idx on public.challenge_members (user_id);
+
+-- ---------- challenge_code_attempts ----------
+-- Cada código tentado (prévia ou entrada). Errado = challenge_id nulo → conta
+-- para o limite. Certo = guarda o desafio → libera ver a capa antes de entrar.
+create table if not exists public.challenge_code_attempts (
+    id            bigint generated always as identity primary key,
+    user_id       uuid not null references auth.users (id) on delete cascade,
+    challenge_id  uuid references public.challenges (id) on delete cascade,
+    attempted_at  timestamptz not null default now()
+);
+create index if not exists challenge_code_attempts_user_idx
+    on public.challenge_code_attempts (user_id, attempted_at);
+create index if not exists challenge_code_attempts_failed_idx
+    on public.challenge_code_attempts (attempted_at) where challenge_id is null;
+create index if not exists challenge_code_attempts_challenge_idx
+    on public.challenge_code_attempts (challenge_id, user_id) where challenge_id is not null;
+
+alter table public.challenges              enable row level security;
+alter table public.challenge_members       enable row level security;
+alter table public.challenge_code_attempts enable row level security;
+-- Sem policies de propósito: só as funções abaixo leem e escrevem.
+
+-- ---------- funções internas (não expostas ao app) ----------
+
+-- Id da conta que chamou; recusa sem sessão e sessão anônima.
+create or replace function public.challenge_require_account()
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+    v_uid uuid := auth.uid();
+begin
+    if v_uid is null then
+        raise exception 'no_session';
+    end if;
+    if coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) then
+        raise exception 'apple_account_required';
+    end if;
+    return v_uid;
+end;
+$$;
+
+-- member_id de quem chamou, se está no desafio (e o desafio existe).
+create or replace function public.challenge_require_member(p_challenge_id uuid, p_uid uuid)
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+    v_member uuid;
+begin
+    if not exists (select 1 from public.challenges
+                    where id = p_challenge_id and deleted_at is null) then
+        raise exception 'challenge_not_found';
+    end if;
+    select id into v_member from public.challenge_members
+     where challenge_id = p_challenge_id and user_id = p_uid and left_at is null;
+    if v_member is null then
+        raise exception 'not_a_member';
+    end if;
+    return v_member;
+end;
+$$;
+
+-- Nome do desafio ou do participante: sem espaço sobrando, dentro do limite.
+create or replace function public.challenge_clean_name(p_text text, p_max integer)
+returns text
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+    v text := btrim(regexp_replace(coalesce(p_text, ''), '\s+', ' ', 'g'));
+begin
+    if char_length(v) not between 1 and p_max then
+        raise exception 'invalid_name';
+    end if;
+    return v;
+end;
+$$;
+
+-- Código novo: 8 sorteios com gerador criptográfico, sem viés (descarta byte
+-- ≥ 252 = 9 × 28). 28⁸ ≈ 380 bilhões de combinações.
+create or replace function public.challenge_new_invite_code()
+returns text
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+    alphabet constant text := 'BCDFGHJKMNPQRSTVWXYZ23456789';
+    v_code text;
+    v_byte integer;
+begin
+    loop
+        v_code := '';
+        while char_length(v_code) < 8 loop
+            v_byte := get_byte(extensions.gen_random_bytes(1), 0);
+            if v_byte < 252 then
+                v_code := v_code || substr(alphabet, 1 + v_byte % 28, 1);
+            end if;
+        end loop;
+        exit when not exists (select 1 from public.challenges where invite_code = v_code);
+    end loop;
+    return v_code;
+end;
+$$;
+
+-- Acha o desafio pelo código digitado (minúsculas, hífen e espaço valem) e
+-- registra a tentativa. Limite: 10 erradas por hora por conta e 300 por minuto
+-- no total (sessão anônima se cria à vontade). Errado = null.
+create or replace function public.challenge_lookup_code(p_code text, p_uid uuid)
+returns uuid
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+    v_code text := upper(regexp_replace(coalesce(p_code, ''), '[^A-Za-z0-9]', '', 'g'));
+    v_id uuid;
+begin
+    if (select count(*) from public.challenge_code_attempts
+         where user_id = p_uid and challenge_id is null
+           and attempted_at > now() - interval '1 hour') >= 10
+       or (select count(*) from public.challenge_code_attempts
+            where challenge_id is null
+              and attempted_at > now() - interval '1 minute') >= 300 then
+        raise exception 'too_many_attempts';
+    end if;
+    select id into v_id from public.challenges
+     where invite_code = v_code and deleted_at is null;
+    insert into public.challenge_code_attempts (user_id, challenge_id) values (p_uid, v_id);
+    -- Faxina: tentativa errada só importa na última hora.
+    delete from public.challenge_code_attempts
+     where challenge_id is null and attempted_at < now() - interval '1 day';
+    return v_id;
+end;
+$$;
+
+-- ---------- regra do km (o coração — PLAN/desafios.md §"Regra do km") ----------
+-- Um registro por abastecimento dos participantes ativos, com o km que ele
+-- somou ao desafio e o porquê. Cada moto do participante é uma fila por
+-- hodômetro (como o ConsumptionCalculator do app):
+-- - Histórico (registrado mais de 7 dias de calendário depois, a partir de
+--   28/09/2026 — EventProvenance) fica de fora, nem como ponta de trecho.
+-- - Ponta de trecho = registro na hora COM foto do hodômetro já no Storage
+--   (referência remota "<moto>/<log>.jpg"; local pendente não tem "/").
+-- - Trecho = de uma ponta à seguinte. Registro sem foto no meio não é ponta:
+--   os km passam para a próxima foto e os litros dele entram no teto.
+-- - Lacuna (missed_previous) em qualquer registro do trecho → não conta.
+-- - Mais de 80 km por litro abastecido no trecho → impossível, não conta.
+-- - Toda ponta vira a âncora do trecho seguinte (contando ou não).
+-- - Primeira ponta da moto = só início.
+-- - O km do trecho é espalhado em linha reta entre as duas datas e só conta a
+--   parte dentro do período (como spreadDistance). Datas fora de ordem: o km
+--   inteiro cai na data do fim.
+-- - Registro criado depois do fechamento (fim + 3 dias) não existe para o desafio.
+-- - Moto apagada e registro apagado ficam de fora. Todas as motos somam.
+-- Status (chaves congeladas): start, counted, no_photo, historical, gap, impossible.
+create or replace function public.challenge_scores(p_challenge_id uuid)
+returns table (
+    member_id              uuid,
+    fuel_log_id            uuid,
+    motorcycle_id          uuid,
+    date                   timestamptz,
+    odometer               double precision,
+    status                 text,
+    km                     double precision,
+    in_period              boolean,
+    eligible               boolean,
+    odometer_photo_path    text,
+    odometer_photo_source  text,
+    challenge_photo_path   text
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    with c as (
+        select ch.starts_at, ch.ends_at, ch.ends_at + interval '3 days' as closes_at, ch.time_zone
+          from public.challenges ch
+         where ch.id = p_challenge_id
+    ),
+    logs as (
+        select cm.id as member_id, fl.id, fl.motorcycle_id, fl.date, fl.odometer, fl.liters,
+               fl.missed_previous, fl.odometer_photo_source,
+               case when fl.odometer_photo_url like '%/%' then fl.odometer_photo_url end as photo,
+               case when fl.challenge_photo_url like '%/%' then fl.challenge_photo_url end as challenge_photo,
+               (fl.created_at >= timestamptz '2026-09-28 03:00:00+00'
+                and (fl.created_at at time zone c.time_zone)::date
+                    - (fl.date at time zone c.time_zone)::date > 7) as historical,
+               (fl.date >= c.starts_at and fl.date < c.ends_at) as in_period,
+               c.starts_at, c.ends_at
+          from c
+          join public.challenge_members cm
+            on cm.challenge_id = p_challenge_id and cm.left_at is null
+          join public.fuel_logs fl
+            on fl.user_id = cm.user_id and fl.deleted_at is null and fl.created_at < c.closes_at
+          join public.motorcycles mo
+            on mo.id = fl.motorcycle_id and mo.deleted_at is null
+    ),
+    -- Só registros na hora formam trechos. grp = quantas pontas vêm antes:
+    -- a ponta P(i) e os registros sem foto entre P(i-1) e P(i) dividem o grp.
+    live as (
+        select l.*,
+               coalesce(count(*) filter (where l.photo is not null) over (
+                   partition by l.member_id, l.motorcycle_id
+                   order by l.odometer, l.date, l.id
+                   rows between unbounded preceding and 1 preceding), 0) as grp
+          from logs l
+         where not l.historical
+    ),
+    segs as (
+        select s.member_id, s.motorcycle_id, s.grp,
+               sum(s.liters) as liters, bool_or(s.missed_previous) as gap
+          from live s
+         group by s.member_id, s.motorcycle_id, s.grp
+    ),
+    points as (
+        select p.*,
+               lag(p.odometer) over w as prev_odometer,
+               lag(p.date) over w as prev_date
+          from live p
+         where p.photo is not null
+        window w as (partition by p.member_id, p.motorcycle_id order by p.odometer, p.date, p.id)
+    ),
+    judged as (
+        select p.id,
+               p.odometer - p.prev_odometer as distance,
+               p.prev_date, p.date, p.in_period, p.starts_at, p.ends_at,
+               case
+                   when p.prev_odometer is null then 'start'
+                   when s.gap then 'gap'
+                   when p.odometer - p.prev_odometer > 80 * s.liters then 'impossible'
+                   else 'counted'
+               end as status
+          from points p
+          join segs s
+            on s.member_id = p.member_id and s.motorcycle_id = p.motorcycle_id and s.grp = p.grp
+    ),
+    scored as (
+        select j.id, j.status,
+               case
+                   when j.status <> 'counted' then 0::double precision
+                   when j.date <= j.prev_date then
+                       case when j.in_period then j.distance else 0 end
+                   else j.distance * greatest(0::double precision,
+                            extract(epoch from least(j.date, j.ends_at) - greatest(j.prev_date, j.starts_at))::double precision)
+                        / extract(epoch from j.date - j.prev_date)::double precision
+               end as km
+          from judged j
+    )
+    select l.member_id, l.id, l.motorcycle_id, l.date, l.odometer,
+           case when l.historical then 'historical'
+                when l.photo is null then 'no_photo'
+                else s.status end,
+           coalesce(s.km, 0),
+           l.in_period,
+           (not l.historical and l.photo is not null),
+           l.photo, l.odometer_photo_source, l.challenge_photo
+      from logs l
+      left join scored s on s.id = l.id;
+$$;
+
+-- Fecha a classificação na 1ª leitura depois de fim + 3 dias: grava o km e os
+-- abastecimentos de cada um em challenge_members.final_*. Daí em diante editar
+-- ou apagar registro antigo não muda o resultado.
+create or replace function public.challenge_finalize_if_closed(p_challenge_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+    -- Trava a linha: duas leituras ao mesmo tempo não fecham duas vezes.
+    perform 1 from public.challenges
+      where id = p_challenge_id and finalized_at is null
+        and now() >= ends_at + interval '3 days'
+      for update;
+    if not found then
+        return;
+    end if;
+    update public.challenge_members cm
+       set final_km = coalesce(t.km, 0), final_fuel_ups = coalesce(t.fuel_ups, 0)
+      from public.challenge_members m
+      left join (
+          select s.member_id,
+                 round(sum(s.km)::numeric, 1)::double precision as km,
+                 (count(*) filter (where s.in_period and s.eligible))::integer as fuel_ups
+            from public.challenge_scores(p_challenge_id) s
+           group by s.member_id
+      ) t on t.member_id = m.id
+     where cm.id = m.id and m.challenge_id = p_challenge_id and m.left_at is null;
+    update public.challenges set finalized_at = now() where id = p_challenge_id;
+end;
+$$;
+
+-- ---------- funções do app ----------
+
+-- Cria o desafio; quem cria entra junto. Devolve {id, invite_code}.
+-- Limite de criação (grátis = 1 ativo) é checado no app (Premium só no aparelho).
+create or replace function public.create_challenge(
+    p_name          text,
+    p_starts_at     timestamptz,
+    p_ends_at       timestamptz,
+    p_display_name  text,
+    p_time_zone     text default 'America/Sao_Paulo'
+)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_name text := public.challenge_clean_name(p_name, 40);
+    v_display text := public.challenge_clean_name(p_display_name, 30);
+    v_id uuid;
+    v_code text;
+begin
+    -- Começa hoje (em qualquer fuso) ou numa data escolhida; até 1 ano.
+    if p_starts_at is null or p_ends_at is null
+       or p_ends_at <= p_starts_at
+       or p_starts_at < now() - interval '2 days'
+       or p_starts_at > now() + interval '1 year'
+       or p_ends_at - p_starts_at > interval '366 days'
+       or not exists (select 1 from pg_catalog.pg_timezone_names where name = p_time_zone) then
+        raise exception 'invalid_period';
+    end if;
+    v_code := public.challenge_new_invite_code();
+    insert into public.challenges (name, starts_at, ends_at, time_zone, created_by, invite_code)
+    values (v_name, p_starts_at, p_ends_at, p_time_zone, v_uid, v_code)
+    returning id into v_id;
+    insert into public.challenge_members (challenge_id, user_id, display_name)
+    values (v_id, v_uid, v_display);
+    return jsonb_build_object('id', v_id, 'invite_code', v_code);
+end;
+$$;
+
+-- Prévia do convite (roda com sessão anônima: quem chega pelo link ainda não
+-- tem conta Apple). Código errado = null. Mostra o que convence a entrar:
+-- nome, capa, quem criou, quantos e os 3 primeiros nomes, datas.
+create or replace function public.challenge_preview(p_code text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := auth.uid();
+    v_id uuid;
+    v_result jsonb;
+begin
+    if v_uid is null then
+        raise exception 'no_session';
+    end if;
+    v_id := public.challenge_lookup_code(p_code, v_uid);
+    if v_id is null then
+        return null;
+    end if;
+    select jsonb_build_object(
+               'id', ch.id,
+               'name', ch.name,
+               'starts_at', ch.starts_at,
+               'ends_at', ch.ends_at,
+               'time_zone', ch.time_zone,
+               'cover_path', ch.cover_path,
+               'created_by_name', (select m.display_name from public.challenge_members m
+                                    where m.challenge_id = ch.id and m.user_id = ch.created_by
+                                      and m.left_at is null),
+               'member_count', (select count(*) from public.challenge_members m
+                                 where m.challenge_id = ch.id and m.left_at is null),
+               'member_names', coalesce((select jsonb_agg(n.display_name order by n.joined_at)
+                                           from (select m.display_name, m.joined_at
+                                                   from public.challenge_members m
+                                                  where m.challenge_id = ch.id and m.left_at is null
+                                                    and m.user_id is distinct from ch.created_by
+                                                  order by m.joined_at
+                                                  limit 3) n), '[]'::jsonb),
+               'max_members', ch.max_members,
+               'is_member', exists (select 1 from public.challenge_members m
+                                     where m.challenge_id = ch.id and m.user_id = v_uid
+                                       and m.left_at is null),
+               'is_removed', exists (select 1 from public.challenge_members m
+                                      where m.challenge_id = ch.id and m.user_id = v_uid
+                                        and m.removed_at is not null),
+               'has_ended', now() >= ch.ends_at)
+      into v_result
+      from public.challenges ch
+     where ch.id = v_id;
+    return v_result;
+end;
+$$;
+
+-- Entra pelo código. Devolve {id} (já estava dentro = mesmo resultado);
+-- código errado = null. Sair e voltar reusa a linha; removido não volta.
+create or replace function public.join_challenge(p_code text, p_display_name text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_display text := public.challenge_clean_name(p_display_name, 30);
+    v_id uuid;
+    v_ch public.challenges;
+    v_member public.challenge_members;
+begin
+    v_id := public.challenge_lookup_code(p_code, v_uid);
+    if v_id is null then
+        return null;
+    end if;
+    -- Trava o desafio: duas entradas ao mesmo tempo não furam o teto.
+    select * into v_ch from public.challenges where id = v_id for update;
+    select * into v_member from public.challenge_members
+     where challenge_id = v_id and user_id = v_uid;
+    if v_member.removed_at is not null then
+        raise exception 'removed_from_challenge';
+    end if;
+    if v_member.user_id is not null and v_member.left_at is null then
+        return jsonb_build_object('id', v_id);
+    end if;
+    if now() >= v_ch.ends_at then
+        raise exception 'challenge_ended';
+    end if;
+    if (select count(*) from public.challenge_members
+         where challenge_id = v_id and left_at is null) >= v_ch.max_members then
+        raise exception 'challenge_full';
+    end if;
+    if v_member.user_id is not null then
+        update public.challenge_members
+           set left_at = null, display_name = v_display, joined_at = now()
+         where challenge_id = v_id and user_id = v_uid;
+    else
+        insert into public.challenge_members (challenge_id, user_id, display_name)
+        values (v_id, v_uid, v_display);
+    end if;
+    return jsonb_build_object('id', v_id);
+end;
+$$;
+
+create or replace function public.leave_challenge(p_challenge_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    update public.challenge_members set left_at = now()
+     where challenge_id = p_challenge_id and user_id = v_uid;
+end;
+$$;
+
+-- Quem criou tira alguém da turma (removido não volta pelo código).
+create or replace function public.remove_member(p_challenge_id uuid, p_member_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_me uuid := public.challenge_require_member(p_challenge_id, v_uid);
+begin
+    if not exists (select 1 from public.challenges
+                    where id = p_challenge_id and created_by = v_uid) then
+        raise exception 'not_the_creator';
+    end if;
+    if p_member_id = v_me then
+        raise exception 'cannot_remove_self';
+    end if;
+    update public.challenge_members
+       set left_at = coalesce(left_at, now()), removed_at = now(), removed_by = v_uid
+     where challenge_id = p_challenge_id and id = p_member_id;
+    if not found then
+        raise exception 'not_a_member';
+    end if;
+end;
+$$;
+
+-- Quem criou põe, troca ou tira a capa (o arquivo sobe antes pelo Storage).
+create or replace function public.set_challenge_cover(p_challenge_id uuid, p_cover_path text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    if p_cover_path is not null
+       and p_cover_path !~ ('^' || p_challenge_id::text || '/[A-Za-z0-9_-]+\.jpg$') then
+        raise exception 'invalid_cover_path';
+    end if;
+    update public.challenges set cover_path = p_cover_path
+     where id = p_challenge_id and created_by = v_uid and deleted_at is null;
+    if not found then
+        raise exception 'not_the_creator';
+    end if;
+end;
+$$;
+
+-- Meus desafios (aba Desafios): os que estou dentro, mais novo primeiro.
+-- Sessão anônima = lista vazia (não é erro: a aba mostra o estado vazio).
+create or replace function public.my_challenges()
+returns table (
+    id              uuid,
+    name            text,
+    starts_at       timestamptz,
+    ends_at         timestamptz,
+    time_zone       text,
+    cover_path      text,
+    invite_code     text,
+    created_by_me   boolean,
+    member_count    integer,
+    finalized_at    timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select ch.id, ch.name, ch.starts_at, ch.ends_at, ch.time_zone, ch.cover_path,
+           ch.invite_code, coalesce(ch.created_by = auth.uid(), false),
+           (select count(*) from public.challenge_members o
+             where o.challenge_id = ch.id and o.left_at is null)::integer,
+           ch.finalized_at
+      from public.challenge_members me
+      join public.challenges ch on ch.id = me.challenge_id and ch.deleted_at is null
+     where me.user_id = auth.uid() and me.left_at is null
+     order by ch.ends_at desc, ch.created_at desc;
+$$;
+
+-- Classificação. Empate em km = mesma posição. bikes = motos com registro no
+-- período (sem registro: as motos atuais, para a turma saber quem é quem).
+create or replace function public.challenge_leaderboard(p_challenge_id uuid)
+returns table (
+    member_id      uuid,
+    rank           integer,
+    display_name   text,
+    is_me          boolean,
+    km             double precision,
+    fuel_ups       integer,
+    bikes          jsonb,
+    last_entry_at  timestamptz
+)
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    perform public.challenge_finalize_if_closed(p_challenge_id);
+    return query
+    with s as (
+        select * from public.challenge_scores(p_challenge_id)
+    ),
+    totals as (
+        select m.id as mid, m.display_name as dname, m.user_id = v_uid as me,
+               case when ch.finalized_at is not null then coalesce(m.final_km, 0)
+                    else round(coalesce((select sum(s.km) from s where s.member_id = m.id), 0)::numeric, 1)::double precision
+               end as total_km,
+               case when ch.finalized_at is not null then coalesce(m.final_fuel_ups, 0)
+                    else (select count(*) from s where s.member_id = m.id and s.in_period and s.eligible)::integer
+               end as total_fuel_ups,
+               coalesce(
+                   (select jsonb_agg(jsonb_build_object('make', b.make, 'model', b.model) order by b.n desc, b.model)
+                      from (select mo.make, mo.model, count(*) as n
+                              from s join public.motorcycles mo on mo.id = s.motorcycle_id
+                             where s.member_id = m.id and s.in_period and s.status <> 'historical'
+                             group by mo.id, mo.make, mo.model) b),
+                   (select jsonb_agg(jsonb_build_object('make', mo.make, 'model', mo.model) order by mo.created_at)
+                      from public.motorcycles mo
+                     where mo.user_id = m.user_id and mo.deleted_at is null and mo.status <> 'sold'),
+                   '[]'::jsonb) as bike_list,
+               (select max(s.date) from s
+                 where s.member_id = m.id and s.in_period and s.status <> 'historical') as last_at
+          from public.challenge_members m
+          join public.challenges ch on ch.id = m.challenge_id
+         where m.challenge_id = p_challenge_id and m.left_at is null
+    )
+    select t.mid, (rank() over (order by t.total_km desc))::integer, t.dname, t.me,
+           t.total_km, t.total_fuel_ups, t.bike_list, t.last_at
+      from totals t
+     order by 2, t.total_fuel_ups desc, t.dname;
+end;
+$$;
+
+-- Abastecimentos da turma no período (mural; p_member_id nulo) ou de um
+-- participante (registros dele). Inclui o abastecimento logo depois do fim que
+-- fechou um trecho com km dentro do período. Mais novo primeiro.
+create or replace function public.challenge_entries(p_challenge_id uuid, p_member_id uuid default null)
+returns table (
+    fuel_log_id            uuid,
+    member_id              uuid,
+    date                   timestamptz,
+    make                   text,
+    model                  text,
+    odometer               double precision,
+    status                 text,
+    km                     double precision,
+    odometer_photo_path    text,
+    odometer_photo_source  text,
+    challenge_photo_path   text
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    return query
+    select s.fuel_log_id, s.member_id, s.date, mo.make, mo.model, s.odometer, s.status,
+           round(s.km::numeric, 1)::double precision,
+           s.odometer_photo_path, s.odometer_photo_source, s.challenge_photo_path
+      from public.challenge_scores(p_challenge_id) s
+      join public.motorcycles mo on mo.id = s.motorcycle_id
+     where (p_member_id is null or s.member_id = p_member_id)
+       and (s.in_period or s.km > 0)
+     order by s.date desc;
+end;
+$$;
+
+-- ---------- Storage ----------
+
+-- Fotos do abastecimento (hodômetro e foto do desafio) para a turma: libera
+-- "<moto>/<log>.jpg" e "<moto>/<log>-challenge.jpg" se quem pede e o dono do
+-- registro estão no mesmo desafio e o registro é do período (até o fechamento).
+-- Fora de desafio nada muda (as policies do dono seguem em schema.sql).
+create or replace function public.can_view_challenge_photo(object_name text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := auth.uid();
+    v_folder text := lower((storage.foldername(object_name))[1]);
+    v_file text := storage.filename(object_name);
+begin
+    -- Valida antes do cast: um nome fora do padrão nunca pode dar erro aqui
+    -- (a policy roda em toda leitura do bucket, inclusive as do dono).
+    if v_uid is null
+       or v_file !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(-challenge)?\.jpg$' then
+        return false;
+    end if;
+    return exists (
+        select 1
+          from public.fuel_logs fl
+          join public.challenge_members owner
+            on owner.user_id = fl.user_id and owner.left_at is null
+          join public.challenge_members viewer
+            on viewer.challenge_id = owner.challenge_id
+           and viewer.user_id = v_uid and viewer.left_at is null
+          join public.challenges ch
+            on ch.id = owner.challenge_id and ch.deleted_at is null
+         where fl.id = substr(v_file, 1, 36)::uuid
+           and fl.motorcycle_id::text = v_folder
+           and fl.deleted_at is null
+           and fl.date >= ch.starts_at
+           and fl.date < ch.ends_at + interval '3 days'
+    );
+end;
+$$;
+
+drop policy if exists "fuel_log_photos_select_challenge" on storage.objects;
+create policy "fuel_log_photos_select_challenge"
+on storage.objects for select to authenticated
+using (bucket_id = 'fuel-log-photos' and public.can_view_challenge_photo(name));
+
+-- Capa do desafio: bucket PRIVADO, "<challenge_id>/cover.jpg" (JPEG reduzido
+-- como a foto do hodômetro). Grava quem criou; lê quem está no desafio e quem
+-- acertou o código (prévia antes de entrar).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('challenge-covers', 'challenge-covers', false, 5242880, array['image/jpeg'])
+on conflict (id) do update
+    set public = excluded.public,
+        file_size_limit = excluded.file_size_limit,
+        allowed_mime_types = excluded.allowed_mime_types;
+
+-- Id do desafio da pasta, ou nulo se o nome não é de capa.
+create or replace function public.challenge_cover_folder(object_name text)
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+    v_folder text := (storage.foldername(object_name))[1];
+begin
+    if v_folder ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+        return v_folder::uuid;
+    end if;
+    return null;
+end;
+$$;
+
+create or replace function public.can_edit_challenge_cover(object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false
+       and exists (select 1 from public.challenges ch
+                    where ch.id = public.challenge_cover_folder(object_name)
+                      and ch.created_by = auth.uid() and ch.deleted_at is null);
+$$;
+
+create or replace function public.can_view_challenge_cover(object_name text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select exists (select 1 from public.challenge_members m
+                    where m.challenge_id = public.challenge_cover_folder(object_name)
+                      and m.user_id = auth.uid() and m.left_at is null)
+        or exists (select 1 from public.challenge_code_attempts a
+                    where a.challenge_id = public.challenge_cover_folder(object_name)
+                      and a.user_id = auth.uid());
+$$;
+
+drop policy if exists "challenge_covers_select" on storage.objects;
+create policy "challenge_covers_select"
+on storage.objects for select to authenticated
+using (bucket_id = 'challenge-covers' and public.can_view_challenge_cover(name));
+
+drop policy if exists "challenge_covers_insert" on storage.objects;
+create policy "challenge_covers_insert"
+on storage.objects for insert to authenticated
+with check (bucket_id = 'challenge-covers' and public.can_edit_challenge_cover(name));
+
+drop policy if exists "challenge_covers_update" on storage.objects;
+create policy "challenge_covers_update"
+on storage.objects for update to authenticated
+using (bucket_id = 'challenge-covers' and public.can_edit_challenge_cover(name));
+
+drop policy if exists "challenge_covers_delete" on storage.objects;
+create policy "challenge_covers_delete"
+on storage.objects for delete to authenticated
+using (bucket_id = 'challenge-covers' and public.can_edit_challenge_cover(name));
+
+-- ---------- permissões ----------
+-- O Supabase dá EXECUTE a anon/authenticated em toda função nova do public:
+-- internas ficam só com o dono; as do app, só com sessão (authenticated —
+-- inclui a anônima, que as próprias funções recusam quando precisa).
+revoke all on function public.challenge_require_account() from public, anon, authenticated;
+revoke all on function public.challenge_require_member(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.challenge_clean_name(text, integer) from public, anon, authenticated;
+revoke all on function public.challenge_new_invite_code() from public, anon, authenticated;
+revoke all on function public.challenge_lookup_code(text, uuid) from public, anon, authenticated;
+revoke all on function public.challenge_scores(uuid) from public, anon, authenticated;
+revoke all on function public.challenge_finalize_if_closed(uuid) from public, anon, authenticated;
+
+revoke all on function public.create_challenge(text, timestamptz, timestamptz, text, text) from public, anon;
+revoke all on function public.challenge_preview(text) from public, anon;
+revoke all on function public.join_challenge(text, text) from public, anon;
+revoke all on function public.leave_challenge(uuid) from public, anon;
+revoke all on function public.remove_member(uuid, uuid) from public, anon;
+revoke all on function public.set_challenge_cover(uuid, text) from public, anon;
+revoke all on function public.my_challenges() from public, anon;
+revoke all on function public.challenge_leaderboard(uuid) from public, anon;
+revoke all on function public.challenge_entries(uuid, uuid) from public, anon;
+revoke all on function public.can_view_challenge_photo(text) from public, anon;
+revoke all on function public.challenge_cover_folder(text) from public, anon;
+revoke all on function public.can_edit_challenge_cover(text) from public, anon;
+revoke all on function public.can_view_challenge_cover(text) from public, anon;
+
+grant execute on function public.create_challenge(text, timestamptz, timestamptz, text, text) to authenticated;
+grant execute on function public.challenge_preview(text) to authenticated;
+grant execute on function public.join_challenge(text, text) to authenticated;
+grant execute on function public.leave_challenge(uuid) to authenticated;
+grant execute on function public.remove_member(uuid, uuid) to authenticated;
+grant execute on function public.set_challenge_cover(uuid, text) to authenticated;
+grant execute on function public.my_challenges() to authenticated;
+grant execute on function public.challenge_leaderboard(uuid) to authenticated;
+grant execute on function public.challenge_entries(uuid, uuid) to authenticated;
+grant execute on function public.can_view_challenge_photo(text) to authenticated;
+grant execute on function public.challenge_cover_folder(text) to authenticated;
+grant execute on function public.can_edit_challenge_cover(text) to authenticated;
+grant execute on function public.can_view_challenge_cover(text) to authenticated;
