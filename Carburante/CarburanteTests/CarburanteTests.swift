@@ -319,6 +319,50 @@ final class CarburanteTests: XCTestCase {
         XCTAssertEqual(pending.first { $0.day == 21 }?.fireDate, cal.date(byAdding: .day, value: 21, to: last))
     }
 
+    // MARK: - Lembrete de quem cadastrou a moto e nunca registrou
+
+    /// Cadastro às 23h30: os marcos contam do dia do cadastro e saem às 18h,
+    /// nunca na hora do cadastro.
+    func testNeverLogged_firesAt18hFromBikeCreationDay() {
+        let cal = Calendar.current
+        let created = DateComponents(calendar: cal, year: 2026, month: 3, day: 1, hour: 23, minute: 30).date!
+        let pending = AbsenceReminder.neverLoggedFireDates(bikeCreatedAt: created, now: created)
+        XCTAssertEqual(pending.map(\.day), [7, 14, 21])
+        let expected7 = DateComponents(calendar: cal, year: 2026, month: 3, day: 8, hour: 18).date!
+        let expected21 = DateComponents(calendar: cal, year: 2026, month: 3, day: 22, hour: 18).date!
+        XCTAssertEqual(pending.first { $0.day == 7 }?.fireDate, expected7)
+        XCTAssertEqual(pending.first { $0.day == 21 }?.fireDate, expected21)
+    }
+
+    /// Resolvido dias depois (app fechado): só os marcos ainda no futuro.
+    func testNeverLogged_dropsPastMilestones() {
+        let pending = AbsenceReminder.neverLoggedFireDates(bikeCreatedAt: day(1), now: day(10))
+        XCTAssertEqual(pending.map(\.day), [14, 21])
+    }
+
+    /// O texto do 1º lembrete cita a moto e aceita abastecimento de dias atrás.
+    func testNeverLogged_firstMessageNamesBike() {
+        let copy = AbsenceReminder.neverLoggedMessage(forDay: 7, bikeName: "NC 750X")
+        XCTAssertEqual(copy.title, "Já abasteceu a NC 750X?")
+        XCTAssertTrue(copy.body.contains("dias"))
+    }
+
+    /// Pergunta só para quem nunca registrou e ainda não decidiu a permissão.
+    func testReminderOffer_action() {
+        XCTAssertEqual(FirstFuelReminderOffer.action(hasAnyFuelLog: false, authorization: .notDetermined), .ask)
+        XCTAssertEqual(FirstFuelReminderOffer.action(hasAnyFuelLog: false, authorization: .authorized), .scheduleSilently)
+        XCTAssertEqual(FirstFuelReminderOffer.action(hasAnyFuelLog: false, authorization: .denied), .skip)
+        XCTAssertEqual(FirstFuelReminderOffer.action(hasAnyFuelLog: true, authorization: .notDetermined), .skip,
+                       "quem já registra tem os lembretes de ausência")
+    }
+
+    /// A chave gravada no aparelho não pode mudar: "" = nunca, depois pending/done.
+    func testReminderOffer_storedKeysAreFrozen() {
+        XCTAssertEqual(FirstFuelReminderOffer.none.rawValue, "")
+        XCTAssertEqual(FirstFuelReminderOffer.pending.rawValue, "pending")
+        XCTAssertEqual(FirstFuelReminderOffer.done.rawValue, "done")
+    }
+
     // MARK: - Lembretes de manutenção (genéricos + coalescência)
 
     private func mStatus(

@@ -44,6 +44,9 @@ struct MotorcycleFormView: View {
     /// Moto ativa do app — cadastro novo assume a chave (a moto recém-criada
     /// vira a ativa; tema e Resumo reagem na hora, comportamento previsível).
     @AppStorage("activeMotorcycleID") private var activeMotorcycleID: String = ""
+    /// Moto nova marca `pending`; a raiz do app decide, depois que este cadastro
+    /// fecha, se pergunta "Lembrar do próximo abastecimento?".
+    @AppStorage(FirstFuelReminderOffer.storageKey) private var reminderOffer: FirstFuelReminderOffer = .none
     @FocusState private var odometerFocused: Bool
     @FocusState private var displacementFocused: Bool
     /// Analytics do abandono: salvou? saiu por Cancelar ou arrastando? quando abriu?
@@ -363,6 +366,7 @@ struct MotorcycleFormView: View {
         // quando a chave nunca tinha sido materializada, via fallback .first).
         if !wasEditing {
             activeMotorcycleID = savedMoto.id.uuidString
+            if reminderOffer == .none { reminderOffer = .pending }
         }
         // Analytics: só na criação (não na edição — sem evento _updated p/ moto
         // no plano v1). is_first_bike calculado antes deste insert virar visível
