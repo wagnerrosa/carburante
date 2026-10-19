@@ -67,6 +67,11 @@ struct AppleSignInButton: View {
                 errorMessage = "Não foi possível ler as credenciais da Apple."
                 return
             }
+            // A Apple só manda o nome no 1º login com o app: guarda o 1º nome
+            // para sugerir como o nome do piloto nos desafios.
+            if let givenName = credential.fullName?.givenName, !givenName.isEmpty {
+                UserDefaults.standard.set(givenName, forKey: ChallengeName.appleGivenNameKey)
+            }
             isLinking = true
             errorMessage = nil
             Task {
