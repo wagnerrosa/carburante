@@ -131,6 +131,11 @@ extension Expense {
         return categoryLabel
     }
 
+    /// Pode virar modelo do "Repetir"? Só com chave conhecida: a nova despesa
+    /// passaria pelo form (que só conhece as categorias deste build) e uma chave
+    /// de build mais novo viraria "Outra".
+    var isRepeatable: Bool { ExpenseCategory(rawValue: categoryRaw) != nil }
+
     /// Marca a linha como editada: incrementa `revision` e carimba `updatedAt`.
     func markUpdated(now: Date = Date()) {
         revision += 1

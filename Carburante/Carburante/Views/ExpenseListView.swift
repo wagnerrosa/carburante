@@ -5,7 +5,8 @@
 //  Histórico das outras despesas de uma moto (IPVA, seguro, pedágio… — Custos
 //  v2). Mesmo padrão de `MaintenanceListView` (PLAN/DESIGN.md §6): seção por
 //  mês com o total no cabeçalho, tile colorido por categoria, tocar = editar,
-//  swipe = exclusão lógica.
+//  swipe = exclusão lógica. Swipe para a direita (ou toque longo) = "Repetir":
+//  nova despesa igual, com data de hoje.
 //
 
 import SwiftUI
@@ -16,6 +17,8 @@ struct ExpenseListView: View {
     @Bindable var motorcycle: Motorcycle
     @State private var editingExpense: Expense?
     @State private var showingAdd = false
+    /// "Repetir": abre a nova despesa preenchida com esta.
+    @State private var repeatingExpense: Expense?
     @Environment(\.garageAccess) private var garageAccess
 
     private var expenses: [Expense] {
@@ -60,12 +63,40 @@ struct ExpenseListView: View {
                                     ExpenseRow(expense: expense)
                                 }
                                 .buttonStyle(.plain)
+                                // Chave desconhecida (build mais novo) não repete:
+                                // a nova viraria "Outra" e perderia a categoria real.
+                                .swipeActions(edge: .leading) {
+                                    if expense.isRepeatable {
+                                        Button {
+                                            repeatingExpense = expense
+                                        } label: {
+                                            Label("Repetir", systemImage: "repeat")
+                                        }
+                                        .tint(.blue)
+                                    }
+                                }
+                                .contextMenu {
+                                    if expense.isRepeatable {
+                                        Button {
+                                            repeatingExpense = expense
+                                        } label: {
+                                            Label("Repetir", systemImage: "repeat")
+                                        }
+                                    }
+                                }
                             }
                             .onDelete { delete($0, in: group.expenses) }
                             // Só para consulta: excluir também é editar.
                             .deleteDisabled(garageAccess.isReadOnly(motorcycle.id))
                         } header: {
                             MonthHeader(title: group.title, totalCost: group.total)
+                        } footer: {
+                            // Gesto escondido → uma linha só, sob o mês mais
+                            // recente (mesmo recurso do "Toque para registrar a
+                            // próxima." das Manutenções).
+                            if group.id == monthGroups.first?.id {
+                                Text("Pagou de novo? Deslize para a direita para repetir.")
+                            }
                         }
                     }
                 }
@@ -90,6 +121,11 @@ struct ExpenseListView: View {
         }
         .sheet(item: $editingExpense) { expense in
             GarageGated(motorcycle) { ExpenseFormView(motorcycle: motorcycle, expense: expense) }
+        }
+        .sheet(item: $repeatingExpense) { expense in
+            GarageGated(motorcycle) {
+                ExpenseFormView(motorcycle: motorcycle, template: expense, entryPoint: "expense_repeat")
+            }
         }
     }
 

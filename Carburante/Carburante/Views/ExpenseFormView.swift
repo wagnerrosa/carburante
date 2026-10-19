@@ -4,7 +4,10 @@
 //
 //  Cadastro e edição de outra despesa (IPVA, seguro, pedágio… — Custos v2).
 //  Form nativo, mesmo padrão do `MaintenanceFormView`: data + categoria, valor,
-//  observações. Registro grátis, sempre.
+//  observações. Registro grátis, sempre. "Repetir" (lista) abre como nova
+//  despesa a partir de outra: mesma categoria, valor e observações, data de
+//  hoje — lavagem do mês, parcela, estacionamento mensal em 1 toque + Salvar.
+//  Paliativo da recorrência de verdade (PLAN/despesas-recorrentes.md).
 //
 
 import SwiftUI
@@ -17,7 +20,11 @@ struct ExpenseFormView: View {
     let motorcycle: Motorcycle
     /// Nil = nova despesa. Não-nil = edição.
     var expense: Expense?
-    /// De onde abriu, p/ analytics: "costs" (tela Custos) ou "expense_list".
+    /// "Repetir": nova despesa preenchida com esta (data = hoje). Ignorado na
+    /// edição.
+    var template: Expense?
+    /// De onde abriu, p/ analytics: "costs" (tela Custos), "expense_list" ou
+    /// "expense_repeat".
     var entryPoint: String = "expense_list"
 
     @State private var date: Date = Date()
@@ -32,11 +39,16 @@ struct ExpenseFormView: View {
     private var isEditing: Bool { expense != nil }
 
     /// Há investimento do usuário a proteger? Novo: valor ou observação
-    /// digitados; edição: divergência do carregado.
+    /// digitados; edição e "Repetir": divergência do carregado (o preenchido
+    /// pelo Repetir não é do usuário — Cancelar fecha sem perguntar).
     private var hasChanges: Bool {
         if let expense {
             return date != expense.date || category != expense.category
                 || amount != expense.amount || notes != expense.notes
+        }
+        if let template {
+            return !Calendar.current.isDateInToday(date) || category != template.category
+                || amount != template.amount || notes != template.notes
         }
         return amount != nil || !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -118,6 +130,10 @@ struct ExpenseFormView: View {
             category = expense.category
             amount = expense.amount
             notes = expense.notes
+        } else if let template {
+            category = template.category
+            amount = template.amount
+            notes = template.notes
         } else if let last = motorcycle.activeExpenses.max(by: { $0.createdAt < $1.createdAt }) {
             // Pré-preenche a categoria da última despesa (pedágio, estacionamento
             // costumam repetir) — o piloto confirma, não procura.
