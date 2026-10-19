@@ -37,6 +37,15 @@ struct RootTabView: View {
     enum AppTab: Hashable { case summary, challenges, garage }
     @State private var selectedTab: AppTab = .summary
 
+    /// Link de convite (`/d/?c=`) que abriu o app, esperando a hora de abrir
+    /// a prévia: depois do onboarding, do cadastro de moto e da pergunta do
+    /// lembrete (duas apresentações ao mesmo tempo, uma some).
+    @State private var pendingInviteCode: String?
+    /// Entregue à aba Desafios, que abre a prévia e zera.
+    @State private var inviteCodeForChallenges: String?
+    /// Build sem a aba Desafios recebeu um convite.
+    @State private var showingChallengesUnavailable = false
+
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Resumo", systemImage: "gauge.with.dots.needle.bottom.50percent", value: AppTab.summary) {
@@ -54,6 +63,24 @@ struct RootTabView: View {
             }
         }
         .environment(\.openChallenges, { selectedTab = .challenges })
+        // Convite: Universal Link (`carburante.motorcycles/d/?c=`). Os dois
+        // caminhos por garantia — o SwiftUI entrega por um ou pelo outro.
+        .onOpenURL(perform: receiveInviteLink)
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+            if let url = activity.webpageURL { receiveInviteLink(url) }
+        }
+        .onChange(of: hasCompletedOnboarding) { _, _ in
+            // Na volta seguinte: o "Cadastrar minha moto" do onboarding abre
+            // a folha dele de forma assíncrona.
+            DispatchQueue.main.async { deliverInviteIfReady() }
+        }
+        .onChange(of: showRegisterMotorcycle) { _, _ in deliverInviteIfReady() }
+        .onChange(of: showingReminderOffer) { _, _ in deliverInviteIfReady() }
+        .alert("Desafios ainda não chegaram", isPresented: $showingChallengesUnavailable) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Este convite abre numa próxima versão do Carburante.")
+        }
         #if DEBUG
         .onAppear {
             if let screen = ChallengePreview.screen, screen != .resumo { selectedTab = .challenges }
@@ -128,13 +155,37 @@ struct RootTabView: View {
     private var challengesTab: some View {
         #if DEBUG
         if ChallengePreview.isEnabled {
-            ChallengesView(challenges: ChallengePreview.challenges, start: ChallengePreview.startScreen)
+            ChallengesView(challenges: ChallengePreview.challenges, start: ChallengePreview.startScreen,
+                           incomingInviteCode: $inviteCodeForChallenges)
         } else {
-            ChallengesView(challenges: [], isLive: true)
+            ChallengesView(challenges: [], isLive: true, incomingInviteCode: $inviteCodeForChallenges)
         }
         #else
-        ChallengesView(challenges: [], isLive: true)
+        ChallengesView(challenges: [], isLive: true, incomingInviteCode: $inviteCodeForChallenges)
         #endif
+    }
+
+    /// Link que abriu o app. Só convite de desafio interessa; o resto do site
+    /// não abre o app (o `apple-app-site-association` só reivindica `/d/`).
+    private func receiveInviteLink(_ url: URL) {
+        guard let code = InviteCode.code(fromLink: url) else { return }
+        guard ChallengeFeature.isEnabled else {
+            showingChallengesUnavailable = true
+            return
+        }
+        pendingInviteCode = code
+        deliverInviteIfReady()
+    }
+
+    /// Abre a prévia quando nada mais está na tela: onboarding, cadastro de
+    /// moto e a pergunta do lembrete vêm antes (quem instalou pelo convite
+    /// passa por eles e cai no desafio).
+    private func deliverInviteIfReady() {
+        guard let code = pendingInviteCode, hasCompletedOnboarding, !showRegisterMotorcycle,
+              reminderOffer != .pending, !showingReminderOffer else { return }
+        pendingInviteCode = nil
+        selectedTab = .challenges
+        inviteCodeForChallenges = code
     }
 
     /// Decide a pergunta do lembrete depois do cadastro de moto (uma vez só).
@@ -154,6 +205,8 @@ struct RootTabView: View {
         case .scheduleSilently: scheduleNeverLoggedReminders()
         case .skip:             break
         }
+        // Sem pergunta na tela: um convite esperando já pode abrir.
+        deliverInviteIfReady()
     }
 
     /// Marcos 7/14/21 dias a partir do cadastro da moto mais nova.

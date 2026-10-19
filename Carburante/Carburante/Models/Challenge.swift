@@ -50,8 +50,13 @@ struct Challenge: Identifiable, Hashable {
     var me: ChallengeStanding? { standings.first(where: \.isMe) }
     var winner: ChallengeStanding? { standings.first { $0.rank == 1 } }
 
-    var inviteURL: URL {
-        URL(string: "https://carburante.motorcycles/d/?c=\(code)")!
+    var inviteURL: URL { InviteCode.link(for: code) }
+
+    /// Texto pronto do "Convidar" (o link vai junto). O código vai escrito
+    /// para quem abrir a mensagem fora do iPhone ou com o link quebrado.
+    func inviteMessage(now: Date = Date()) -> String {
+        "Bora pro desafio “\(name)” no Carburante? Ganha quem rodar mais km até "
+            + "\(AppFormat.dayMonth(endDate, now: now)). Código: \(InviteCode.formatted(code))"
     }
 
     func standing(for memberID: UUID) -> ChallengeStanding? {
@@ -492,6 +497,39 @@ enum InviteCode {
     /// que é único.
     static func random() -> String {
         String((0..<length).map { _ in alphabet.randomElement()! })
+    }
+
+    // MARK: Link
+
+    /// Domínio do Universal Link (`docs/.well-known/apple-app-site-association`
+    /// + Associated Domains no app). Sem o app, a página `/d/` mostra o código
+    /// e manda para a loja.
+    static let linkHost = "carburante.motorcycles"
+
+    /// `https://carburante.motorcycles/d/?c=K7QM4XPR`. Código na query, não no
+    /// caminho: o GitHub Pages só serve arquivo que existe, então `/d/<código>`
+    /// daria 404 para quem não tem o app.
+    static func link(for code: String) -> URL {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = linkHost
+        components.path = "/d/"
+        components.queryItems = [URLQueryItem(name: "c", value: code)]
+        return components.url!
+    }
+
+    /// Código de um link de convite que abriu o app, ou nil se o link não é
+    /// um convite (outro caminho do site, outro domínio, código inválido).
+    static func code(fromLink url: URL) -> String? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == "https",
+              let host = components.host?.lowercased(),
+              host == linkHost || host == "www.\(linkHost)",
+              ["/d", "/d/", "/d/index.html"].contains(components.path),
+              let value = components.queryItems?.first(where: { $0.name == "c" })?.value else {
+            return nil
+        }
+        return normalized(value)
     }
 }
 

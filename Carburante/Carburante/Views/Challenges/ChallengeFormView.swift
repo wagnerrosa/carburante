@@ -144,11 +144,20 @@ struct ChallengeFormView: View {
                 Section {
                     LabeledContent("Conta", value: "Km rodados")
                 } footer: {
+                    Text("Só contam abastecimentos registrados na hora, com foto do hodômetro. Todas as motos de cada piloto somam.")
+                }
+
+                // Consentimento: quem cria também entra na classificação.
+                Section {
+                    ChallengeSharing.Rows()
+                } header: {
+                    Text(ChallengeSharing.title)
+                } footer: {
                     if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(.red)
                     } else {
-                        Text("Só contam abastecimentos registrados na hora, com foto do hodômetro. Todas as motos de cada piloto somam.")
+                        Text("\(ChallengeSharing.privateNote) \(ChallengeSharing.createConsent)")
                     }
                 }
             }
