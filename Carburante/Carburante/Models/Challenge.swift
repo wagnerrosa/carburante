@@ -296,6 +296,30 @@ enum ChallengeDuration: Hashable, CaseIterable, Identifiable {
     }
 }
 
+/// Limite de criação do plano grátis (decisão 3 do PLAN/desafios.md): um
+/// desafio criado por vez — acabou o período, cria outro. Premium cria vários
+/// ao mesmo tempo. Entrar é sempre grátis e sem limite. Checado só no app
+/// (o Premium ainda não existe no servidor).
+enum ChallengeCreationLimit {
+    static let freeAtATime = 1
+
+    /// Desafios meus que ainda não acabaram (vão começar ou estão rolando).
+    /// Na reta de fechamento o período já acabou: não prende o próximo.
+    static func openCreated(_ challenges: [Challenge], now: Date = Date()) -> Int {
+        challenges.count { challenge in
+            guard challenge.createdByMe else { return false }
+            switch challenge.phase(now: now) {
+            case .upcoming, .running: return true
+            case .closing, .finished: return false
+            }
+        }
+    }
+
+    static func canCreate(_ challenges: [Challenge], isPremium: Bool, now: Date = Date()) -> Bool {
+        isPremium || openCreated(challenges, now: now) < freeAtATime
+    }
+}
+
 /// Nome do desafio e do piloto, com a mesma limpeza do servidor
 /// (`challenge_clean_name`): espaços repetidos viram um, pontas cortadas.
 enum ChallengeName {

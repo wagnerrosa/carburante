@@ -389,4 +389,35 @@ final class ChallengeTests: XCTestCase {
         // Já está dentro: cheio não impede abrir.
         XCTAssertNil(invite(count: 50, names: [], member: true).blocker)
     }
+
+    // MARK: Limite do grátis
+
+    private func created(_ start: Date, _ end: Date, mine: Bool = true) -> Challenge {
+        var c = Challenge(id: UUID(), name: "Turma", startDate: start, endDate: end, createdByName: nil,
+                          code: "K7QM4XPR", coverRef: nil, standings: [], entries: [])
+        c.createdByMe = mine
+        return c
+    }
+
+    func testCreationLimit_freeCreatesOneAtATime() {
+        let now = date(2026, 10, 19)
+        let running = created(date(2026, 10, 1), date(2026, 10, 31))
+        XCTAssertTrue(ChallengeCreationLimit.canCreate([], isPremium: false, now: now))
+        XCTAssertFalse(ChallengeCreationLimit.canCreate([running], isPremium: false, now: now))
+        XCTAssertTrue(ChallengeCreationLimit.canCreate([running], isPremium: true, now: now))
+        // Marcado para começar depois também ocupa a vaga.
+        let upcoming = created(date(2026, 11, 1), date(2026, 11, 7))
+        XCTAssertFalse(ChallengeCreationLimit.canCreate([upcoming], isPremium: false, now: now))
+    }
+
+    func testCreationLimit_endedOrJoinedDoNotCount() {
+        let now = date(2026, 10, 19)
+        // Período acabou ontem: classificação fechando, mas já pode criar outro.
+        let closing = created(date(2026, 10, 12), date(2026, 10, 18))
+        let finished = created(date(2026, 9, 1), date(2026, 9, 30))
+        // Entrar é sempre grátis: desafio dos outros não conta.
+        let joined = created(date(2026, 10, 1), date(2026, 10, 31), mine: false)
+        XCTAssertEqual(ChallengeCreationLimit.openCreated([closing, finished, joined], now: now), 0)
+        XCTAssertTrue(ChallengeCreationLimit.canCreate([closing, finished, joined], isPremium: false, now: now))
+    }
 }
