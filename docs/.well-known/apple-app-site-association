@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["77ZLVPX48T.com.wagnerrosa.Carburante"],
+        "components": [
+          {
+            "/": "/d/*",
+            "?": { "c": "????????" },
+            "comment": "Convite de desafio: /d/?c=K7QM4XPR abre o app. Sem o app (ou link cortado), a página /d/ explica."
+          }
+        ]
+      }
+    ]
+  }
+}
