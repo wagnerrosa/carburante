@@ -18,7 +18,10 @@
 --   traduz: no_session, apple_account_required, invalid_name, invalid_period,
 --   challenge_not_found, not_a_member, not_the_creator, challenge_full,
 --   challenge_ended, removed_from_challenge, cannot_remove_self,
---   too_many_attempts, invalid_cover_path. Código de convite errado NÃO é
+--   too_many_attempts, invalid_cover_path; D7: entry_not_found,
+--   invalid_comment, too_many_comments, comment_not_found,
+--   cannot_delete_comment, cannot_react_own, invalid_reaction,
+--   cannot_vote_own, no_photo_to_check, invalid_vote. Código de convite errado NÃO é
 --   exceção: devolve null (a exceção desfaria o registro da tentativa, e o
 --   limite contra força bruta conta as tentativas).
 
@@ -586,7 +589,10 @@ $$;
 
 -- Meus desafios (aba Desafios): os que estou dentro, mais novo primeiro.
 -- Sessão anônima = lista vazia (não é erro: a aba mostra o estado vazio).
-create or replace function public.my_challenges()
+-- created_by_name = nome de quem criou na turma (nulo se saiu ou apagou a
+-- conta). D7 acrescentou a coluna: mudar o retorno exige drop + create.
+drop function if exists public.my_challenges();
+create function public.my_challenges()
 returns table (
     id              uuid,
     name            text,
@@ -597,7 +603,8 @@ returns table (
     invite_code     text,
     created_by_me   boolean,
     member_count    integer,
-    finalized_at    timestamptz
+    finalized_at    timestamptz,
+    created_by_name text
 )
 language sql
 stable
@@ -608,7 +615,9 @@ as $$
            ch.invite_code, coalesce(ch.created_by = auth.uid(), false),
            (select count(*) from public.challenge_members o
              where o.challenge_id = ch.id and o.left_at is null)::integer,
-           ch.finalized_at
+           ch.finalized_at,
+           (select cr.display_name from public.challenge_members cr
+             where cr.challenge_id = ch.id and cr.user_id = ch.created_by and cr.left_at is null)
       from public.challenge_members me
       join public.challenges ch on ch.id = me.challenge_id and ch.deleted_at is null
      where me.user_id = auth.uid() and me.left_at is null
@@ -710,6 +719,246 @@ begin
      where (p_member_id is null or s.member_id = p_member_id)
        and (s.in_period or s.km > 0)
      order by s.date desc;
+end;
+$$;
+
+-- ---------- D7: comentários, reações e votos na foto ----------
+-- Por desafio: o mesmo abastecimento aparece em vários desafios e cada turma
+-- vê só a sua conversa. Fechadas como as outras (RLS sem policy, só RPC).
+-- Valem para o que a turma vê no mural: registro não apagado de quem está no
+-- desafio, com data no período (até o fechamento) — a mesma janela das fotos.
+create table if not exists public.challenge_comments (
+    id            uuid primary key default gen_random_uuid(),
+    challenge_id  uuid not null references public.challenges (id) on delete cascade,
+    fuel_log_id   uuid not null references public.fuel_logs (id) on delete cascade,
+    user_id       uuid not null references auth.users (id) on delete cascade,
+    -- O app corta em 200 caracteres visíveis; um emoji de família são vários
+    -- code points — a folga evita recusar o que o app aceitou.
+    body          text not null check (char_length(body) between 1 and 400),
+    created_at    timestamptz not null default now(),
+    -- Apagar = sumir para a turma (quem escreveu ou quem criou o desafio).
+    deleted_at    timestamptz,
+    deleted_by    uuid references auth.users (id) on delete set null
+);
+create index if not exists challenge_comments_entry_idx
+    on public.challenge_comments (challenge_id, fuel_log_id, created_at);
+create index if not exists challenge_comments_user_idx
+    on public.challenge_comments (user_id, created_at);
+
+-- 1 reação por pessoa por abastecimento; emoji livre (o app confere que é um
+-- emoji só; aqui só o tamanho).
+create table if not exists public.challenge_reactions (
+    challenge_id  uuid not null references public.challenges (id) on delete cascade,
+    fuel_log_id   uuid not null references public.fuel_logs (id) on delete cascade,
+    user_id       uuid not null references auth.users (id) on delete cascade,
+    emoji         text not null check (char_length(emoji) between 1 and 16),
+    created_at    timestamptz not null default now(),
+    primary key (challenge_id, fuel_log_id, user_id)
+);
+
+-- "A foto do hodômetro confere?" — 1 voto por pessoa; NÃO mexe no km.
+create table if not exists public.challenge_photo_votes (
+    challenge_id  uuid not null references public.challenges (id) on delete cascade,
+    fuel_log_id   uuid not null references public.fuel_logs (id) on delete cascade,
+    user_id       uuid not null references auth.users (id) on delete cascade,
+    -- Chave congelada: ok, suspect.
+    vote          text not null check (vote in ('ok', 'suspect')),
+    created_at    timestamptz not null default now(),
+    primary key (challenge_id, fuel_log_id, user_id)
+);
+
+alter table public.challenge_comments    enable row level security;
+alter table public.challenge_reactions   enable row level security;
+alter table public.challenge_photo_votes enable row level security;
+
+-- Dono do abastecimento, se ele está no mural do desafio; senão entry_not_found.
+create or replace function public.challenge_entry_owner(p_challenge_id uuid, p_fuel_log_id uuid)
+returns uuid
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+    v_owner uuid;
+begin
+    select fl.user_id into v_owner
+      from public.fuel_logs fl
+      join public.challenges ch on ch.id = p_challenge_id and ch.deleted_at is null
+      join public.challenge_members m
+        on m.challenge_id = ch.id and m.user_id = fl.user_id and m.left_at is null
+     where fl.id = p_fuel_log_id
+       and fl.deleted_at is null
+       and fl.date >= ch.starts_at
+       and fl.date < ch.ends_at + interval '3 days';
+    if v_owner is null then
+        raise exception 'entry_not_found';
+    end if;
+    return v_owner;
+end;
+$$;
+
+-- Comentários, reações e votos do desafio inteiro (uma chamada junto com a
+-- classificação e o mural). Só de quem ainda está no desafio.
+create or replace function public.challenge_social(p_challenge_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    return jsonb_build_object(
+        'comments', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                       'id', c.id, 'fuel_log_id', c.fuel_log_id, 'member_id', m.id,
+                       'body', c.body, 'created_at', c.created_at) order by c.created_at)
+              from public.challenge_comments c
+              join public.challenge_members m
+                on m.challenge_id = c.challenge_id and m.user_id = c.user_id and m.left_at is null
+             where c.challenge_id = p_challenge_id and c.deleted_at is null), '[]'::jsonb),
+        'reactions', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                       'fuel_log_id', r.fuel_log_id, 'member_id', m.id, 'emoji', r.emoji)
+                       order by r.created_at)
+              from public.challenge_reactions r
+              join public.challenge_members m
+                on m.challenge_id = r.challenge_id and m.user_id = r.user_id and m.left_at is null
+             where r.challenge_id = p_challenge_id), '[]'::jsonb),
+        'votes', coalesce((
+            select jsonb_agg(jsonb_build_object(
+                       'fuel_log_id', v.fuel_log_id, 'member_id', m.id, 'vote', v.vote)
+                       order by v.created_at)
+              from public.challenge_photo_votes v
+              join public.challenge_members m
+                on m.challenge_id = v.challenge_id and m.user_id = v.user_id and m.left_at is null
+             where v.challenge_id = p_challenge_id), '[]'::jsonb)
+    );
+end;
+$$;
+
+-- Comenta num abastecimento do mural. Até 30 comentários por hora por pessoa.
+create or replace function public.post_challenge_comment(p_challenge_id uuid, p_fuel_log_id uuid, p_body text)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_body text := btrim(coalesce(p_body, ''), E' \t\r\n');
+    v_id uuid;
+    v_at timestamptz;
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    perform public.challenge_entry_owner(p_challenge_id, p_fuel_log_id);
+    if char_length(v_body) not between 1 and 400 then
+        raise exception 'invalid_comment';
+    end if;
+    if (select count(*) from public.challenge_comments
+         where user_id = v_uid and created_at > now() - interval '1 hour') >= 30 then
+        raise exception 'too_many_comments';
+    end if;
+    insert into public.challenge_comments (challenge_id, fuel_log_id, user_id, body)
+    values (p_challenge_id, p_fuel_log_id, v_uid, v_body)
+    returning id, created_at into v_id, v_at;
+    return jsonb_build_object('id', v_id, 'created_at', v_at);
+end;
+$$;
+
+-- Apaga (some para a turma): quem escreveu ou quem criou o desafio.
+create or replace function public.delete_challenge_comment(p_comment_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_comment public.challenge_comments;
+    v_creator uuid;
+begin
+    select * into v_comment from public.challenge_comments
+     where id = p_comment_id and deleted_at is null;
+    if v_comment.id is null then
+        raise exception 'comment_not_found';
+    end if;
+    perform public.challenge_require_member(v_comment.challenge_id, v_uid);
+    select created_by into v_creator from public.challenges where id = v_comment.challenge_id;
+    if v_comment.user_id <> v_uid and v_creator is distinct from v_uid then
+        raise exception 'cannot_delete_comment';
+    end if;
+    update public.challenge_comments set deleted_at = now(), deleted_by = v_uid
+     where id = p_comment_id;
+end;
+$$;
+
+-- Reage (emoji) ou tira a reação (nulo). Ninguém reage ao próprio.
+create or replace function public.set_challenge_reaction(p_challenge_id uuid, p_fuel_log_id uuid, p_emoji text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    if public.challenge_entry_owner(p_challenge_id, p_fuel_log_id) = v_uid then
+        raise exception 'cannot_react_own';
+    end if;
+    if p_emoji is null then
+        delete from public.challenge_reactions
+         where challenge_id = p_challenge_id and fuel_log_id = p_fuel_log_id and user_id = v_uid;
+        return;
+    end if;
+    if char_length(p_emoji) not between 1 and 16 then
+        raise exception 'invalid_reaction';
+    end if;
+    insert into public.challenge_reactions (challenge_id, fuel_log_id, user_id, emoji)
+    values (p_challenge_id, p_fuel_log_id, v_uid, p_emoji)
+    on conflict (challenge_id, fuel_log_id, user_id)
+    do update set emoji = excluded.emoji, created_at = now();
+end;
+$$;
+
+-- Vota na foto do hodômetro (ok/suspect) ou tira o voto (nulo). Ninguém vota
+-- na própria; sem foto no Storage, nada a conferir.
+create or replace function public.set_challenge_photo_vote(p_challenge_id uuid, p_fuel_log_id uuid, p_vote text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    if public.challenge_entry_owner(p_challenge_id, p_fuel_log_id) = v_uid then
+        raise exception 'cannot_vote_own';
+    end if;
+    if not exists (select 1 from public.fuel_logs
+                    where id = p_fuel_log_id and odometer_photo_url like '%/%') then
+        raise exception 'no_photo_to_check';
+    end if;
+    if p_vote is null then
+        delete from public.challenge_photo_votes
+         where challenge_id = p_challenge_id and fuel_log_id = p_fuel_log_id and user_id = v_uid;
+        return;
+    end if;
+    if p_vote not in ('ok', 'suspect') then
+        raise exception 'invalid_vote';
+    end if;
+    insert into public.challenge_photo_votes (challenge_id, fuel_log_id, user_id, vote)
+    values (p_challenge_id, p_fuel_log_id, v_uid, p_vote)
+    on conflict (challenge_id, fuel_log_id, user_id)
+    do update set vote = excluded.vote, created_at = now();
 end;
 $$;
 
@@ -847,6 +1096,7 @@ revoke all on function public.challenge_new_invite_code() from public, anon, aut
 revoke all on function public.challenge_lookup_code(text, uuid) from public, anon, authenticated;
 revoke all on function public.challenge_scores(uuid) from public, anon, authenticated;
 revoke all on function public.challenge_finalize_if_closed(uuid) from public, anon, authenticated;
+revoke all on function public.challenge_entry_owner(uuid, uuid) from public, anon, authenticated;
 
 revoke all on function public.create_challenge(text, timestamptz, timestamptz, text, text) from public, anon;
 revoke all on function public.challenge_preview(text) from public, anon;
@@ -861,6 +1111,11 @@ revoke all on function public.can_view_challenge_photo(text) from public, anon;
 revoke all on function public.challenge_cover_folder(text) from public, anon;
 revoke all on function public.can_edit_challenge_cover(text) from public, anon;
 revoke all on function public.can_view_challenge_cover(text) from public, anon;
+revoke all on function public.challenge_social(uuid) from public, anon;
+revoke all on function public.post_challenge_comment(uuid, uuid, text) from public, anon;
+revoke all on function public.delete_challenge_comment(uuid) from public, anon;
+revoke all on function public.set_challenge_reaction(uuid, uuid, text) from public, anon;
+revoke all on function public.set_challenge_photo_vote(uuid, uuid, text) from public, anon;
 
 grant execute on function public.create_challenge(text, timestamptz, timestamptz, text, text) to authenticated;
 grant execute on function public.challenge_preview(text) to authenticated;
@@ -875,3 +1130,8 @@ grant execute on function public.can_view_challenge_photo(text) to authenticated
 grant execute on function public.challenge_cover_folder(text) to authenticated;
 grant execute on function public.can_edit_challenge_cover(text) to authenticated;
 grant execute on function public.can_view_challenge_cover(text) to authenticated;
+grant execute on function public.challenge_social(uuid) to authenticated;
+grant execute on function public.post_challenge_comment(uuid, uuid, text) to authenticated;
+grant execute on function public.delete_challenge_comment(uuid) to authenticated;
+grant execute on function public.set_challenge_reaction(uuid, uuid, text) to authenticated;
+grant execute on function public.set_challenge_photo_vote(uuid, uuid, text) to authenticated;

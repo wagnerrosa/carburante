@@ -11,8 +11,9 @@ import SwiftUI
 import PhotosUI
 
 struct ChallengesView: View {
-    /// O que a aba mostra. Ao vivo = cópia do `ChallengeService` (comentar e
-    /// reagir ainda mexem só aqui até a D7); D0 = dados fictícios em memória.
+    /// O que a aba mostra. Ao vivo = cópia do `ChallengeService` (comentar,
+    /// reagir e votar mudam aqui na hora e o servidor confirma); D0 = dados
+    /// fictícios em memória.
     @State var challenges: [Challenge]
     /// Tela inicial (protótipo D0 abre direto em cada tela para os prints).
     var start: StartScreen = .board
@@ -120,7 +121,7 @@ struct ChallengesView: View {
             }
             .navigationDestination(for: ChallengeRoute.self, destination: destination)
         }
-        // Ao vivo, só o que o servidor já guarda (reações e comentários = D7).
+        // Ao vivo, só o que o servidor já guarda (denunciar e bloquear = D8).
         .environment(\.challengeServerOnly, isLive)
     }
 
@@ -354,19 +355,16 @@ struct ChallengesView: View {
                let standing = challenge.standing(for: entry.memberID) {
                 ChallengeEntryView(challenge: challenge, entry: entry, standing: standing,
                                    onSetChallengePhoto: photoSetter(challenge, entry)) { text in
-                    update(challengeID) { c in
-                        guard let me = c.me else { return }
-                        c.comments.append(ChallengeComment(id: UUID(), entryID: entryID, memberID: me.id,
-                                                           text: text, date: Date()))
-                    }
+                    post(text, on: entryID, in: challengeID)
                 } onDelete: { comment in
-                    update(challengeID) { $0.comments.removeAll { $0.id == comment.id } }
+                    delete(comment, in: challengeID)
                 } onReact: { reaction in
                     react(reaction, on: entry, in: challengeID)
                 } onVote: { vote in
-                    Haptics.selection()
-                    update(challengeID) { $0.vote(vote, on: entry) }
+                    self.vote(vote, on: entry, in: challengeID)
                 }
+                // Abriu o abastecimento: a conversa mais recente.
+                .task { if isLive { await service.refreshSocial(for: challengeID) } }
             }
         }
     }
@@ -471,9 +469,59 @@ struct ChallengesView: View {
         }
     }
 
+    // MARK: Conversa (D7) — muda na hora; o servidor confirma
+
     private func react(_ emoji: String, on entry: ChallengeEntry, in id: UUID) {
         Haptics.selection()
         update(id) { $0.react(emoji, on: entry) }
+        guard isLive else { return }
+        let mine = challenge(id)?.myReaction(on: entry.id)
+        send(in: id, failure: "Não deu para reagir") {
+            try await service.setReaction(mine, on: entry.id, in: id)
+        }
+    }
+
+    private func vote(_ vote: PhotoVote, on entry: ChallengeEntry, in id: UUID) {
+        Haptics.selection()
+        update(id) { $0.vote(vote, on: entry) }
+        guard isLive else { return }
+        let mine = challenge(id)?.myVote(on: entry.id)
+        send(in: id, failure: "Não deu para registrar o voto") {
+            try await service.setVote(mine, on: entry.id, in: id)
+        }
+    }
+
+    private func post(_ text: String, on entryID: UUID, in id: UUID) {
+        update(id) { c in
+            guard let me = c.me else { return }
+            c.comments.append(ChallengeComment(id: UUID(), entryID: entryID, memberID: me.id,
+                                               text: text, date: Date()))
+        }
+        guard isLive else { return }
+        send(in: id, failure: "Comentário não enviado") {
+            try await service.postComment(text, on: entryID, in: id)
+        }
+    }
+
+    private func delete(_ comment: ChallengeComment, in id: UUID) {
+        update(id) { $0.comments.removeAll { $0.id == comment.id } }
+        guard isLive else { return }
+        send(in: id, failure: "Não deu para apagar o comentário") {
+            try await service.deleteComment(comment.id, in: id)
+        }
+    }
+
+    /// Manda ao servidor; deu erro, avisa e volta a conversa ao que está lá.
+    private func send(in id: UUID, failure title: String,
+                      _ operation: @escaping () async throws -> Void) {
+        Task {
+            do {
+                try await operation()
+            } catch {
+                alert = ChallengeAlert(title: title, message: ChallengeService.challengeError(error).message)
+                await service.refreshSocial(for: id)
+            }
+        }
     }
 
     private func update(_ id: UUID, _ change: (inout Challenge) -> Void) {

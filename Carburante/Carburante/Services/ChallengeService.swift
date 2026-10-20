@@ -150,15 +150,21 @@ final class ChallengeService {
         }
     }
 
-    /// Classificação + mural de um desafio, como o servidor mandou. Encerrado
-    /// só traz a classificação (a lista mostra os 3 primeiros); o mural dele
-    /// carrega ao abrir (`loadEntriesIfNeeded`) e o que já veio fica.
+    /// Classificação + mural + conversa de um desafio, como o servidor mandou.
+    /// Encerrado só traz a classificação (a lista mostra os 3 primeiros); o
+    /// mural e a conversa dele carregam ao abrir (`loadEntriesIfNeeded`) e o
+    /// que já veio fica.
     private func snapshotItem(_ row: ChallengeRowDTO,
                               previous: ChallengeSnapshot.Item?) async throws -> ChallengeSnapshot.Item {
         async let standings = leaderboard(row.id)
-        let finished = row.period.phase() == .finished
-        let entries = finished ? (previous?.entries ?? []) : try await self.entries(row.id)
-        return ChallengeSnapshot.Item(row: row, standings: try await standings, entries: entries)
+        guard row.period.phase() != .finished else {
+            return ChallengeSnapshot.Item(row: row, standings: try await standings,
+                                          entries: previous?.entries ?? [], social: previous?.social)
+        }
+        async let entries = self.entries(row.id)
+        async let social = self.social(row.id)
+        return ChallengeSnapshot.Item(row: row, standings: try await standings,
+                                      entries: try await entries, social: try await social)
     }
 
     /// Encerrado aberto na aba: mural e registros dos pilotos, 1 vez por
@@ -169,14 +175,27 @@ final class ChallengeService {
               let row = snapshot?.item(challengeID)?.row,
               row.period.phase() == .finished else { return }
         finishedEntriesLoaded.insert(challengeID)
-        guard let entries = try? await entries(challengeID) else {
+        async let entries = try? self.entries(challengeID)
+        async let social = try? self.social(challengeID)
+        guard let entries = await entries else {
             finishedEntriesLoaded.remove(challengeID)
             return
         }
+        let loadedSocial = await social
         // A lista pode ter recarregado enquanto isso: aplica na mais nova.
-        if let current = snapshot {
-            apply(current.replacingEntries(entries, of: challengeID))
+        if var current = snapshot {
+            current = current.replacingEntries(entries, of: challengeID)
+            if let loadedSocial { current = current.replacingSocial(loadedSocial, of: challengeID) }
+            apply(current)
         }
+    }
+
+    /// Conversa de um desafio de novo (abriu um abastecimento, comentou,
+    /// reagiu, votou). Sem rede, fica a que está na tela.
+    func refreshSocial(for challengeID: UUID) async {
+        guard let social = try? await social(challengeID), let current = snapshot,
+              current.item(challengeID) != nil else { return }
+        apply(current.replacingSocial(social, of: challengeID))
     }
 
     private func apply(_ snapshot: ChallengeSnapshot) {
@@ -191,12 +210,62 @@ final class ChallengeService {
             .execute().value
     }
 
+    private func social(_ challengeID: UUID) async throws -> ChallengeSocialDTO {
+        try await client
+            .rpc("challenge_social", params: ["p_challenge_id": challengeID])
+            .execute().value
+    }
+
     /// Mural (sem `memberID`) ou os registros de um participante.
     private func entries(_ challengeID: UUID, memberID: UUID? = nil) async throws -> [ChallengeEntryDTO] {
         try await client
             .rpc("challenge_entries", params: EntriesParams(p_challenge_id: challengeID,
                                                             p_member_id: memberID))
             .execute().value
+    }
+
+    // MARK: Comentários, reações, votos (D7)
+
+    /// Comenta num abastecimento do mural. Depois, a conversa vem do servidor
+    /// (com o id e a hora de lá).
+    func postComment(_ text: String, on entryID: UUID, in challengeID: UUID) async throws(ChallengeError) {
+        let _: ChallengeCommentPostedDTO = try await call { [client] in
+            try await client.rpc("post_challenge_comment",
+                                 params: CommentParams(p_challenge_id: challengeID, p_fuel_log_id: entryID,
+                                                       p_body: text))
+                .execute().value
+        }
+        await refreshSocial(for: challengeID)
+    }
+
+    /// Apaga o comentário (quem escreveu ou quem criou o desafio).
+    func deleteComment(_ commentID: UUID, in challengeID: UUID) async throws(ChallengeError) {
+        try await call { [client] in
+            try await client.rpc("delete_challenge_comment", params: ["p_comment_id": commentID]).execute()
+        }
+        await refreshSocial(for: challengeID)
+    }
+
+    /// Põe, troca (`emoji`) ou tira (nil) a sua reação.
+    func setReaction(_ emoji: String?, on entryID: UUID, in challengeID: UUID) async throws(ChallengeError) {
+        try await call { [client] in
+            try await client.rpc("set_challenge_reaction",
+                                 params: MarkParams(p_challenge_id: challengeID, p_fuel_log_id: entryID,
+                                                    key: "p_emoji", value: emoji))
+                .execute()
+        }
+        await refreshSocial(for: challengeID)
+    }
+
+    /// Vota (`ok`/`suspect`) ou tira o voto (nil) na foto do hodômetro.
+    func setVote(_ vote: PhotoVote?, on entryID: UUID, in challengeID: UUID) async throws(ChallengeError) {
+        try await call { [client] in
+            try await client.rpc("set_challenge_photo_vote",
+                                 params: MarkParams(p_challenge_id: challengeID, p_fuel_log_id: entryID,
+                                                    key: "p_vote", value: vote?.rawValue))
+                .execute()
+        }
+        await refreshSocial(for: challengeID)
     }
 
     // MARK: Foto do desafio
@@ -413,6 +482,35 @@ private struct CoverParams: Encodable {
     }
 
     private enum CodingKeys: String, CodingKey { case p_challenge_id, p_cover_path }
+}
+
+private struct CommentParams: Encodable {
+    let p_challenge_id: UUID
+    let p_fuel_log_id: UUID
+    let p_body: String
+}
+
+/// Reação ou voto: nil vai como `null` (tirar), não some do corpo.
+private struct MarkParams: Encodable {
+    let p_challenge_id: UUID
+    let p_fuel_log_id: UUID
+    let key: String
+    let value: String?
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: DynamicKey.self)
+        try container.encode(p_challenge_id, forKey: DynamicKey("p_challenge_id"))
+        try container.encode(p_fuel_log_id, forKey: DynamicKey("p_fuel_log_id"))
+        try container.encode(value, forKey: DynamicKey(key))
+    }
+
+    private struct DynamicKey: CodingKey {
+        let stringValue: String
+        init(_ string: String) { stringValue = string }
+        init?(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { nil }
+    }
 }
 
 private struct EntriesParams: Encodable {

@@ -174,6 +174,55 @@ final class ChallengeServiceTests: XCTestCase {
         XCTAssertNil(snapshot.item(UUID()))
     }
 
+    // MARK: Conversa (D7)
+
+    /// Formato do `jsonb_build_object` do `challenge_social` (data com fração).
+    private let socialJSON = """
+    {"votes": [{"vote": "suspect", "member_id": "022f02e9-1f8f-4757-8661-9c1a2303fac9", "fuel_log_id": "a3000000-0000-4000-8000-000000000007"},
+               {"vote": "maybe_later", "member_id": "b0000000-0000-4000-8000-000000000001", "fuel_log_id": "a3000000-0000-4000-8000-000000000007"}],
+     "comments": [{"id": "c0000000-0000-4000-8000-0000000000c1", "body": "Que vista! 😍", "member_id": "022f02e9-1f8f-4757-8661-9c1a2303fac9",
+                   "created_at": "2026-10-20T12:34:56.789012+00:00", "fuel_log_id": "a3000000-0000-4000-8000-000000000007"}],
+     "reactions": [{"emoji": "🏍️", "member_id": "022f02e9-1f8f-4757-8661-9c1a2303fac9", "fuel_log_id": "a3000000-0000-4000-8000-000000000007"}]}
+    """
+
+    func testSocial_becomesCommentsReactionsAndVotes() throws {
+        let social = try decode(ChallengeSocialDTO.self, socialJSON)
+        let row = try decode([ChallengeRowDTO].self, myChallengesJSON)[0]
+        let item = ChallengeSnapshot.Item(row: row, standings: [], entries: [], social: social)
+        let challenge = item.challenge
+        let entry = UUID(uuidString: "a3000000-0000-4000-8000-000000000007")!
+        XCTAssertEqual(challenge.comments(on: entry).map(\.text), ["Que vista! 😍"])
+        XCTAssertEqual(challenge.comments.first?.id, UUID(uuidString: "c0000000-0000-4000-8000-0000000000c1"))
+        XCTAssertEqual(challenge.reactions.map(\.emoji), ["🏍️"])
+        XCTAssertEqual(challenge.photoVotes.count, 2)
+        // Chave de voto de um app mais novo fica guardada mas não conta.
+        XCTAssertNil(challenge.photoVotes.last?.vote)
+    }
+
+    /// Placar guardado antes da D7 (sem `social` nem `created_by_name`) abre igual.
+    func testSnapshot_fromBeforeD7StillOpens() throws {
+        let json = """
+        {"userID": "022f02e9-1f8f-4757-8661-9c1a2303fac9", "savedAt": 800000000,
+         "items": [{"row": {"id": "11111111-1111-4111-8111-111111111111", "name": "Turma da serra",
+                            "starts_at": 781412400, "ends_at": 782017200, "time_zone": "America/Sao_Paulo",
+                            "cover_path": null, "invite_code": "K7QM4XPR", "created_by_me": false,
+                            "member_count": 3, "finalized_at": null},
+                    "standings": [], "entries": []}]}
+        """
+        let snapshot = try JSONDecoder().decode(ChallengeSnapshot.self, from: Data(json.utf8))
+        XCTAssertNil(snapshot.items.first?.social)
+        XCTAssertNil(snapshot.challenges.first?.createdByName)
+        XCTAssertTrue(snapshot.challenges.first?.comments.isEmpty == true)
+    }
+
+    func testMyChallenges_creatorNameForEveryone() throws {
+        let json = myChallengesJSON
+            .replacingOccurrences(of: "\"created_by_me\": true", with: "\"created_by_me\": false")
+            .replacingOccurrences(of: "\"finalized_at\": null}", with: "\"finalized_at\": null, \"created_by_name\": \"Ana Souza\"}")
+        let row = try decode([ChallengeRowDTO].self, json)[0]
+        XCTAssertEqual(row.challenge(standings: [], entries: []).createdByName, "Ana Souza")
+    }
+
     func testSnapshot_missingOrBrokenFileIsNoSnapshot() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("snapshot-\(UUID()).json")
         XCTAssertNil(ChallengeSnapshot.load(from: url))
@@ -228,7 +277,10 @@ final class ChallengeServiceTests: XCTestCase {
         let keys = ["no_session", "apple_account_required", "invalid_name", "invalid_period",
                     "challenge_not_found", "not_a_member", "not_the_creator", "challenge_full",
                     "challenge_ended", "removed_from_challenge", "cannot_remove_self",
-                    "too_many_attempts", "invalid_cover_path"]
+                    "too_many_attempts", "invalid_cover_path",
+                    "entry_not_found", "invalid_comment", "too_many_comments", "comment_not_found",
+                    "cannot_delete_comment", "cannot_react_own", "invalid_reaction", "cannot_vote_own",
+                    "no_photo_to_check", "invalid_vote"]
         for key in keys {
             if case .unknown = ChallengeError(serverKey: key) { XCTFail("chave sem tradução: \(key)") }
         }
