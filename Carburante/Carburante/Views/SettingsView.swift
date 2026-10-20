@@ -64,6 +64,7 @@ struct SettingsView: View {
                         }
                     // Exigido pela App Store (5.1.1): política acessível de dentro do app.
                     Link("Política de privacidade", destination: Self.privacyPolicyURL)
+                    Link("Termos de uso", destination: ChallengeSharing.termsURL)
                 } header: {
                     Text("Privacidade")
                 } footer: {

@@ -1075,6 +1075,12 @@ create table if not exists public.challenge_reports (
 );
 create index if not exists challenge_reports_reporter_idx on public.challenge_reports (reporter_id, created_at);
 
+-- Denúncia com mais de 12 meses sai sozinha (prazo da Política de Privacidade,
+-- carburante.motorcycles/privacidade). Job com nome: rodar de novo só atualiza.
+create extension if not exists pg_cron with schema pg_catalog;
+select cron.schedule('challenge-reports-retention', '15 4 * * *',
+    $job$delete from public.challenge_reports where created_at < now() - interval '12 months'$job$);
+
 alter table public.challenge_blocks        enable row level security;
 alter table public.challenge_hidden_photos enable row level security;
 alter table public.challenge_reports       enable row level security;
