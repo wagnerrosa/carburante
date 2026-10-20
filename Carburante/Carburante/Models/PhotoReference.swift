@@ -3,7 +3,8 @@
 //  Carburante
 //
 //  Regras puras do valor guardado em `FuelLog.odometerPhotoURL` (coluna
-//  `odometer_photo_url`). Apesar do nome legado, NÃO é uma URL — o bucket é
+//  `odometer_photo_url`) e em `FuelLog.challengePhotoURL` (foto do desafio,
+//  `<fuel_log_id>-challenge.jpg`). Apesar do nome legado, NÃO é uma URL — o bucket é
 //  privado e a imagem é baixada autenticada (RLS) na hora de ver. Dois estados:
 //
 //  - **local** (upload pendente): só o nome do arquivo, `<fuel_log_id>.jpg`,
@@ -40,6 +41,18 @@ enum PhotoReference {
 
     static func fileName(logID: UUID) -> String {
         "\(logID.uuidString).jpg"
+    }
+
+    // Foto do desafio (`FuelLog.challengePhotoURL`): mesma pasta da moto e as
+    // mesmas regras de local/remota; o sufixo é o que a policy da turma
+    // (`can_view_challenge_photo`, supabase/challenges.sql) espera.
+
+    static func challengeFileName(logID: UUID) -> String {
+        "\(logID.uuidString)-challenge.jpg"
+    }
+
+    static func challengeRemotePath(motorcycleID: UUID, logID: UUID) -> String {
+        "\(folder(motorcycleID: motorcycleID))/\(challengeFileName(logID: logID))"
     }
 
     /// Referência já está no bucket (tem a pasta do usuário).

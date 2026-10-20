@@ -400,6 +400,9 @@ final class SyncService {
                     existing.odometerPhotoURL = PhotoReference.merge(
                         local: existing.odometerPhotoURL, remote: dto.odometer_photo_url
                     )
+                    existing.challengePhotoURL = PhotoReference.merge(
+                        local: existing.challengePhotoURL, remote: dto.challenge_photo_url
+                    )
                     continue
                 }
                 guard let moto = motoByID[dto.motorcycle_id] else { continue }
@@ -562,6 +565,10 @@ final class SyncService {
         // Nunca sobrescreve uma foto local ainda não enviada (ver PhotoReference.merge).
         log.odometerPhotoURL = PhotoReference.merge(local: log.odometerPhotoURL,
                                                     remote: dto.odometer_photo_url)
+        log.challengePhotoURL = PhotoReference.merge(local: log.challengePhotoURL,
+                                                     remote: dto.challenge_photo_url)
+        // Origem da foto: nil no servidor = linha de build antigo, não "apagada".
+        log.odometerPhotoSource = dto.odometer_photo_source ?? log.odometerPhotoSource
         log.ocrProcessed = dto.ocr_processed
         log.ocrConfidence = dto.ocr_confidence
         log.dateWasEdited = dto.date_was_edited
@@ -748,38 +755,55 @@ final class SyncService {
             ocr_processed: f.ocrProcessed, ocr_confidence: f.ocrConfidence,
             date_was_edited: f.dateWasEdited, location_was_edited: f.locationWasEdited,
             updated_at: f.updatedAt, revision: f.revision, deleted_at: f.deletedAt,
-            created_at: f.createdAt, missed_previous: f.missedPrevious
+            created_at: f.createdAt, missed_previous: f.missedPrevious,
+            odometer_photo_source: f.odometerPhotoSource,
+            challenge_photo_url: PhotoReference.pushValue(f.challengePhotoURL)
         )
     }
 
-    // MARK: - Fotos do hodômetro (Storage)
+    // MARK: - Fotos do abastecimento (Storage)
 
-    /// Sobe as fotos com upload pendente (referência local) pro bucket privado e
-    /// troca a referência pelo path remoto. Devolve os logs que mudaram. Falha
-    /// por foto é engolida (best-effort): a foto segue no disco e tenta de novo
-    /// no próximo push — não derruba o sync dos dados.
+    /// Sobe as fotos com upload pendente (referência local) — hodômetro e foto
+    /// do desafio — pro bucket privado e troca a referência pelo path remoto.
+    /// Devolve os logs que mudaram. Falha por foto é engolida (best-effort): a
+    /// foto segue no disco e tenta de novo no próximo push — não derruba o sync
+    /// dos dados.
     private func uploadPendingPhotos(_ motorcycles: [Motorcycle]) async -> [FuelLog] {
-        let pending = motorcycles.flatMap { moto in
-            moto.fuelLogs.filter {
-                $0.deletedAt == nil && PhotoReference.isPendingUpload($0.odometerPhotoURL)
-            }.map { (moto.id, $0) }
-        }
         var uploaded: [FuelLog] = []
-        for (motorcycleID, log) in pending {
-            guard let data = PhotoStorage.data(for: log.odometerPhotoURL) else { continue }
-            let path = PhotoReference.remotePath(motorcycleID: motorcycleID, logID: log.id)
-            do {
-                // upsert: uma foto trocada na edição sobrescreve a anterior (mesmo path).
-                try await client.storage.from(PhotoReference.bucket).upload(
-                    path, data: data, options: FileOptions(contentType: "image/jpeg", upsert: true)
-                )
-                log.odometerPhotoURL = path
-                uploaded.append(log)
-            } catch {
-                Analytics.syncFailed(stage: "photo_upload", errorCode: Self.errorCode(error))
+        for moto in motorcycles {
+            for log in moto.fuelLogs where log.deletedAt == nil {
+                var changed = false
+                if PhotoReference.isPendingUpload(log.odometerPhotoURL),
+                   let path = await upload(log.odometerPhotoURL,
+                                           to: PhotoReference.remotePath(motorcycleID: moto.id, logID: log.id)) {
+                    log.odometerPhotoURL = path
+                    changed = true
+                }
+                if PhotoReference.isPendingUpload(log.challengePhotoURL),
+                   let path = await upload(log.challengePhotoURL,
+                                           to: PhotoReference.challengeRemotePath(motorcycleID: moto.id, logID: log.id)) {
+                    log.challengePhotoURL = path
+                    changed = true
+                }
+                if changed { uploaded.append(log) }
             }
         }
         return uploaded
+    }
+
+    /// Uma foto do disco para `path`. nil = não subiu (tenta no próximo push).
+    private func upload(_ localRef: String?, to path: String) async -> String? {
+        guard let data = PhotoStorage.data(for: localRef) else { return nil }
+        do {
+            // upsert: uma foto trocada na edição sobrescreve a anterior (mesmo path).
+            try await client.storage.from(PhotoReference.bucket).upload(
+                path, data: data, options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+            return path
+        } catch {
+            Analytics.syncFailed(stage: "photo_upload", errorCode: Self.errorCode(error))
+            return nil
+        }
     }
 
     /// Foto do hodômetro para exibir: disco deste device primeiro (offline);

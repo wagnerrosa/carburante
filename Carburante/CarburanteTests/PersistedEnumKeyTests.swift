@@ -47,6 +47,11 @@ final class PersistedEnumKeyTests: XCTestCase {
         ])
     }
 
+    func testPhotoSourceKeysAreFrozen() {
+        // `fuel_logs.odometer_photo_source`; a classificação do desafio lê.
+        XCTAssertEqual(PhotoSource.allCases.map(\.rawValue), ["camera", "gallery"])
+    }
+
     /// Todo caso tem rótulo próprio e não-vazio (o `label` é o que se traduz).
     func testEveryCaseHasALabel() {
         let labels = FuelType.allCases.map(\.label)

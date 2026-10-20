@@ -133,6 +133,9 @@ struct RootTabView: View {
             // (offline-first — os dados locais já estão salvos). Se degradar,
             // `syncDegraded` acende o aviso abaixo.
             await SyncService.shared.syncAtLaunch(into: modelContext)
+            // Desafios já no launch, não só ao abrir a aba: o abastecimento
+            // precisa saber se há desafio aberto (foto do hodômetro conta).
+            if ChallengeFeature.isEnabled { await ChallengeService.shared.refresh() }
         }
         // Super properties (active_bike_count, app_locale, account_age_days)
         // recalculadas a cada foreground — account_age_days muda por dia, então

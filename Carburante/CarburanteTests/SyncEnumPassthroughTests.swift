@@ -47,6 +47,45 @@ final class SyncEnumPassthroughTests: XCTestCase {
         )
     }
 
+    // MARK: Desafios (D5): origem e foto do desafio
+
+    private func fuelDTO(source: String?, challengePhoto: String?) -> FuelLogDTO {
+        var dto = fuelDTO(fuelType: FuelType.gasolinaComum.rawValue)
+        dto.odometer_photo_source = source
+        dto.challenge_photo_url = challengePhoto
+        return dto
+    }
+
+    func testPhotoSourceKeyPassesThroughPull() {
+        let log = FuelLog(odometer: 1_000, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        SyncService.applyFuel(fuelDTO(source: "scanner", challengePhoto: nil), to: log)
+        XCTAssertEqual(log.odometerPhotoSource, "scanner", "chave desconhecida passa adiante")
+    }
+
+    func testMissingPhotoSourceNeverErasesLocal() {
+        // nil no servidor = linha de um build sem o campo, não "apagado".
+        let log = FuelLog(odometer: 1_000, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        log.odometerPhotoSource = PhotoSource.gallery.rawValue
+        SyncService.applyFuel(fuelDTO(source: nil, challengePhoto: nil), to: log)
+        XCTAssertEqual(log.odometerPhotoSource, "gallery")
+    }
+
+    func testPendingChallengePhotoSurvivesPull() {
+        // Foto do desafio ainda não enviada vence o que vier do servidor.
+        let log = FuelLog(odometer: 1_000, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        let local = PhotoReference.challengeFileName(logID: log.id)
+        log.challengePhotoURL = local
+        SyncService.applyFuel(fuelDTO(source: nil, challengePhoto: nil), to: log)
+        XCTAssertEqual(log.challengePhotoURL, local)
+    }
+
+    func testRemoteChallengePhotoReachesOtherDevice() {
+        let log = FuelLog(odometer: 1_000, liters: 10, totalCost: 60, fuelType: .gasolinaComum)
+        let remote = PhotoReference.challengeRemotePath(motorcycleID: UUID(), logID: log.id)
+        SyncService.applyFuel(fuelDTO(source: "camera", challengePhoto: remote), to: log)
+        XCTAssertEqual(log.challengePhotoURL, remote)
+    }
+
     func testUnknownFuelTypeKeySurvivesPull() {
         let log = FuelLog(odometer: 1_000, liters: 10, totalCost: 60, fuelType: .etanol)
         SyncService.applyFuel(fuelDTO(fuelType: "E10"), to: log)
