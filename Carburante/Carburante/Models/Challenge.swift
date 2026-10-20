@@ -333,6 +333,16 @@ struct ChallengePeriod: Hashable {
         /// Período acabou; a classificação ainda aceita o último abastecimento.
         case closing(daysToClose: Int)
         case finished
+
+        /// Chave congelada para a medição (PostHog).
+        var analyticsKey: String {
+            switch self {
+            case .upcoming: "upcoming"
+            case .running: "running"
+            case .closing: "closing"
+            case .finished: "finished"
+            }
+        }
     }
 
     func phase(now: Date = Date()) -> Phase {
@@ -373,6 +383,19 @@ enum ChallengeDuration: Hashable, CaseIterable, Identifiable {
         case .month: "1 mês"
         case .until: "Até…"
         }
+    }
+
+    /// Chave congelada para a medição: qual prazo gerou o período (`week`,
+    /// `month` ou `until` — "Até…" com uma data que não é 1 semana nem 1 mês).
+    static func analyticsKey(for period: ChallengePeriod) -> String {
+        let start = period.firstDay
+        if period == ChallengeDuration.week.period(from: start, until: start, timeZone: period.timeZone) {
+            return "week"
+        }
+        if period == ChallengeDuration.month.period(from: start, until: start, timeZone: period.timeZone) {
+            return "month"
+        }
+        return "until"
     }
 
     /// Período começando no dia de `start`. `until` (o último dia) só vale

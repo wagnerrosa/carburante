@@ -95,6 +95,7 @@ struct ChallengesView: View {
                                    savedCopyDate: savedCopyDate,
                                    onReact: { react($0, on: $1, in: selected.id) })
                         .id(selected.id)
+                        .onAppear { trackView(selected) }
                 } else if isLive && challenges.isEmpty && service.updatedAt == nil && service.state != .loaded {
                     loadingOrOffline
                 } else {
@@ -127,7 +128,7 @@ struct ChallengesView: View {
         content
         .sheet(item: $invite) { request in
             ChallengeInviteView(invite: request.invite, previewAnonymous: request.previewAnonymous) { name in
-                try await join(request.invite, as: name)
+                try await join(request, as: name)
             } onOpen: {
                 selectedID = request.invite.id
                 path = []
@@ -165,7 +166,7 @@ struct ChallengesView: View {
                 .autocorrectionDisabled()
             Button("Cancelar", role: .cancel) { code = "" }
             Button("Continuar") {
-                openCode(code)
+                openCode(code, via: "code")
                 code = ""
             }
         } message: {
@@ -332,6 +333,7 @@ struct ChallengesView: View {
                     .navigationTitle(challenge.name)
                     .navigationBarTitleDisplayMode(.inline)
                     .task { await loadEntries(id) }
+                    .onAppear { trackView(challenge) }
             }
         case .details(let id):
             if let challenge = challenge(id) {
@@ -348,6 +350,7 @@ struct ChallengesView: View {
                                          onReport: { report(.name, target: memberID, in: challengeID) },
                                          onBlock: { setBlocked($0, member: memberID, in: challengeID) })
                     .task { await loadEntries(challengeID) }
+                    .onAppear { if isLive { Analytics.challengeMemberViewed(isMe: standing.isMe) } }
             }
         case .entry(let challengeID, let entryID):
             if let challenge = challenge(challengeID),
@@ -391,6 +394,13 @@ struct ChallengesView: View {
         challenges.first { $0.id == id }
     }
 
+    /// Abriu um desafio (aba ou encerrado) — só com dados do servidor.
+    private func trackView(_ challenge: Challenge) {
+        guard isLive else { return }
+        Analytics.challengeViewed(phase: challenge.phase().analyticsKey, memberCount: challenge.memberCount,
+                                  isCreator: challenge.createdByMe)
+    }
+
     /// Encerrado: o mural chega ao abrir (a lista só traz a classificação).
     private func loadEntries(_ id: UUID) async {
         guard isLive else { return }
@@ -424,8 +434,12 @@ struct ChallengesView: View {
             #endif
             return .sent(path: "")
         }
+        let replaced = challenge(id)?.entries.first { $0.id == entryID }?.challengePhotoRef != nil
         let result = await service.setChallengePhoto(image, logID: entryID, context: modelContext)
-        if let path = result.path { setPhotoRef(path, on: entryID, in: id) }
+        if let path = result.path {
+            setPhotoRef(path, on: entryID, in: id)
+            Analytics.challengePhotoAdded(replaced: replaced, uploaded: result == .sent(path: path))
+        }
         return result
     }
 
@@ -475,9 +489,14 @@ struct ChallengesView: View {
 
     private func react(_ emoji: String, on entry: ChallengeEntry, in id: UUID) {
         Haptics.selection()
+        let before = challenge(id)?.myReaction(on: entry.id)
         update(id) { $0.react(emoji, on: entry) }
         guard isLive else { return }
         let mine = challenge(id)?.myReaction(on: entry.id)
+        if before != mine {
+            Analytics.challengeReacted(action: mine == nil ? "remove" : before == nil ? "add" : "change",
+                                       quick: ChallengeReaction.quick.contains(emoji))
+        }
         send(in: id, failure: "Não deu para reagir") {
             try await service.setReaction(mine, on: entry.id, in: id)
         }
@@ -488,6 +507,7 @@ struct ChallengesView: View {
         update(id) { $0.vote(vote, on: entry) }
         guard isLive else { return }
         let mine = challenge(id)?.myVote(on: entry.id)
+        Analytics.challengePhotoVoted(vote: mine?.rawValue ?? "removed")
         send(in: id, failure: "Não deu para registrar o voto") {
             try await service.setVote(mine, on: entry.id, in: id)
         }
@@ -500,8 +520,10 @@ struct ChallengesView: View {
                                                text: text, date: Date()))
         }
         guard isLive else { return }
+        let onOwn = challenge(id).map { c in c.entries.first { $0.id == entryID }?.memberID == c.me?.id } ?? false
         send(in: id, failure: "Comentário não enviado") {
             try await service.postComment(text, on: entryID, in: id)
+            Analytics.challengeCommentPosted(onOwnEntry: onOwn)
         }
     }
 
@@ -523,6 +545,7 @@ struct ChallengesView: View {
         Task {
             do {
                 try await service.rotateCode(id)
+                Analytics.challengeCodeRotated()
                 Haptics.success()
             } catch {
                 alert = ChallengeAlert(title: "O código não mudou",
@@ -534,7 +557,10 @@ struct ChallengesView: View {
     private func report(_ kind: ChallengeReportKind, target: UUID?, in id: UUID) {
         Task {
             do {
-                if isLive { try await service.report(kind, target: target, in: id) }
+                if isLive {
+                    try await service.report(kind, target: target, in: id)
+                    Analytics.challengeReported(kind: kind)
+                }
                 Haptics.success()
                 alert = ChallengeAlert(title: ChallengeModeration.reportSentTitle,
                                        message: ChallengeModeration.reportSentMessage)
@@ -552,6 +578,7 @@ struct ChallengesView: View {
         guard isLive else { return }
         send(in: id, failure: blocked ? "Não deu para bloquear" : "Não deu para desbloquear") {
             try await service.setBlocked(blocked, member: memberID, in: id)
+            Analytics.challengeMemberBlocked(blocked)
         }
     }
 
@@ -562,6 +589,7 @@ struct ChallengesView: View {
         guard isLive else { return }
         send(in: id, failure: hidden ? "A foto continua no mural" : "A foto continua fora do mural") {
             try await service.setPhotoHidden(hidden, on: entryID, in: id)
+            Analytics.challengePhotoHidden(hidden)
         }
     }
 
@@ -603,6 +631,8 @@ struct ChallengesView: View {
                         cover: Data?) async throws(ChallengeError) {
         guard isLive else { return }
         let created = try await service.create(name: name, period: period, displayName: pilotName, cover: cover)
+        Analytics.challengeCreated(duration: ChallengeDuration.analyticsKey(for: period),
+                                   days: period.dayCount, hasCover: cover != nil)
         selectedID = created.id
         path = []
         if !created.coverSaved {
@@ -613,7 +643,7 @@ struct ChallengesView: View {
 
     /// Código digitado → prévia do convite. Anônimo também vê a prévia (a
     /// Apple entra na própria prévia).
-    private func openCode(_ typed: String) {
+    private func openCode(_ typed: String, via: String) {
         guard isLive else {
             // D0: procura nos desafios em memória.
             let normalized = InviteCode.normalized(typed)
@@ -631,7 +661,7 @@ struct ChallengesView: View {
         Task {
             do {
                 if let found = try await service.preview(code: typed) {
-                    invite = InviteRequest(invite: found)
+                    invite = InviteRequest(invite: found, via: via, startedAnonymous: sync.isAnonymous)
                 } else {
                     alert = ChallengeAlert(title: "Código não encontrado",
                                            message: "Confira o código com quem te convidou.")
@@ -661,16 +691,19 @@ struct ChallengesView: View {
         Task {
             // Uma apresentação por vez: espera a anterior sair da tela.
             if presenting { try? await Task.sleep(for: .milliseconds(600)) }
-            openCode(code)
+            openCode(code, via: "link")
         }
     }
 
-    private func join(_ invite: ChallengeInvite, as name: String) async throws(ChallengeError) {
+    private func join(_ request: InviteRequest, as name: String) async throws(ChallengeError) {
         guard isLive else { return }
+        let invite = request.invite
         // nil = o código foi trocado entre a prévia e o "Entrar".
         guard try await service.join(code: invite.code, displayName: name) != nil else {
             throw .notFound
         }
+        Analytics.challengeJoined(via: request.via, memberCount: invite.memberCount + 1,
+                                  signedIn: request.startedAnonymous)
         selectedID = invite.id
         path = []
     }
@@ -679,7 +712,9 @@ struct ChallengesView: View {
         guard isLive else { return }
         Task {
             do {
+                let phase = challenge(id)?.phase().analyticsKey ?? "unknown"
                 try await service.leave(id)
+                Analytics.challengeLeft(phase: phase)
                 path = []
                 Haptics.success()
             } catch {
@@ -718,6 +753,10 @@ private enum NewChallengeSheet: Identifiable {
 private struct InviteRequest: Identifiable {
     let id = UUID()
     let invite: ChallengeInvite
+    /// Medição: chegou pelo link ou pelo código digitado; e se era anônimo ao
+    /// abrir a prévia (a Apple entra no meio).
+    var via = "code"
+    var startedAnonymous = false
     /// D0: força (ou não) o passo da Apple. nil = conta de verdade.
     var previewAnonymous: Bool? = nil
 }
