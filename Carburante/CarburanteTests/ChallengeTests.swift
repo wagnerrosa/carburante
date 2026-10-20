@@ -27,6 +27,87 @@ final class ChallengeTests: XCTestCase {
                   createdByName: "Wagner", code: "K7QM4XPR", coverRef: nil, standings: standings, entries: [])
     }
 
+    // MARK: Card do Resumo + retorno ao registrar (D5b)
+
+    private func challenge(_ name: String, from start: Date, to end: Date, mine: Bool = true) -> Challenge {
+        Challenge(id: UUID(), name: name, startDate: start, endDate: end, createdByName: nil, code: "K7QM4XPR",
+                  coverRef: nil, standings: [standing(1, "Ana", km: 100, me: mine)], entries: [])
+    }
+
+    func testSummary_picksTheChallengeThatClosesFirst() {
+        let now = date(2026, 10, 20)
+        let month = challenge("Mês", from: date(2026, 10, 1), to: date(2026, 10, 31))
+        let week = challenge("Semana", from: date(2026, 10, 18), to: date(2026, 10, 24))
+        // Acabou dia 18: na reta de fechamento, último abastecimento ainda conta.
+        let closing = challenge("Fechando", from: date(2026, 10, 10), to: date(2026, 10, 18))
+        XCTAssertEqual(Challenge.forSummary([month, week, closing], now: now)?.name, "Fechando")
+        XCTAssertEqual(Challenge.forSummary([month, week], now: now)?.name, "Semana")
+    }
+
+    func testSummary_noCardBeforeStartAfterCloseOrOutside() {
+        let now = date(2026, 10, 20)
+        let upcoming = challenge("Depois", from: date(2026, 10, 25), to: date(2026, 10, 31))
+        let finished = challenge("Setembro", from: date(2026, 9, 1), to: date(2026, 9, 30))
+        let notIn = challenge("Removido", from: date(2026, 10, 1), to: date(2026, 10, 31), mine: false)
+        XCTAssertNil(Challenge.forSummary([upcoming, finished, notIn], now: now))
+    }
+
+    func testWinners_tieAndNobody() {
+        let tie = challenge([standing(1, "Ana", km: 500), standing(1, "Bruno", km: 500), standing(3, "Carla", km: 10)])
+        XCTAssertEqual(tie.winners.map(\.name), ["Ana", "Bruno"])
+        let nobody = challenge([standing(1, "Ana", km: 0), standing(1, "Bruno", km: 0)])
+        XCTAssertTrue(nobody.winners.isEmpty)
+    }
+
+    func testGain_textFollowsThePosition() {
+        let before = standing(3, "Wagner", km: 1_010, me: true)
+        var after = before
+        after.km = 1_240
+        after.rank = 2
+        XCTAssertEqual(ChallengeGain(before: before, after: after)?.text,
+                       "+230 km no último abastecimento · subiu para 2º")
+        after.rank = 3
+        XCTAssertEqual(ChallengeGain(before: before, after: after)?.text,
+                       "+230 km no último abastecimento · segue em 3º")
+        after.rank = 1
+        XCTAssertEqual(ChallengeGain(before: before, after: after)?.text,
+                       "+230 km no último abastecimento · assumiu a liderança")
+        // Alguém somou mais no mesmo intervalo.
+        after.rank = 4
+        XCTAssertEqual(ChallengeGain(before: before, after: after)?.text,
+                       "+230 km no último abastecimento · agora em 4º")
+        var leader = before
+        leader.rank = 1
+        after.rank = 1
+        XCTAssertEqual(ChallengeGain(before: leader, after: after)?.text,
+                       "+230 km no último abastecimento · segue na liderança")
+    }
+
+    func testGain_onlyWhenTheKmMoved() {
+        let before = standing(2, "Wagner", km: 100, me: true)
+        var after = before
+        after.km = 100.4
+        XCTAssertNil(ChallengeGain(before: before, after: after), "âncora, sem foto ou foto ainda subindo")
+        XCTAssertNil(ChallengeGain(before: before, after: nil), "saiu do desafio")
+        after.km = 50
+        XCTAssertEqual(ChallengeGain(before: nil, after: after)?.km, 50, "entrou no meio do caminho")
+    }
+
+    func testGain_fadesAfterTwelveHours() {
+        let now = Date()
+        var after = standing(1, "Wagner", km: 300, me: true)
+        after.rank = 1
+        let gain = ChallengeGain(before: standing(1, "Wagner", km: 100, me: true), after: after, date: now)
+        XCTAssertEqual(gain?.isFresh(now: now.addingTimeInterval(11 * 3600)), true)
+        XCTAssertEqual(gain?.isFresh(now: now.addingTimeInterval(13 * 3600)), false)
+    }
+
+    func testTimeAgo_forTheSavedStandings() {
+        let now = Date()
+        XCTAssertEqual(AppFormat.timeAgo(now.addingTimeInterval(-20), now: now), "agora")
+        XCTAssertEqual(AppFormat.timeAgo(now.addingTimeInterval(-2 * 3600), now: now), "há 2 horas")
+    }
+
     // MARK: Prazo
 
     func testPhase_runningCountsDaysToTheLastDay() {

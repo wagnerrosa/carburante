@@ -107,6 +107,15 @@ nonisolated enum AppFormat {
         }
     }
 
+    /// Há quanto tempo, para "atualizado há 2 horas": "agora" abaixo de 1 min.
+    static func timeAgo(_ date: Date, now: Date = Date()) -> String {
+        guard now.timeIntervalSince(date) >= 60 else { return "agora" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = locale
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
+    }
+
     /// Dia e mês para compor frase: "28 de set." no ano corrente, "28 de set.
     /// de 2025" nos anteriores. Sem "Hoje"/"Ontem" — "Em Ontem" não é frase.
     static func dayMonth(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {

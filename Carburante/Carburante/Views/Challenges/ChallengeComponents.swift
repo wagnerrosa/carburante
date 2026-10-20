@@ -304,6 +304,8 @@ enum ChallengeRoute: Hashable {
 /// a "pressão boa" — quem está logo à frente e por quanto.
 struct ChallengeSummaryCard: View {
     let challenge: Challenge
+    /// O que o último abastecimento mexeu ("+230 km … subiu para 2º").
+    var gain: ChallengeGain? = nil
 
     var body: some View {
         GroupedCard {
@@ -314,6 +316,13 @@ struct ChallengeSummaryCard: View {
                         .font(.title3.weight(.semibold))
                         .fontDesign(.rounded)
                         .monospacedDigit()
+                }
+                // Retorno ao registrar: accent + símbolo (nunca só cor).
+                if let gain {
+                    Label(gain.text, systemImage: "arrow.up.right")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Text(support)
                     .font(.subheadline)

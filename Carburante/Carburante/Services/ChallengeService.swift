@@ -5,7 +5,9 @@
 //  Desafios em grupo (PLAN/desafios.md): o app só fala com o servidor pelas
 //  funções de `supabase/challenges.sql` — as tabelas são fechadas, e a
 //  classificação é calculada lá. Desafio é ONLINE (sem SwiftData): esta classe
-//  guarda em memória o que a aba mostra e recarrega ao abrir/puxar.
+//  guarda em memória o que a aba mostra e recarrega no launch, ao abrir/puxar,
+//  ao voltar ao app e depois de cada abastecimento. O último placar fica no
+//  disco (`ChallengeSnapshot`) para abrir na hora e sem rede.
 //
 //  Tudo exige conta Apple (o servidor recusa sessão anônima), menos a prévia
 //  do convite. Erros chegam como chaves congeladas → `ChallengeError`.
@@ -21,6 +23,8 @@ final class ChallengeService {
 
     /// Meus desafios (ativos e encerrados), já com classificação e mural.
     private(set) var challenges: [Challenge] = []
+    /// Quanto o último abastecimento mexeu em cada placar (só na memória).
+    private(set) var gains: [UUID: ChallengeGain] = [:]
     private(set) var state: LoadState = .idle
     /// Última vez que a lista veio do servidor.
     private(set) var updatedAt: Date?
@@ -36,7 +40,14 @@ final class ChallengeService {
     @ObservationIgnored private var loadedUserID: UUID?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
 
-    private init() {}
+    /// O último placar guardado abre a aba e o card do Resumo antes da rede.
+    private init() {
+        if let snapshot = ChallengeSnapshot.load() {
+            challenges = snapshot.challenges
+            updatedAt = snapshot.savedAt
+            loadedUserID = snapshot.userID
+        }
+    }
 
     // MARK: Leitura
 
@@ -49,62 +60,107 @@ final class ChallengeService {
         refreshTask = nil
     }
 
-    private func load() async {
-        if sync.userID != loadedUserID {
-            challenges = []
-            updatedAt = nil
+    /// Volta ao app: recarrega se o placar tem mais de `maxAge` segundos.
+    func refreshIfStale(maxAge: TimeInterval = 5 * 60) async {
+        guard let updatedAt, Date().timeIntervalSince(updatedAt) < maxAge else {
+            return await refresh()
         }
+    }
+
+    /// Depois de salvar um abastecimento (e de o push subir linha e foto):
+    /// recarrega e guarda quanto cada placar mexeu — o "+230 km" do card.
+    func refreshAfterFuelUp() async {
+        // Uma carga em voo pode ter saído antes do push: espera e carrega de novo.
+        if let refreshTask { await refreshTask.value }
+        let before = Dictionary(uniqueKeysWithValues: challenges.map { ($0.id, $0.me) })
+        await refresh()
+        guard state == .loaded else { return }
+        for challenge in challenges {
+            if let gain = ChallengeGain(before: before[challenge.id] ?? nil, after: challenge.me) {
+                gains[challenge.id] = gain
+            }
+        }
+    }
+
+    /// O desafio do card do Resumo (`Challenge.forSummary`).
+    var summaryChallenge: Challenge? { Challenge.forSummary(challenges) }
+
+    /// "+230 km no último abastecimento", enquanto for recente.
+    func gain(for challengeID: UUID) -> ChallengeGain? {
+        gains[challengeID].flatMap { $0.isFresh() ? $0 : nil }
+    }
+
+    /// Sem conexão e mostrando o último placar guardado.
+    var isShowingSavedCopy: Bool {
+        if case .failed = state { return updatedAt != nil && !challenges.isEmpty }
+        return false
+    }
+
+    /// Sair da conta / apagar dados: nada dos desafios fica no aparelho.
+    func clearLocal() {
+        challenges = []
+        gains = [:]
+        updatedAt = nil
+        loadedUserID = nil
+        state = .idle
+        ChallengeSnapshot.remove()
+    }
+
+    private func load() async {
         // Sessão anônima não tem desafio (o servidor recusaria).
         guard let userID = await sync.ensureSession(), !sync.isAnonymous else {
-            challenges = []
+            clearLocal()
             loadedUserID = sync.userID
             updatedAt = Date()
             state = .loaded
             return
         }
+        // Outra conta: a lista (e o guardado) era de quem saiu.
+        if userID != loadedUserID {
+            clearLocal()
+        }
         state = .loading
         do {
             let rows: [ChallengeRowDTO] = try await client.rpc("my_challenges").execute().value
-            var loaded: [Challenge] = []
-            try await withThrowingTaskGroup(of: Challenge.self) { group in
+            var items: [ChallengeSnapshot.Item] = []
+            try await withThrowingTaskGroup(of: ChallengeSnapshot.Item.self) { group in
                 for row in rows {
-                    group.addTask { try await self.challenge(from: row) }
+                    group.addTask { try await self.snapshotItem(row) }
                 }
-                for try await challenge in group { loaded.append(challenge) }
+                for try await item in group { items.append(item) }
             }
-            // Mais recente primeiro: é o que a pílula mostra de cara.
-            challenges = loaded.sorted { $0.startDate > $1.startDate }
+            let snapshot = ChallengeSnapshot(userID: userID, savedAt: Date(), items: items)
+            challenges = snapshot.challenges
             loadedUserID = userID
-            updatedAt = Date()
+            updatedAt = snapshot.savedAt
             state = .loaded
+            snapshot.save()
         } catch {
             state = .failed(Self.challengeError(error))
         }
     }
 
-    /// Classificação + mural de um desafio. Encerrado só precisa da
-    /// classificação (o card mostra os 3 primeiros).
-    private func challenge(from row: ChallengeRowDTO) async throws -> Challenge {
+    /// Classificação + mural de um desafio, como o servidor mandou. Encerrado
+    /// só precisa da classificação (o card mostra os 3 primeiros).
+    private func snapshotItem(_ row: ChallengeRowDTO) async throws -> ChallengeSnapshot.Item {
         async let standings = leaderboard(row.id)
         let finished = row.period.phase() == .finished
         let entries = finished ? [] : try await self.entries(row.id)
-        return row.challenge(standings: try await standings, entries: entries)
+        return ChallengeSnapshot.Item(row: row, standings: try await standings, entries: entries)
     }
 
-    func leaderboard(_ challengeID: UUID) async throws -> [ChallengeStanding] {
-        let rows: [ChallengeStandingDTO] = try await client
+    private func leaderboard(_ challengeID: UUID) async throws -> [ChallengeStandingDTO] {
+        try await client
             .rpc("challenge_leaderboard", params: ["p_challenge_id": challengeID])
             .execute().value
-        return rows.map(\.standing)
     }
 
     /// Mural (sem `memberID`) ou os registros de um participante.
-    func entries(_ challengeID: UUID, memberID: UUID? = nil) async throws -> [ChallengeEntry] {
-        let rows: [ChallengeEntryDTO] = try await client
+    private func entries(_ challengeID: UUID, memberID: UUID? = nil) async throws -> [ChallengeEntryDTO] {
+        try await client
             .rpc("challenge_entries", params: EntriesParams(p_challenge_id: challengeID,
                                                             p_member_id: memberID))
             .execute().value
-        return rows.map(\.entry)
     }
 
     // MARK: Criar, entrar, sair

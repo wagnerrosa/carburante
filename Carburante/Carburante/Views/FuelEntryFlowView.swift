@@ -1243,7 +1243,13 @@ struct FuelEntryFlowView: View {
         }
 
         let ctx = modelContext
-        Task { await SyncService.shared.pushAll(from: ctx) }
+        let countsInChallenge = !openChallenges.isEmpty && log.odometerPhotoURL != nil
+        Task {
+            await SyncService.shared.pushAll(from: ctx)
+            // Linha e foto já no servidor: o placar recalcula e o card do
+            // Resumo mostra quanto este abastecimento somou ("+230 km").
+            if countsInChallenge { await ChallengeService.shared.refreshAfterFuelUp() }
+        }
         // Reagenda os lembretes de ausência a partir do abastecimento mais
         // recente (a data é Sendable; calculada aqui no main actor).
         let lastFuelDate = motorcycle.activeFuelLogs.map(\.date).max()

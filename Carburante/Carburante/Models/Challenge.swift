@@ -191,6 +191,71 @@ struct Challenge: Identifiable, Hashable {
     }
 }
 
+extension Challenge {
+    /// O desafio do card do Resumo (PLAN/desafios.md §Card no Resumo): um em
+    /// que você está e que ainda vale abastecer — rolando ou na reta de
+    /// fechamento —, o que fecha primeiro. Antes de começar e encerrado não
+    /// têm card.
+    static func forSummary(_ challenges: [Challenge], now: Date = Date()) -> Challenge? {
+        challenges
+            .filter { challenge in
+                guard challenge.me != nil else { return false }
+                switch challenge.phase(now: now) {
+                case .running, .closing: return true
+                case .upcoming, .finished: return false
+                }
+            }
+            .min { ($0.period.endsAt, $0.name) < ($1.period.endsAt, $1.name) }
+    }
+
+    /// Quem venceu (empate = mais de um). Vazio se ninguém somou km.
+    var winners: [ChallengeStanding] {
+        standings.filter { $0.rank == 1 && $0.km > 0 }
+    }
+}
+
+/// O que o último abastecimento fez no placar — o retorno ao registrar
+/// ("+230 km no desafio · você está em 2º", PLAN/desafios.md §v1). O app
+/// compara a sua linha antes e depois do recálculo no servidor.
+struct ChallengeGain: Equatable {
+    let km: Double
+    let rank: Int
+    let previousRank: Int?
+    let date: Date
+
+    /// Some do card depois disso (o placar segue mostrando a posição).
+    static let shownFor: TimeInterval = 12 * 60 * 60
+
+    /// nil = o abastecimento não mexeu nos seus km (sem foto, âncora, ainda
+    /// subindo a foto) — menos de 1 km também não vale festa.
+    init?(before: ChallengeStanding?, after: ChallengeStanding?, date: Date = Date()) {
+        guard let after else { return nil }
+        let km = after.km - (before?.km ?? 0)
+        guard km >= 1 else { return nil }
+        self.km = km
+        self.rank = after.rank
+        self.previousRank = before?.rank
+        self.date = date
+    }
+
+    func isFresh(now: Date = Date()) -> Bool {
+        now.timeIntervalSince(date) < Self.shownFor
+    }
+
+    /// "+230 km no último abastecimento · subiu para 2º"
+    var text: String {
+        "+\(AppFormat.km(km)) no último abastecimento · \(rankText)"
+    }
+
+    private var rankText: String {
+        guard let previousRank, previousRank != rank else {
+            return rank == 1 ? "segue na liderança" : "segue em \(rank)º"
+        }
+        if rank == 1 { return "assumiu a liderança" }
+        return rank < previousRank ? "subiu para \(rank)º" : "agora em \(rank)º"
+    }
+}
+
 /// Período do desafio em dias inteiros, no fuso do desafio. O servidor guarda
 /// `[starts_at, ends_at)`: o início do 1º dia e o início do dia seguinte ao
 /// último — o último dia conta inteiro.

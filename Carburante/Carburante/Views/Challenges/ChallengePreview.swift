@@ -44,6 +44,15 @@ enum ChallengePreview {
         challenges.first { !$0.isFinished() }
     }
 
+    /// "+230 km" do card do Resumo, para ver o retorno ao registrar.
+    static var summaryGain: ChallengeGain? {
+        guard let me = summaryChallenge?.me else { return nil }
+        var before = me
+        before.km -= 230
+        before.rank += 1
+        return ChallengeGain(before: before, after: me)
+    }
+
     static let challenges: [Challenge] = {
         let all = [serra, domingo, setembro]
         return screen == .empty ? [setembro] : all

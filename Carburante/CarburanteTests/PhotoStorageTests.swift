@@ -62,5 +62,10 @@ final class PhotoStorageTests: XCTestCase {
         let saved = try XCTUnwrap(UIImage(data: try XCTUnwrap(PhotoStorage.jpeg(image))))
         XCTAssertEqual(max(saved.size.width * saved.scale, saved.size.height * saved.scale),
                        PhotoStorage.maxDimension)
+        // Foto do desafio: menor (só para ver).
+        let challenge = try XCTUnwrap(UIImage(data: try XCTUnwrap(
+            PhotoStorage.jpeg(image, maxDimension: PhotoStorage.challengeMaxDimension))))
+        XCTAssertEqual(max(challenge.size.width * challenge.scale, challenge.size.height * challenge.scale),
+                       PhotoStorage.challengeMaxDimension)
     }
 }
