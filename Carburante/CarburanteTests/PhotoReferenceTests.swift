@@ -64,6 +64,31 @@ final class PhotoReferenceTests: XCTestCase {
         XCTAssertEqual(PhotoReference.merge(local: nil, remote: remote), remote)
     }
 
+    // MARK: Foto do desafio
+
+    func testChallengePhotoPathMatchesServerPolicy() {
+        // `can_view_challenge_photo` libera "<moto>/<log>-challenge.jpg" para a
+        // turma; pasta minúscula como a do hodômetro.
+        let id = UUID(uuidString: "04F021F1-7B92-423C-AD72-D762A90A3B14")!
+        XCTAssertEqual(PhotoReference.challengeRemotePath(motorcycleID: id, logID: logID),
+                       "04f021f1-7b92-423c-ad72-d762a90a3b14/\(logID.uuidString)-challenge.jpg")
+    }
+
+    func testChallengePhotoNeverCollidesWithOdometerPhoto() {
+        XCTAssertNotEqual(PhotoReference.challengeFileName(logID: logID), local)
+        XCTAssertNotEqual(PhotoReference.challengeRemotePath(motorcycleID: motoID, logID: logID), remote)
+    }
+
+    func testChallengePhotoFollowsTheSameLocalRemoteRules() {
+        let challengeLocal = PhotoReference.challengeFileName(logID: logID)
+        let challengeRemote = PhotoReference.challengeRemotePath(motorcycleID: motoID, logID: logID)
+        XCTAssertTrue(PhotoReference.isPendingUpload(challengeLocal))
+        XCTAssertTrue(PhotoReference.isRemote(challengeRemote))
+        XCTAssertNil(PhotoReference.pushValue(challengeLocal))
+        // O device que tirou segue lendo do disco depois do upload.
+        XCTAssertEqual((challengeRemote as NSString).lastPathComponent, challengeLocal)
+    }
+
     func testMergeRemoteNilNeverErasesUploadedPath() {
         // nil no servidor = "ainda não subiu" (ex.: foto trocada em outro device),
         // não "foto removida".

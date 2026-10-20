@@ -74,6 +74,11 @@ struct FuelLogDTO: Codable {
     /// Lacuna antes deste registro (PLAN/lacuna-abastecimento.md). Build antigo
     /// não manda a chave → o upsert não toca a coluna (flag nunca é zerada).
     var missed_previous: Bool = false
+    /// Desafios (D5): origem da foto do hodômetro (`PhotoSource`, chave crua) e
+    /// a foto do desafio (`PhotoReference`, só a remota sobe). Build sem estes
+    /// campos não manda as chaves → o upsert não toca as colunas.
+    var odometer_photo_source: String? = nil
+    var challenge_photo_url: String? = nil
 }
 
 struct MaintenanceLogDTO: Codable {

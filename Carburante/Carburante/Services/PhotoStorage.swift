@@ -27,14 +27,32 @@ enum PhotoStorage {
     /// arquivo) para `odometerPhotoURL`, ou nil se não conseguiu gravar.
     @discardableResult
     static func save(_ image: UIImage, for logID: UUID) -> String? {
-        let fileName = PhotoReference.fileName(logID: logID)
-        guard let data = downscaled(image).jpegData(compressionQuality: jpegQuality) else { return nil }
+        save(image, fileName: PhotoReference.fileName(logID: logID))
+    }
+
+    /// Foto do desafio do abastecimento → referência local para
+    /// `challengePhotoURL`. Regravada como a do hodômetro: sem metadados (nem
+    /// o lugar onde foi tirada), que a turma vai ver.
+    @discardableResult
+    static func saveChallengePhoto(_ image: UIImage, for logID: UUID) -> String? {
+        save(image, fileName: PhotoReference.challengeFileName(logID: logID))
+    }
+
+    private static func save(_ image: UIImage, fileName: String) -> String? {
+        guard let data = jpeg(image) else { return nil }
         do {
             try data.write(to: folderURL.appendingPathComponent(fileName), options: .atomic)
             return fileName
         } catch {
             return nil
         }
+    }
+
+    /// O JPEG que vai para o disco e para o Storage: reduzido e regravado a
+    /// partir dos pixels, então sai sem os metadados da original (GPS, data,
+    /// aparelho) — o seletor de fotos do iOS entrega a foto com o lugar.
+    static func jpeg(_ image: UIImage) -> Data? {
+        downscaled(image).jpegData(compressionQuality: jpegQuality)
     }
 
     /// Bytes da foto no disco (para o upload). Aceita referência local ou

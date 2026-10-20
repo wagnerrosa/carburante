@@ -43,6 +43,15 @@ enum FuelType: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+/// Origem da foto do hodômetro (`FuelLog.odometerPhotoSource`, coluna
+/// `odometer_photo_source`). Chave congelada — mesma regra do `FuelType`.
+/// Câmera e galeria contam no desafio: quem fotografa no posto e registra
+/// depois é caso legítimo; a turma só vê de onde veio.
+enum PhotoSource: String, CaseIterable {
+    case camera
+    case gallery
+}
+
 @Model
 final class FuelLog {
     /// ID estável (gerado no app) usado como PK no Supabase.
@@ -79,6 +88,15 @@ final class FuelLog {
     /// quando o Storage existir, guarda a foto que prova o km rodado (base para
     /// o diff foto-anterior e auditoria anti-burla dos desafios Iron Butt).
     var odometerPhotoURL: String?
+    /// De onde veio a foto do hodômetro: chave de `PhotoSource` (camera/gallery).
+    /// nil = sem foto ou registro de antes dos desafios. A turma vê "da galeria"
+    /// e julga (PLAN/desafios.md §Foto obrigatória). Chave crua: pull e push
+    /// passam adiante o que não conhecem.
+    var odometerPhotoSource: String?
+    /// "Foto do desafio" (PLAN/desafios.md): foto extra do abastecimento, não
+    /// vale km — vai para o mural da turma. Mesma regra de referência da foto
+    /// do hodômetro (`PhotoReference`, arquivo `<log_id>-challenge.jpg`).
+    var challengePhotoURL: String?
     var ocrProcessed: Bool
     var ocrConfidence: Double?
 

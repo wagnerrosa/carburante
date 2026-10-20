@@ -15,6 +15,8 @@ import SwiftUI
 struct OdometerPhotoPreview: View {
     var pendingImage: UIImage?
     var reference: String?
+    /// Leitura do VoiceOver (a foto do desafio usa a mesma miniatura).
+    var label = "Ver foto do hodômetro"
 
     @State private var storedImage: UIImage?
     @State private var viewer: ViewerItem?
@@ -53,7 +55,7 @@ struct OdometerPhotoPreview: View {
         }
         .buttonStyle(.borderless)
         .disabled(isLoading)
-        .accessibilityLabel("Ver foto do hodômetro")
+        .accessibilityLabel(label)
         // Só o disco aqui — baixar do Storage custa dados, fica para o toque.
         .task(id: reference) { storedImage = PhotoStorage.localImage(for: reference) }
         .sheet(item: $viewer) { PhotoViewerSheet(image: $0.image) }

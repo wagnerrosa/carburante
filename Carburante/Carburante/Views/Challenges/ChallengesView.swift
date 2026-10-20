@@ -66,7 +66,8 @@ struct ChallengesView: View {
                 guard isLive else { return }
                 await service.refresh()
             }
-            .onChange(of: service.challenges) { _, loaded in
+            // `initial`: o launch pode ter carregado antes de a aba existir.
+            .onChange(of: service.challenges, initial: true) { _, loaded in
                 if isLive { challenges = loaded }
             }
             .onChange(of: incomingInviteCode.wrappedValue, initial: true) { _, code in

@@ -52,6 +52,8 @@ struct FuelLogFormView: View {
     /// Foto do hodômetro nova (ainda não salva em disco) — substitui a guardada
     /// ao salvar. nil = mantém a que já existe.
     @State private var odometerPhoto: UIImage?
+    /// De onde veio a foto nova (câmera/galeria) — a turma do desafio vê.
+    @State private var odometerPhotoSource: PhotoSource?
 
     /// Qual campo a foto alimenta.
     private enum PhotoTarget: Identifiable {
@@ -303,7 +305,7 @@ struct FuelLogFormView: View {
             }
             .fullScreenCover(item: $showCameraFor) { target in
                 CameraPicker { image in
-                    Task { await process(image, for: target) }
+                    Task { await process(image, for: target, source: .camera) }
                 }
                 .ignoresSafeArea()
             }
@@ -312,7 +314,7 @@ struct FuelLogFormView: View {
                 Task {
                     if let data = try? await newItem.loadTransferable(type: Data.self),
                        let image = UIImage(data: data) {
-                        await process(image, for: galleryTarget)
+                        await process(image, for: galleryTarget, source: .gallery)
                     }
                     galleryItem = nil
                 }
@@ -374,7 +376,7 @@ struct FuelLogFormView: View {
         .disabled(isRecognizing)
     }
 
-    private func process(_ image: UIImage, for target: PhotoTarget) async {
+    private func process(_ image: UIImage, for target: PhotoTarget, source: PhotoSource) async {
         isRecognizing = true
         ocrStatus = nil
         defer { isRecognizing = false }
@@ -384,6 +386,7 @@ struct FuelLogFormView: View {
             switch target {
             case .odometer:
                 odometerPhoto = image
+                odometerPhotoSource = source
                 if let odo = OCRParser.parseOdometer(recognized.lines) {
                     odometer = odo
                     ocrStatus = "Hodômetro lido: \(AppFormat.km(odo)). Confira."
@@ -472,6 +475,7 @@ struct FuelLogFormView: View {
             // volta a "pendente" e o próximo push sobrescreve o mesmo path.
             if let odometerPhoto, let ref = PhotoStorage.save(odometerPhoto, for: log.id) {
                 log.odometerPhotoURL = ref
+                log.odometerPhotoSource = odometerPhotoSource?.rawValue
             }
             // Soft Revision: registra que a linha mudou (revision++ / updatedAt).
             // updatedAt é a base do last-write-wins no sync.

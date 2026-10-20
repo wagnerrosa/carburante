@@ -29,6 +29,7 @@ struct FuelEntryFlowView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.requestReview) private var requestReview
     @AppStorage(ReviewPrompt.askedVersionKey) private var reviewAskedVersion = ""
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     let motorcycle: Motorcycle
     /// De onde o fluxo foi aberto (analytics). Default = toolbar "+".
@@ -93,6 +94,11 @@ struct FuelEntryFlowView: View {
     /// do arquivo é o `id` do FuelLog). Guardada mesmo se o OCR falhar: é o
     /// comprovante do km, não só insumo do OCR.
     @State private var odometerPhoto: UIImage?
+    /// De onde veio a foto do hodômetro — a turma do desafio vê "da galeria".
+    @State private var odometerPhotoSource: PhotoSource?
+    /// "Foto do desafio" (só com desafio aberto): extra, não vale km; vai para
+    /// o mural da turma (PLAN/desafios.md §Foto do desafio).
+    @State private var challengePhoto: UIImage?
 
     /// Resultado de leitura por foto, exibido no feedback do passo.
     private struct OCRStatus {
@@ -102,7 +108,9 @@ struct FuelEntryFlowView: View {
     }
 
     // Apresentação de câmera/galeria. `photoTarget` decide o que a foto alimenta.
-    private enum PhotoTarget { case odometer, receipt }
+    // `odometerProof` = foto do hodômetro tirada na revisão, só para o desafio
+    // (o km já foi conferido — não passa pelo OCR para não trocar o número).
+    private enum PhotoTarget { case odometer, receipt, odometerProof, challenge }
     @State private var photoTarget: PhotoTarget = .odometer
     @State private var showPhotoSource = false
     @State private var showCamera = false
@@ -127,6 +135,7 @@ struct FuelEntryFlowView: View {
     /// Data/cidade pré-preenchidas automaticamente não contam.
     private var hasInput: Bool {
         odometer != nil || cost != nil || liters != nil || ocrProcessed
+            || odometerPhoto != nil || challengePhoto != nil
     }
 
     /// Registro de abastecimento antigo (aberto assim ou via "Foi em outro dia?").
@@ -357,10 +366,10 @@ struct FuelEntryFlowView: View {
                 }
                 Button("Escolher da galeria") { showGalleryPicker = true }
             } message: {
-                Text("O app lê os valores da foto — você só confere depois.")
+                Text(photoDialogMessage)
             }
             .fullScreenCover(isPresented: $showCamera) {
-                CameraPicker { image in Task { await processPhoto(image) } }
+                CameraPicker { image in Task { await processPhoto(image, source: .camera) } }
                     .ignoresSafeArea()
             }
             .photosPicker(isPresented: $showGalleryPicker, selection: $galleryItem, matching: .images)
@@ -369,7 +378,7 @@ struct FuelEntryFlowView: View {
                 Task {
                     if let data = try? await item.loadTransferable(type: Data.self),
                        let image = UIImage(data: data) {
-                        await processPhoto(image)
+                        await processPhoto(image, source: .gallery)
                     }
                     galleryItem = nil
                 }
@@ -382,7 +391,48 @@ struct FuelEntryFlowView: View {
     }
 
     private var photoDialogTitle: String {
-        photoTarget == .odometer ? "Ler o hodômetro por foto" : "Ler o comprovante ou a bomba"
+        switch photoTarget {
+        case .odometer:      "Ler o hodômetro por foto"
+        case .receipt:       "Ler o comprovante ou a bomba"
+        case .odometerProof: "Foto do hodômetro"
+        case .challenge:     "Foto do desafio"
+        }
+    }
+
+    private var photoDialogMessage: String {
+        switch photoTarget {
+        case .odometer, .receipt: "O app lê os valores da foto — você só confere depois."
+        case .odometerProof:      "Com a foto, este abastecimento conta no desafio."
+        case .challenge:          "Vai para o mural do desafio: a moto na serra, a parada do café. Não vale km."
+        }
+    }
+
+    // MARK: - Desafios
+
+    /// Desafios em que este abastecimento pode contar: os que não encerraram.
+    /// Antes do início ele pode ser a âncora; na reta de fechamento, cobre os
+    /// últimos dias (PLAN/desafios.md §Regra do km). Registro antigo nunca
+    /// conta, então a parte do desafio some nele.
+    private var openChallenges: [Challenge] {
+        guard ChallengeFeature.isEnabled, !historyMode, !willBeHistorical else { return [] }
+        var mine = ChallengeService.shared.challenges
+        #if DEBUG
+        // Protótipo D0 (`-challengesPreview`): os desafios fictícios.
+        if ChallengePreview.isEnabled { mine = ChallengePreview.challenges }
+        #endif
+        return mine.filter { !$0.isFinished() }
+    }
+
+    /// "Desafio Turma da serra" ou "2 desafios".
+    private var challengeTitle: String {
+        let open = openChallenges
+        return open.count == 1 ? "Desafio \(open[0].name)" : "\(open.count) desafios"
+    }
+
+    private func pickPhoto(for target: PhotoTarget) {
+        fillFocus = nil
+        photoTarget = target
+        showPhotoSource = true
     }
 
     // MARK: - Cabeçalho
@@ -414,6 +464,19 @@ struct FuelEntryFlowView: View {
                          ? "Escolha o dia do abastecimento e digite o km daquele dia."
                          : "Digite, ou toque em Escanear para ler da foto.")
                         .font(.footnote).foregroundStyle(.secondary)
+                    // Desafio aberto: só conta com foto. Some quando a foto
+                    // chega (a miniatura dela aparece logo abaixo).
+                    if !openChallenges.isEmpty, odometerPhoto == nil {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Image(systemName: "flag.checkered")
+                                .foregroundStyle(.tint)
+                                .accessibilityHidden(true)
+                            Text("\(challengeTitle): tire a foto do hodômetro para contar")
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.footnote.weight(.medium))
+                        .padding(.top, 2)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -676,6 +739,8 @@ struct FuelEntryFlowView: View {
                                   icon: "exclamationmark.triangle.fill", color: .orange)
                 }
 
+                challengeCard
+
                 VStack(spacing: 0) {
                     Picker("Combustível", selection: $fuelType) {
                         ForEach(FuelType.allCases) { Text($0.label).tag($0) }
@@ -718,6 +783,67 @@ struct FuelEntryFlowView: View {
             }
             .padding(20)
         }
+    }
+
+    /// Desafio aberto: as duas fotos do abastecimento. A do hodômetro faz contar
+    /// (sem ela, aviso laranja — salvar continua possível); a do desafio é a
+    /// graça, opcional. O rodapé é uma linha só, que vira o aviso (DESIGN §7).
+    @ViewBuilder
+    private var challengeCard: some View {
+        if !openChallenges.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(spacing: 0) {
+                    Label(challengeTitle, systemImage: "flag.checkered")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.tint)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 4)
+                    challengePhotoRow("Foto do hodômetro", image: odometerPhoto,
+                                      viewLabel: "Ver foto do hodômetro", target: .odometerProof)
+                    Divider().padding(.leading, 16)
+                    challengePhotoRow("Foto do desafio", optional: true, image: challengePhoto,
+                                      viewLabel: "Ver foto do desafio", target: .challenge)
+                }
+                .background(Color(.secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                if odometerPhoto == nil {
+                    feedbackLabel("Sem a foto do hodômetro, este abastecimento não conta no desafio.",
+                                  icon: "exclamationmark.triangle.fill", color: .orange)
+                } else {
+                    Text("A foto do desafio vai para o mural da turma. Não vale km.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private func challengePhotoRow(_ title: String, optional: Bool = false, image: UIImage?,
+                                   viewLabel: String, target: PhotoTarget) -> some View {
+        // Em acessibilidade o botão desce para baixo do título (lado a lado,
+        // "hodômetro" quebrava no meio da palavra).
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                if optional {
+                    Text("Opcional").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 12) {
+                if let image {
+                    OdometerPhotoPreview(pendingImage: image, label: viewLabel)
+                }
+                Button(image == nil ? "Adicionar" : "Trocar") { pickPhoto(for: target) }
+                    .font(.body.weight(.medium))
+                    .buttonStyle(.borderless)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     /// Explica o método full-to-full na revisão quando ainda não há km/l a
@@ -954,14 +1080,32 @@ struct FuelEntryFlowView: View {
         if ocrProcessed && !isRecognizing { ocrFieldEdited = true }
     }
 
-    private func processPhoto(_ image: UIImage) async {
+    private func processPhoto(_ image: UIImage, source: PhotoSource) async {
+        // Fotos só do desafio: guardam e pronto (o km já foi conferido).
+        switch photoTarget {
+        case .odometerProof:
+            odometerPhoto = image
+            odometerPhotoSource = source
+            Haptics.selection()
+            return
+        case .challenge:
+            challengePhoto = image
+            Haptics.selection()
+            return
+        case .odometer, .receipt:
+            break
+        }
+
         isRecognizing = true
         defer { isRecognizing = false }
 
         switch photoTarget {
+        case .odometerProof, .challenge:
+            break
         case .odometer:
             odometerOCRStatus = nil
             odometerPhoto = image
+            odometerPhotoSource = source
             do {
                 let r = try await TextRecognizer.recognize(in: image)
                 if let odo = OCRParser.parseOdometer(r.lines) {
@@ -1054,6 +1198,12 @@ struct FuelEntryFlowView: View {
         // pro Supabase Storage roda em background no próximo push.
         if let odometerPhoto {
             log.odometerPhotoURL = PhotoStorage.save(odometerPhoto, for: log.id)
+            if log.odometerPhotoURL != nil { log.odometerPhotoSource = odometerPhotoSource?.rawValue }
+        }
+        // Foto do desafio: só se a parte do desafio ainda está na tela (virar
+        // registro antigo a esconde — e ele não conta em desafio nenhum).
+        if let challengePhoto, !openChallenges.isEmpty {
+            log.challengePhotoURL = PhotoStorage.saveChallengePhoto(challengePhoto, for: log.id)
         }
         modelContext.insert(log)
         motorcycle.reconcileOdometer(latestEntry: odo)
