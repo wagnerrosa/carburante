@@ -63,12 +63,8 @@ struct RootTabView: View {
             }
         }
         .environment(\.openChallenges, { selectedTab = .challenges })
-        // Convite: Universal Link (`carburante.motorcycles/d/?c=`). Os dois
-        // caminhos por garantia — o SwiftUI entrega por um ou pelo outro.
-        .onOpenURL(perform: receiveInviteLink)
-        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
-            if let url = activity.webpageURL { receiveInviteLink(url) }
-        }
+        // Convite: Universal Link (`carburante.motorcycles/d/?c=`).
+        .receivingInviteLinks(receiveInviteLink)
         .onChange(of: hasCompletedOnboarding) { _, _ in
             // Na volta seguinte: o "Cadastrar minha moto" do onboarding abre
             // a folha dele de forma assíncrona.
@@ -103,6 +99,9 @@ struct RootTabView: View {
                 },
                 onExplore: { hasCompletedOnboarding = true }
             )
+            // Tela cheia tira a raiz da hierarquia e o link não chegaria lá
+            // (quem instalou pelo convite abre o app aqui).
+            .receivingInviteLinks(receiveInviteLink)
             // Onboarding sem moto ativa → tema padrão do app.
             .tint(activeTint)
         }
@@ -227,6 +226,17 @@ struct RootTabView: View {
             get: { !hasCompletedOnboarding },
             set: { if !$0 { hasCompletedOnboarding = true } }
         )
+    }
+}
+
+private extension View {
+    /// Link que abriu o app — pelos dois caminhos, porque o SwiftUI entrega
+    /// por um ou pelo outro.
+    func receivingInviteLinks(_ receive: @escaping (URL) -> Void) -> some View {
+        onOpenURL(perform: receive)
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                if let url = activity.webpageURL { receive(url) }
+            }
     }
 }
 
