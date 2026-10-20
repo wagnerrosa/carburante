@@ -33,8 +33,13 @@ struct Challenge: Identifiable, Hashable {
     var reactions: [ChallengeReactionMark] = []
     /// Votos na foto do hodômetro (confere × suspeito) — 1 por pessoa por abastecimento.
     var photoVotes: [ChallengePhotoVoteMark] = []
-    /// Quem criou modera: troca o código e apaga comentário de qualquer um.
+    /// Quem criou modera: troca o código, apaga comentário de qualquer um e
+    /// esconde foto do mural.
     var createdByMe = false
+    /// Abastecimentos com a foto do desafio escondida por quem criou (D8).
+    var hiddenPhotoEntryIDs: Set<UUID> = []
+    /// Pilotos que você bloqueou (D8): sem fotos nem conversa deles.
+    var blockedMemberIDs: Set<UUID> = []
     /// Fuso do desafio: decide onde começa e termina cada dia do período.
     var timeZone: TimeZone = .current
 
@@ -125,6 +130,17 @@ struct Challenge: Identifiable, Hashable {
     }
 
     // MARK: Foto suspeita
+
+    func isBlocked(_ memberID: UUID) -> Bool { blockedMemberIDs.contains(memberID) }
+
+    func isPhotoHidden(_ entryID: UUID) -> Bool { hiddenPhotoEntryIDs.contains(entryID) }
+
+    /// Quem criou esconde (ou mostra de novo) a foto do desafio de outro
+    /// piloto. A dele mesmo ele troca no registro.
+    func canHidePhoto(of entry: ChallengeEntry) -> Bool {
+        guard createdByMe, let me, entry.memberID != me.id else { return false }
+        return entry.challengePhotoRef != nil || isPhotoHidden(entry.id)
+    }
 
     /// Foto do desafio depois de salvar: só no seu abastecimento e enquanto o
     /// desafio não encerrou (na reta de fechamento ainda dá).
@@ -458,6 +474,8 @@ enum ChallengeError: Error, Hashable {
     // D7: comentários, reações, votos.
     case entryNotFound, invalidComment, tooManyComments, commentNotFound, cannotDeleteComment
     case cannotReactOwn, invalidReaction, cannotVoteOwn, noPhotoToCheck, invalidVote
+    // D8: moderação.
+    case inappropriateText, memberNotFound, cannotBlockSelf, invalidReport, tooManyReports
     /// Sem internet ou servidor fora do ar.
     case offline
     /// Chave ou erro desconhecido (o texto cru vai só para o log).
@@ -488,6 +506,11 @@ enum ChallengeError: Error, Hashable {
         case "cannot_vote_own": self = .cannotVoteOwn
         case "no_photo_to_check": self = .noPhotoToCheck
         case "invalid_vote": self = .invalidVote
+        case "inappropriate_text": self = .inappropriateText
+        case "member_not_found": self = .memberNotFound
+        case "cannot_block_self": self = .cannotBlockSelf
+        case "invalid_report": self = .invalidReport
+        case "too_many_reports": self = .tooManyReports
         default: self = .unknown(serverKey)
         }
     }
@@ -517,8 +540,29 @@ enum ChallengeError: Error, Hashable {
         case .cannotVoteOwn: "Não dá para conferir a própria foto."
         case .noPhotoToCheck: "Este abastecimento não tem foto do hodômetro para conferir."
         case .invalidVote: "Não deu para registrar o voto. Tente de novo."
+        case .inappropriateText: "Esse texto tem palavras que não são aceitas nos desafios."
+        case .memberNotFound: "Este piloto não está mais no desafio."
+        case .cannotBlockSelf: "Não dá para bloquear você mesmo."
+        case .invalidReport: "Não deu para denunciar: o conteúdo já mudou ou foi apagado."
+        case .tooManyReports: "Muitas denúncias seguidas. Espere um pouco e tente de novo."
         case .offline: "Sem conexão. Confira a internet e tente de novo."
         case .unknown: "Algo deu errado. Tente de novo."
+        }
+    }
+}
+
+/// O que se denuncia (D8). `rawValue` = chave congelada do servidor
+/// (`challenge_reports.kind`).
+enum ChallengeReportKind: String, CaseIterable {
+    case name, cover, photo, comment
+
+    /// "Denunciar o nome", "Denunciar a capa"…
+    var title: String {
+        switch self {
+        case .name: "Denunciar o nome"
+        case .cover: "Denunciar a capa"
+        case .photo: "Denunciar a foto"
+        case .comment: "Denunciar o comentário"
         }
     }
 }

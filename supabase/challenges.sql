@@ -21,7 +21,9 @@
 --   too_many_attempts, invalid_cover_path; D7: entry_not_found,
 --   invalid_comment, too_many_comments, comment_not_found,
 --   cannot_delete_comment, cannot_react_own, invalid_reaction,
---   cannot_vote_own, no_photo_to_check, invalid_vote. Código de convite errado NÃO é
+--   cannot_vote_own, no_photo_to_check, invalid_vote; D8: inappropriate_text,
+--   member_not_found, cannot_block_self, invalid_report, too_many_reports.
+--   Código de convite errado NÃO é
 --   exceção: devolve null (a exceção desfaria o registro da tentativa, e o
 --   limite contra força bruta conta as tentativas).
 
@@ -150,7 +152,40 @@ begin
     if char_length(v) not between 1 and p_max then
         raise exception 'invalid_name';
     end if;
+    if public.challenge_is_offensive(v) then
+        raise exception 'inappropriate_text';
+    end if;
     return v;
+end;
+$$;
+
+-- Filtro de palavrão (D8, diretriz 1.2 da Apple) para nomes e comentários:
+-- palavrões fortes, ofensas e termos preconceituosos, PT e EN. Compara palavra
+-- inteira depois de tirar acento, trocar número/símbolo por letra (p0rr4) e
+-- juntar letra repetida (porraaa → pora; a lista já vem assim). Palavra comum
+-- que só lembra um palavrão (macaco, veado, pica-pau) fica de fora — o resto é
+-- com a denúncia.
+create or replace function public.challenge_is_offensive(p_text text)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+    v text := lower(coalesce(p_text, ''));
+    words constant text[] := array[
+        'pora', 'porinha', 'caralh\w*', 'caraio', 'krl', 'buceta', 'boceta', 'xoxota', 'xota',
+        'xereca', 'piroca', 'fod[aeiou]\w*', 'fdp', 'vsf', 'tnc', 'pqp', 'puta', 'putaria',
+        'puteiro', 'cu', 'cuzao', 'cuzinho', 'arombad[ao]', 'viad[ao]', 'viadinho', 'bicha',
+        'sapatao', 'traveco', 'boiola', 'crioul[ao]', 'retardad[ao]', 'vagabund[ao]', 'vadia',
+        'corno', 'merda',
+        'fuck\w*', 'motherfuck\w*', 'shit\w*', 'bitch\w*', 'cunt', 'nig(ers?|as?)',
+        'fagot\w*', 'whore', 'slut'];
+begin
+    v := translate(v, 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc');
+    v := translate(v, '0134578@$!', 'oieastbasi');
+    v := regexp_replace(v, '(.)\1+', '\1', 'g');
+    return v ~ ('\m(' || array_to_string(words, '|') || ')\M');
 end;
 $$;
 
@@ -708,14 +743,26 @@ as $$
 #variable_conflict use_column
 declare
     v_uid uuid := public.challenge_require_account();
+    v_me uuid;
 begin
-    perform public.challenge_require_member(p_challenge_id, v_uid);
+    v_me := public.challenge_require_member(p_challenge_id, v_uid);
+    -- D8: de quem você bloqueou, nenhuma foto; foto do desafio escondida por
+    -- quem criou some para a turma (o dono segue vendo a dele).
     return query
     select s.fuel_log_id, s.member_id, s.date, mo.make, mo.model, s.odometer, s.status,
            round(s.km::numeric, 1)::double precision,
-           s.odometer_photo_path, s.odometer_photo_source, s.challenge_photo_path
+           case when blk.blocked then null else s.odometer_photo_path end,
+           s.odometer_photo_source,
+           case when blk.blocked or (hid.hidden and s.member_id <> v_me) then null
+                else s.challenge_photo_path end
       from public.challenge_scores(p_challenge_id) s
       join public.motorcycles mo on mo.id = s.motorcycle_id
+      join public.challenge_members om on om.id = s.member_id
+      cross join lateral (select exists (select 1 from public.challenge_blocks b
+                                          where b.blocker_id = v_uid and b.blocked_id = om.user_id)) blk(blocked)
+      cross join lateral (select exists (select 1 from public.challenge_hidden_photos h
+                                          where h.challenge_id = p_challenge_id
+                                            and h.fuel_log_id = s.fuel_log_id)) hid(hidden)
      where (p_member_id is null or s.member_id = p_member_id)
        and (s.in_period or s.km > 0)
      order by s.date desc;
@@ -810,7 +857,18 @@ declare
     v_uid uuid := public.challenge_require_account();
 begin
     perform public.challenge_require_member(p_challenge_id, v_uid);
+    -- D8: o que quem você bloqueou escreveu, reagiu ou votou não aparece.
     return jsonb_build_object(
+        'hidden_photos', coalesce((
+            select jsonb_agg(h.fuel_log_id order by h.hidden_at)
+              from public.challenge_hidden_photos h
+             where h.challenge_id = p_challenge_id), '[]'::jsonb),
+        'blocked_members', coalesce((
+            select jsonb_agg(m.id order by b.created_at)
+              from public.challenge_blocks b
+              join public.challenge_members m
+                on m.challenge_id = p_challenge_id and m.user_id = b.blocked_id
+             where b.blocker_id = v_uid), '[]'::jsonb),
         'comments', coalesce((
             select jsonb_agg(jsonb_build_object(
                        'id', c.id, 'fuel_log_id', c.fuel_log_id, 'member_id', m.id,
@@ -818,7 +876,9 @@ begin
               from public.challenge_comments c
               join public.challenge_members m
                 on m.challenge_id = c.challenge_id and m.user_id = c.user_id and m.left_at is null
-             where c.challenge_id = p_challenge_id and c.deleted_at is null), '[]'::jsonb),
+             where c.challenge_id = p_challenge_id and c.deleted_at is null
+               and not exists (select 1 from public.challenge_blocks b
+                                where b.blocker_id = v_uid and b.blocked_id = c.user_id)), '[]'::jsonb),
         'reactions', coalesce((
             select jsonb_agg(jsonb_build_object(
                        'fuel_log_id', r.fuel_log_id, 'member_id', m.id, 'emoji', r.emoji)
@@ -826,7 +886,9 @@ begin
               from public.challenge_reactions r
               join public.challenge_members m
                 on m.challenge_id = r.challenge_id and m.user_id = r.user_id and m.left_at is null
-             where r.challenge_id = p_challenge_id), '[]'::jsonb),
+             where r.challenge_id = p_challenge_id
+               and not exists (select 1 from public.challenge_blocks b
+                                where b.blocker_id = v_uid and b.blocked_id = r.user_id)), '[]'::jsonb),
         'votes', coalesce((
             select jsonb_agg(jsonb_build_object(
                        'fuel_log_id', v.fuel_log_id, 'member_id', m.id, 'vote', v.vote)
@@ -834,7 +896,9 @@ begin
               from public.challenge_photo_votes v
               join public.challenge_members m
                 on m.challenge_id = v.challenge_id and m.user_id = v.user_id and m.left_at is null
-             where v.challenge_id = p_challenge_id), '[]'::jsonb)
+             where v.challenge_id = p_challenge_id
+               and not exists (select 1 from public.challenge_blocks b
+                                where b.blocker_id = v_uid and b.blocked_id = v.user_id)), '[]'::jsonb)
     );
 end;
 $$;
@@ -857,6 +921,9 @@ begin
     perform public.challenge_entry_owner(p_challenge_id, p_fuel_log_id);
     if char_length(v_body) not between 1 and 400 then
         raise exception 'invalid_comment';
+    end if;
+    if public.challenge_is_offensive(v_body) then
+        raise exception 'inappropriate_text';
     end if;
     if (select count(*) from public.challenge_comments
          where user_id = v_uid and created_at > now() - interval '1 hour') >= 30 then
@@ -962,6 +1029,230 @@ begin
 end;
 $$;
 
+-- ---------- D8: moderação (diretriz 1.2 da Apple) ----------
+-- Denunciar (nome, capa, foto do desafio, comentário) com alerta por e-mail,
+-- bloquear piloto, quem criou esconde foto do mural e troca o código, filtro
+-- de palavrão (challenge_is_offensive). A equipe age pelo SQL (runbook em
+-- PLAN/desafios.md §D8).
+
+-- O e-mail de alerta sai pelo pg_net (HTTP do banco) para o Resend.
+create extension if not exists pg_net with schema extensions;
+
+-- Bloqueio vale em todos os desafios: quem bloqueou não vê fotos, comentários,
+-- reações nem votos do outro. A classificação não muda (km é km).
+create table if not exists public.challenge_blocks (
+    blocker_id  uuid not null references auth.users (id) on delete cascade,
+    blocked_id  uuid not null references auth.users (id) on delete cascade,
+    created_at  timestamptz not null default now(),
+    primary key (blocker_id, blocked_id),
+    check (blocker_id <> blocked_id)
+);
+
+-- Foto do desafio que quem criou tirou do mural (só daquele desafio).
+create table if not exists public.challenge_hidden_photos (
+    challenge_id  uuid not null references public.challenges (id) on delete cascade,
+    fuel_log_id   uuid not null references public.fuel_logs (id) on delete cascade,
+    hidden_by     uuid references auth.users (id) on delete set null,
+    hidden_at     timestamptz not null default now(),
+    primary key (challenge_id, fuel_log_id)
+);
+
+-- Denúncias. Ficam mesmo se o desafio ou a conta sumirem (registro da
+-- moderação). snapshot = o conteúdo como estava (pode mudar ou ser apagado).
+create table if not exists public.challenge_reports (
+    id                uuid primary key default gen_random_uuid(),
+    challenge_id      uuid references public.challenges (id) on delete set null,
+    reporter_id       uuid references auth.users (id) on delete set null,
+    -- Chave congelada: name, cover, photo, comment.
+    kind              text not null check (kind in ('name', 'cover', 'photo', 'comment')),
+    -- member_id (name), fuel_log_id (photo), id do comentário (comment); nulo (cover).
+    target_id         uuid,
+    snapshot          text,
+    created_at        timestamptz not null default now(),
+    alert_request_id  bigint,
+    resolved_at       timestamptz,
+    resolution        text
+);
+create index if not exists challenge_reports_reporter_idx on public.challenge_reports (reporter_id, created_at);
+
+alter table public.challenge_blocks        enable row level security;
+alter table public.challenge_hidden_photos enable row level security;
+alter table public.challenge_reports       enable row level security;
+
+-- Quem criou troca o código: o link e o código antigos param de valer (quem
+-- está dentro continua). Quem só tinha aberto a prévia perde a capa.
+create or replace function public.rotate_invite_code(p_challenge_id uuid)
+returns text
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_code text := public.challenge_new_invite_code();
+begin
+    update public.challenges set invite_code = v_code
+     where id = p_challenge_id and created_by = v_uid and deleted_at is null;
+    if not found then
+        raise exception 'not_the_creator';
+    end if;
+    delete from public.challenge_code_attempts where challenge_id = p_challenge_id;
+    return v_code;
+end;
+$$;
+
+-- Quem criou esconde (ou mostra de novo) a foto do desafio de um abastecimento.
+create or replace function public.set_challenge_photo_hidden(p_challenge_id uuid, p_fuel_log_id uuid, p_hidden boolean)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    if not exists (select 1 from public.challenges where id = p_challenge_id and created_by = v_uid) then
+        raise exception 'not_the_creator';
+    end if;
+    perform public.challenge_entry_owner(p_challenge_id, p_fuel_log_id);
+    if coalesce(p_hidden, false) then
+        insert into public.challenge_hidden_photos (challenge_id, fuel_log_id, hidden_by)
+        values (p_challenge_id, p_fuel_log_id, v_uid)
+        on conflict (challenge_id, fuel_log_id) do nothing;
+    else
+        delete from public.challenge_hidden_photos
+         where challenge_id = p_challenge_id and fuel_log_id = p_fuel_log_id;
+    end if;
+end;
+$$;
+
+-- Bloqueia (ou desbloqueia) um piloto do desafio. Vale em todos os desafios.
+create or replace function public.set_member_blocked(p_challenge_id uuid, p_member_id uuid, p_blocked boolean)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_target uuid;
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    select user_id into v_target from public.challenge_members
+     where challenge_id = p_challenge_id and id = p_member_id;
+    if v_target is null then
+        raise exception 'member_not_found';
+    end if;
+    if v_target = v_uid then
+        raise exception 'cannot_block_self';
+    end if;
+    if coalesce(p_blocked, false) then
+        insert into public.challenge_blocks (blocker_id, blocked_id) values (v_uid, v_target)
+        on conflict do nothing;
+    else
+        delete from public.challenge_blocks where blocker_id = v_uid and blocked_id = v_target;
+    end if;
+end;
+$$;
+
+-- Alerta da denúncia por e-mail (Resend). Sem a chave no Vault, só grava.
+-- Nunca derruba a denúncia: erro aqui vira aviso no log.
+create or replace function public.challenge_report_alert(p_report_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_key text;
+    v_to text;
+    r record;
+    v_kind text;
+    v_request bigint;
+begin
+    select decrypted_secret into v_key from vault.decrypted_secrets where name = 'resend_api_key';
+    select decrypted_secret into v_to from vault.decrypted_secrets where name = 'report_alert_email';
+    if v_key is null or v_to is null then
+        return;
+    end if;
+    select rep.*, ch.name as challenge_name,
+           (select m.display_name from public.challenge_members m
+             where m.challenge_id = rep.challenge_id and m.user_id = rep.reporter_id) as reporter_name
+      into r
+      from public.challenge_reports rep
+      left join public.challenges ch on ch.id = rep.challenge_id
+     where rep.id = p_report_id;
+    v_kind := case r.kind when 'name' then 'nome de piloto' when 'cover' then 'capa'
+                          when 'photo' then 'foto do desafio' else 'comentário' end;
+    select net.http_post(
+        url := 'https://api.resend.com/emails',
+        headers := jsonb_build_object('Authorization', 'Bearer ' || v_key, 'Content-Type', 'application/json'),
+        body := jsonb_build_object(
+            'from', 'Carburante <onboarding@resend.dev>',
+            'to', jsonb_build_array(v_to),
+            'subject', 'Denúncia no Carburante: ' || v_kind,
+            'text', format(E'Denúncia de %s\n\nDesafio: %s (%s)\nConteúdo: %s\nAlvo: %s\nQuem denunciou: %s\nQuando: %s\n\nDenúncia %s. Agir em até 24 h (runbook: PLAN/desafios.md §D8).',
+                           v_kind, coalesce(r.challenge_name, '?'), r.challenge_id, coalesce(r.snapshot, '-'),
+                           coalesce(r.target_id::text, '-'), coalesce(r.reporter_name, '?'), r.created_at, r.id)
+        )
+    ) into v_request;
+    update public.challenge_reports set alert_request_id = v_request where id = p_report_id;
+exception when others then
+    raise warning 'challenge_report_alert %: %', p_report_id, sqlerrm;
+end;
+$$;
+
+-- Denuncia o nome de um piloto (alvo = member_id), a capa (alvo nulo), a foto
+-- do desafio de um abastecimento (alvo = fuel_log_id) ou um comentário (alvo =
+-- id). Até 20 por hora por pessoa.
+create or replace function public.report_challenge_content(p_challenge_id uuid, p_kind text, p_target uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+    v_uid uuid := public.challenge_require_account();
+    v_snapshot text;
+    v_id uuid;
+begin
+    perform public.challenge_require_member(p_challenge_id, v_uid);
+    if (select count(*) from public.challenge_reports
+         where reporter_id = v_uid and created_at > now() - interval '1 hour') >= 20 then
+        raise exception 'too_many_reports';
+    end if;
+    case p_kind
+    when 'name' then
+        select display_name into v_snapshot from public.challenge_members
+         where challenge_id = p_challenge_id and id = p_target and user_id <> v_uid;
+    when 'cover' then
+        select cover_path into v_snapshot from public.challenges where id = p_challenge_id;
+    when 'photo' then
+        perform public.challenge_entry_owner(p_challenge_id, p_target);
+        select challenge_photo_url into v_snapshot from public.fuel_logs
+         where id = p_target and user_id <> v_uid;
+    when 'comment' then
+        select body into v_snapshot from public.challenge_comments
+         where challenge_id = p_challenge_id and id = p_target and deleted_at is null and user_id <> v_uid;
+    else
+        raise exception 'invalid_report';
+    end case;
+    if v_snapshot is null then
+        raise exception 'invalid_report';
+    end if;
+    insert into public.challenge_reports (challenge_id, reporter_id, kind, target_id, snapshot)
+    values (p_challenge_id, v_uid, p_kind, case when p_kind = 'cover' then null else p_target end, v_snapshot)
+    returning id into v_id;
+    perform public.challenge_report_alert(v_id);
+end;
+$$;
+
 -- ---------- Storage ----------
 
 -- Fotos do abastecimento (hodômetro e foto do desafio) para a turma: libera
@@ -1001,6 +1292,13 @@ begin
            and fl.deleted_at is null
            and fl.date >= ch.starts_at
            and fl.date < ch.ends_at + interval '3 days'
+           -- D8: bloqueou o dono = não vê as fotos dele; foto do desafio
+           -- escondida por quem criou = a turma daquele desafio não vê.
+           and not exists (select 1 from public.challenge_blocks b
+                            where b.blocker_id = v_uid and b.blocked_id = fl.user_id)
+           and not (v_file ~* '-challenge\.jpg$'
+                    and exists (select 1 from public.challenge_hidden_photos h
+                                 where h.challenge_id = ch.id and h.fuel_log_id = fl.id))
     );
 end;
 $$;
@@ -1097,6 +1395,8 @@ revoke all on function public.challenge_lookup_code(text, uuid) from public, ano
 revoke all on function public.challenge_scores(uuid) from public, anon, authenticated;
 revoke all on function public.challenge_finalize_if_closed(uuid) from public, anon, authenticated;
 revoke all on function public.challenge_entry_owner(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.challenge_is_offensive(text) from public, anon, authenticated;
+revoke all on function public.challenge_report_alert(uuid) from public, anon, authenticated;
 
 revoke all on function public.create_challenge(text, timestamptz, timestamptz, text, text) from public, anon;
 revoke all on function public.challenge_preview(text) from public, anon;
@@ -1116,6 +1416,10 @@ revoke all on function public.post_challenge_comment(uuid, uuid, text) from publ
 revoke all on function public.delete_challenge_comment(uuid) from public, anon;
 revoke all on function public.set_challenge_reaction(uuid, uuid, text) from public, anon;
 revoke all on function public.set_challenge_photo_vote(uuid, uuid, text) from public, anon;
+revoke all on function public.rotate_invite_code(uuid) from public, anon;
+revoke all on function public.set_challenge_photo_hidden(uuid, uuid, boolean) from public, anon;
+revoke all on function public.set_member_blocked(uuid, uuid, boolean) from public, anon;
+revoke all on function public.report_challenge_content(uuid, text, uuid) from public, anon;
 
 grant execute on function public.create_challenge(text, timestamptz, timestamptz, text, text) to authenticated;
 grant execute on function public.challenge_preview(text) to authenticated;
@@ -1135,3 +1439,7 @@ grant execute on function public.post_challenge_comment(uuid, uuid, text) to aut
 grant execute on function public.delete_challenge_comment(uuid) to authenticated;
 grant execute on function public.set_challenge_reaction(uuid, uuid, text) to authenticated;
 grant execute on function public.set_challenge_photo_vote(uuid, uuid, text) to authenticated;
+grant execute on function public.rotate_invite_code(uuid) to authenticated;
+grant execute on function public.set_challenge_photo_hidden(uuid, uuid, boolean) to authenticated;
+grant execute on function public.set_member_blocked(uuid, uuid, boolean) to authenticated;
+grant execute on function public.report_challenge_content(uuid, text, uuid) to authenticated;

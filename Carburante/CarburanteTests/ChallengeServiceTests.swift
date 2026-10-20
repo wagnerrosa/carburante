@@ -199,6 +199,28 @@ final class ChallengeServiceTests: XCTestCase {
         XCTAssertNil(challenge.photoVotes.last?.vote)
     }
 
+    /// D8: fotos tiradas do mural e pilotos bloqueados vêm na mesma leitura.
+    func testSocial_hiddenPhotosAndBlockedMembers() throws {
+        let json = socialJSON.replacingOccurrences(of: "{\"votes\"", with: """
+        {"hidden_photos": ["a3000000-0000-4000-8000-000000000007"],
+         "blocked_members": ["b0000000-0000-4000-8000-000000000001"], "votes"
+        """)
+        let social = try decode(ChallengeSocialDTO.self, json)
+        let row = try decode([ChallengeRowDTO].self, myChallengesJSON)[0]
+        let challenge = ChallengeSnapshot.Item(row: row, standings: [], entries: [], social: social).challenge
+        XCTAssertTrue(challenge.isPhotoHidden(UUID(uuidString: "a3000000-0000-4000-8000-000000000007")!))
+        XCTAssertTrue(challenge.isBlocked(UUID(uuidString: "b0000000-0000-4000-8000-000000000001")!))
+        // Resposta da D7 (sem os campos): nada escondido nem bloqueado.
+        let d7 = try decode(ChallengeSocialDTO.self, socialJSON)
+        XCTAssertNil(d7.hidden_photos)
+        XCTAssertNil(d7.blocked_members)
+    }
+
+    /// Chaves de denúncia = `challenge_reports.kind` no servidor (congeladas).
+    func testReportKinds_frozenKeys() {
+        XCTAssertEqual(ChallengeReportKind.allCases.map(\.rawValue), ["name", "cover", "photo", "comment"])
+    }
+
     /// Placar guardado antes da D7 (sem `social` nem `created_by_name`) abre igual.
     func testSnapshot_fromBeforeD7StillOpens() throws {
         let json = """
@@ -280,7 +302,9 @@ final class ChallengeServiceTests: XCTestCase {
                     "too_many_attempts", "invalid_cover_path",
                     "entry_not_found", "invalid_comment", "too_many_comments", "comment_not_found",
                     "cannot_delete_comment", "cannot_react_own", "invalid_reaction", "cannot_vote_own",
-                    "no_photo_to_check", "invalid_vote"]
+                    "no_photo_to_check", "invalid_vote",
+                    "inappropriate_text", "member_not_found", "cannot_block_self", "invalid_report",
+                    "too_many_reports"]
         for key in keys {
             if case .unknown = ChallengeError(serverKey: key) { XCTFail("chave sem tradução: \(key)") }
         }

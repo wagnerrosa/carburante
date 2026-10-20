@@ -121,8 +121,6 @@ struct ChallengesView: View {
             }
             .navigationDestination(for: ChallengeRoute.self, destination: destination)
         }
-        // Ao vivo, só o que o servidor já guarda (denunciar e bloquear = D8).
-        .environment(\.challengeServerOnly, isLive)
     }
 
     private func withSheets(_ content: some View) -> some View {
@@ -337,16 +335,18 @@ struct ChallengesView: View {
             }
         case .details(let id):
             if let challenge = challenge(id) {
-                // Trocar o código chega com a D8 (função nova no servidor).
                 ChallengeDetailsView(challenge: challenge,
-                                     onNewCode: isLive ? nil : { update(id) { $0.code = InviteCode.random() } },
+                                     onNewCode: { rotateCode(id) },
                                      onSetCover: coverSetter(id),
+                                     onReportCover: { report(.cover, target: nil, in: id) },
                                      onLeave: { leave(id) })
             }
         case .participant(let challengeID, let memberID):
             if let challenge = challenge(challengeID), let standing = challenge.standing(for: memberID) {
                 ChallengeParticipantView(challenge: challenge, standing: standing,
-                                         onRemove: remover(challenge, standing))
+                                         onRemove: remover(challenge, standing),
+                                         onReport: { report(.name, target: memberID, in: challengeID) },
+                                         onBlock: { setBlocked($0, member: memberID, in: challengeID) })
                     .task { await loadEntries(challengeID) }
             }
         case .entry(let challengeID, let entryID):
@@ -354,7 +354,9 @@ struct ChallengesView: View {
                let entry = challenge.entries.first(where: { $0.id == entryID }),
                let standing = challenge.standing(for: entry.memberID) {
                 ChallengeEntryView(challenge: challenge, entry: entry, standing: standing,
-                                   onSetChallengePhoto: photoSetter(challenge, entry)) { text in
+                                   onSetChallengePhoto: photoSetter(challenge, entry),
+                                   onReport: { kind, target in report(kind, target: target, in: challengeID) },
+                                   onSetPhotoHidden: { setPhotoHidden($0, on: entryID, in: challengeID) }) { text in
                     post(text, on: entryID, in: challengeID)
                 } onDelete: { comment in
                     delete(comment, in: challengeID)
@@ -508,6 +510,58 @@ struct ChallengesView: View {
         guard isLive else { return }
         send(in: id, failure: "Não deu para apagar o comentário") {
             try await service.deleteComment(comment.id, in: id)
+        }
+    }
+
+    // MARK: Moderação (D8)
+
+    private func rotateCode(_ id: UUID) {
+        guard isLive else {
+            update(id) { $0.code = InviteCode.random() }
+            return
+        }
+        Task {
+            do {
+                try await service.rotateCode(id)
+                Haptics.success()
+            } catch {
+                alert = ChallengeAlert(title: "O código não mudou",
+                                       message: ChallengeService.challengeError(error).message)
+            }
+        }
+    }
+
+    private func report(_ kind: ChallengeReportKind, target: UUID?, in id: UUID) {
+        Task {
+            do {
+                if isLive { try await service.report(kind, target: target, in: id) }
+                Haptics.success()
+                alert = ChallengeAlert(title: ChallengeModeration.reportSentTitle,
+                                       message: ChallengeModeration.reportSentMessage)
+            } catch {
+                alert = ChallengeAlert(title: "Denúncia não enviada",
+                                       message: ChallengeService.challengeError(error).message)
+            }
+        }
+    }
+
+    private func setBlocked(_ blocked: Bool, member memberID: UUID, in id: UUID) {
+        update(id) { c in
+            if blocked { c.blockedMemberIDs.insert(memberID) } else { c.blockedMemberIDs.remove(memberID) }
+        }
+        guard isLive else { return }
+        send(in: id, failure: blocked ? "Não deu para bloquear" : "Não deu para desbloquear") {
+            try await service.setBlocked(blocked, member: memberID, in: id)
+        }
+    }
+
+    private func setPhotoHidden(_ hidden: Bool, on entryID: UUID, in id: UUID) {
+        update(id) { c in
+            if hidden { c.hiddenPhotoEntryIDs.insert(entryID) } else { c.hiddenPhotoEntryIDs.remove(entryID) }
+        }
+        guard isLive else { return }
+        send(in: id, failure: hidden ? "A foto continua no mural" : "A foto continua fora do mural") {
+            try await service.setPhotoHidden(hidden, on: entryID, in: id)
         }
     }
 
@@ -840,12 +894,15 @@ struct FinishedChallengeCard: View {
 
 struct ChallengeDetailsView: View {
     let challenge: Challenge
-    /// nil = trocar o código ainda não existe no servidor (D8).
+    /// Quem criou troca o código. nil = sem a opção.
     var onNewCode: (() -> Void)? = nil
     /// Quem criou põe, troca (JPEG pronto) ou tira (nil) a capa. nil = sem a seção.
     var onSetCover: ((Data?) async throws -> Void)? = nil
+    /// Quem não criou denuncia a capa (D8).
+    var onReportCover: () -> Void = {}
     var onLeave: () -> Void = {}
     @State private var confirmingLeave = false
+    @State private var confirmingCoverReport = false
     @State private var confirmingNewCode = false
     @State private var coverItem: PhotosPickerItem?
     @State private var isSavingCover = false
@@ -901,6 +958,18 @@ struct ChallengeDetailsView: View {
 
             Section("Como funciona") {
                 ChallengeRules()
+            }
+
+            if !challenge.createdByMe, challenge.coverRef != nil {
+                Section {
+                    Button("Denunciar a capa") { confirmingCoverReport = true }
+                        .confirmationDialog("Denunciar a capa?", isPresented: $confirmingCoverReport,
+                                            titleVisibility: .visible) {
+                            Button("Denunciar", role: .destructive, action: onReportCover)
+                        } message: {
+                            Text(ChallengeModeration.reportMessage)
+                        }
+                }
             }
 
             Section {
