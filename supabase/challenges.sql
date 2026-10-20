@@ -239,7 +239,13 @@ begin
     end if;
     select id into v_id from public.challenges
      where invite_code = v_code and deleted_at is null;
-    insert into public.challenge_code_attempts (user_id, challenge_id) values (p_uid, v_id);
+    -- Código certo grava 1 linha por (conta, desafio): ela só libera a capa na
+    -- prévia, então repetir a prévia não faz a tabela crescer.
+    if v_id is null
+       or not exists (select 1 from public.challenge_code_attempts
+                       where user_id = p_uid and challenge_id = v_id) then
+        insert into public.challenge_code_attempts (user_id, challenge_id) values (p_uid, v_id);
+    end if;
     -- Faxina: tentativa errada só importa na última hora.
     delete from public.challenge_code_attempts
      where challenge_id is null and attempted_at < now() - interval '1 day';
