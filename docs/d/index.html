@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Convite para um desafio · Carburante</title>
+  <meta name="description" content="Você foi chamado para um desafio no Carburante: ganha quem rodar mais km. Toque no link com o app instalado para entrar.">
+  <!-- Página do link de convite (/d/?c=CÓDIGO). Com o app instalado, o iPhone abre
+       o app direto (Universal Link, .well-known/apple-app-site-association) e esta
+       página nem aparece. Ela é para quem ainda não tem o app ou abriu fora do iPhone.
+       Sem indexação (cada convite é privado) e sem estatísticas: o código vai na URL. -->
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#000000">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="../style.css?v=42">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Carburante">
+  <meta property="og:title" content="Bora pro desafio no Carburante?">
+  <meta property="og:description" content="Ganha quem rodar mais km. Toque para entrar com o app.">
+  <meta property="og:image" content="https://carburante.motorcycles/assets/og.png?v=5">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://carburante.motorcycles/assets/og.png?v=5">
+
+  <script>
+    // Código do convite: mesma regra do app (InviteCode) — 8 caracteres, sem vogais
+    // nem 0/1/L; aceita minúsculas, espaço e hífen. Inválido = link cortado.
+    window.inviteCode = (function () {
+      var m = /[?&]c=([^&#]*)/.exec(location.search);
+      var code = '';
+      try { code = m ? decodeURIComponent(m[1]) : ''; } catch (e) { code = ''; }
+      code = code.toUpperCase().replace(/[\s-]/g, '');
+      return /^[BCDFGHJKMNPQRSTVWXYZ2-9]{8}$/.test(code) ? code : '';
+    })();
+    // Smart App Banner do Safari: com o app instalado, "Abrir" entrega o link do
+    // convite ao app. Escrito durante a leitura do <head> (o Safari lê a meta ao
+    // carregar; inserida depois, pode ser ignorada).
+    document.write('<meta name="apple-itunes-app" content="app-id=6785659437' +
+      (window.inviteCode ? ', app-argument=https://carburante.motorcycles/d/?c=' + window.inviteCode : '') + '">');
+  </script>
+
+  <style>
+    .invite { padding: 56px 0 80px; }
+    .invite__wrap { max-width: 520px; margin: 0 auto; text-align: center; }
+    .invite__icon { width: 88px; height: 88px; margin: 0 auto 20px; border-radius: 20px; box-shadow: var(--shadow); }
+    .invite__eyebrow { font-size: 14px; font-weight: 600; color: var(--accent); margin: 0 0 8px; letter-spacing: .01em; }
+    .invite h1 { font-size: clamp(34px, 8vw, 44px); margin: 0 0 12px; text-wrap: balance; }
+    .invite__lede { color: var(--text-2); font-size: 18px; margin: 0 auto 32px; max-width: 30em; text-wrap: pretty; }
+
+    .invite__code {
+      margin: 0 0 32px; padding: 22px 20px 20px; border-radius: var(--radius);
+      background: var(--frost); border: 1px solid var(--frost-edge); box-shadow: var(--frost-sheen);
+    }
+    .invite__label { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-2); }
+    .invite__value {
+      margin: 6px 0 16px; font: 700 clamp(34px, 10vw, 44px)/1.1 ui-monospace, "SF Mono", Menlo, monospace;
+      letter-spacing: .08em; user-select: all; -webkit-user-select: all;
+    }
+    .invite__copy { min-width: 180px; cursor: pointer; font: inherit; font-weight: 600; }
+
+    .invite__steps { list-style: none; margin: 0 0 24px; padding: 0; text-align: left; counter-reset: step; }
+    .invite__steps li {
+      counter-increment: step; position: relative; padding: 16px 0 16px 48px;
+      border-top: 1px solid var(--line);
+    }
+    .invite__steps li:first-child { border-top: 0; }
+    .invite__steps li::before {
+      content: counter(step); position: absolute; left: 0; top: 14px;
+      width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+      font-weight: 700; font-size: 15px; color: #1a0500; background: var(--flame);
+    }
+    .invite__steps strong { display: block; font-weight: 600; }
+    .invite__steps span { color: var(--text-2); font-size: 16px; }
+    .invite__steps .store-badge { margin-top: 12px; }
+
+    .invite__alt { color: var(--text-2); font-size: 15px; margin: 0 0 8px; text-wrap: pretty; }
+    .invite__meta { color: var(--text-3); font-size: 14px; margin: 0; }
+    .invite [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+
+<a class="skip" href="#main">Pular para o conteúdo</a>
+
+<header class="nav" id="top">
+  <div class="wrap nav__inner">
+    <a class="brand" href="../" aria-label="Carburante — página inicial">
+      <img src="../assets/icon-256.png" alt="" width="30" height="30">
+      <span>Carburante</span>
+    </a>
+  </div>
+</header>
+
+<main id="main" class="invite">
+  <div class="wrap invite__wrap">
+    <img class="invite__icon" src="../assets/icon-256.png" alt="" width="88" height="88">
+
+    <!-- Convite com código -->
+    <div data-state="ok" hidden>
+      <p class="invite__eyebrow">Convite</p>
+      <h1>Bora pro desafio?</h1>
+      <p class="invite__lede">Ganha quem rodar mais km. Os km saem dos abastecimentos registrados no Carburante, com a foto do hodômetro.</p>
+
+      <section class="invite__code" aria-labelledby="code-label">
+        <p class="invite__label" id="code-label">Código do convite</p>
+        <p class="invite__value" id="code-value"></p>
+        <button class="btn btn--ghost invite__copy" type="button" id="copy">Copiar código</button>
+      </section>
+
+      <ol class="invite__steps">
+        <li>
+          <strong>Baixe o Carburante</strong>
+          <span>Grátis, para iPhone.</span><br>
+          <a class="store-badge" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="../assets/store/app-store-pt-br.svg" alt="Baixar na App Store" width="144" height="48"></a>
+        </li>
+        <li>
+          <strong>Toque de novo no link do convite</strong>
+          <span>O app abre direto no desafio.</span>
+        </li>
+      </ol>
+      <p class="invite__alt">O link não abriu o app? No Carburante, toque em <strong>Desafios</strong> → <strong>Entrar com código</strong> e use o código acima.</p>
+      <p class="invite__meta">Para iPhone com iOS 18 ou mais recente.</p>
+    </div>
+
+    <!-- Link sem código (ou cortado) -->
+    <div data-state="broken" hidden>
+      <p class="invite__eyebrow">Convite</p>
+      <h1>Este convite veio incompleto</h1>
+      <p class="invite__lede">O link parece cortado. Peça o link de novo para quem te chamou, ou o código do convite (8 letras e números, como K7QM-4XPR).</p>
+      <a class="store-badge" href="https://apps.apple.com/br/app/carburante/id6785659437" target="_blank" rel="noopener"><img src="../assets/store/app-store-pt-br.svg" alt="Baixar na App Store" width="144" height="48"></a>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <a class="brand" href="../">
+      <img src="../assets/icon-256.png" alt="" width="26" height="26" loading="lazy">
+      <span>Carburante</span>
+    </a>
+    <p class="footer__by">Wagner Rosa · 2026</p>
+    <nav class="footer__links" aria-label="Links">
+      <a href="../">Carburante</a>
+      <a href="../ajuda/">Ajuda</a>
+      <a href="../privacidade/">Privacidade</a>
+      <a href="mailto:contato@wagnerrosa.com">Email</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var code = window.inviteCode;
+    document.querySelector('[data-state="' + (code ? 'ok' : 'broken') + '"]').hidden = false;
+    if (!code) return;
+    // Na tela em dois blocos, como no app ("K7QM-4XPR").
+    var shown = code.slice(0, 4) + '-' + code.slice(4);
+    document.getElementById('code-value').textContent = shown;
+    document.title = 'Convite ' + shown + ' · Carburante';
+
+    var button = document.getElementById('copy');
+    button.addEventListener('click', function () {
+      function done(ok) {
+        button.textContent = ok ? 'Copiado' : 'Toque e segure o código para copiar';
+        setTimeout(function () { button.textContent = 'Copiar código'; }, 2400);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shown).then(function () { done(true); }, function () { done(false); });
+      } else {
+        done(false);
+      }
+    });
+  })();
+</script>
+</body>
+</html>
