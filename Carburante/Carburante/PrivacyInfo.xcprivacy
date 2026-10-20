@@ -76,6 +76,20 @@
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
             </array>
         </dict>
+        <!-- Nome (1.3, Desafios): o nome que a pessoa escolhe para a turma
+             (challenge_members.display_name), visto pelos participantes. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeName</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
         <!-- E-mail: vem do Sign in with Apple (pode ser o relay privado da
              Apple) e fica na conta do Supabase Auth. Só para login. -->
         <dict>

@@ -600,15 +600,9 @@ private struct EntriesParams: Encodable {
     private enum CodingKeys: String, CodingKey { case p_challenge_id, p_member_id }
 }
 
-/// Liga a aba Desafios. Só no build de desenvolvimento enquanto a v1 não
-/// fecha (PLAN/desafios.md D2–D8): a 1.2 e um eventual 1.2.x saem sem ela.
-/// O teste com amigos (D6, TestFlight) e a 1.3 ligam de vez.
+/// Liga a aba Desafios. Ligada em todo build desde a 1.3 (18) — teste com
+/// amigos no TestFlight e depois a loja. A 1.2 (17) foi enviada com ela
+/// desligada; um 1.2.x precisaria voltar este valor para false.
 enum ChallengeFeature {
-    static var isEnabled: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
-    }
+    static let isEnabled = true
 }
