@@ -10,8 +10,8 @@ import SwiftUI
 
 // MARK: - Imagens
 
-/// Carrega uma foto do desafio (capa, foto do desafio, hodômetro) pela
-/// referência. D0: arquivos locais do protótipo; o Storage entra na D5.
+/// Fotos do protótipo D0 (referência sem pasta = arquivo local em
+/// Documents/ChallengePreview). As do servidor vêm do `ChallengeImageStore`.
 enum ChallengeImageLoader {
     static func image(_ ref: String?) -> UIImage? {
         guard let ref else { return nil }
@@ -24,24 +24,60 @@ enum ChallengeImageLoader {
     }
 }
 
-/// Foto preenchendo o quadro; sem foto, quadro neutro com símbolo.
+/// Foto de um abastecimento (hodômetro ou foto do desafio) preenchendo o
+/// quadro. Do cache na hora; senão quadro neutro enquanto baixa do bucket
+/// (a policy da turma libera). Sem foto ou sem acesso, o símbolo.
 struct ChallengePhoto: View {
     let ref: String?
     var placeholderSymbol = "photo"
+    /// Lado maior para decodificar (miniatura, mural). nil = inteira.
+    var maxPixel: Int? = nil
+    @State private var loaded: (ref: String, image: UIImage)?
+    @State private var failedRef: String?
+
+    /// Lado maior das miniaturas (44 pt em 3x, com folga).
+    static let thumbnailPixels = 160
+    /// Foto do mural (largura da tela em 3x).
+    static let feedPixels = 1200
+
+    private var store: ChallengeImageStore { .shared }
+
+    private var image: UIImage? {
+        // Ler `replacements` faz a foto trocada aparecer sem recarregar a tela.
+        _ = store.replacements
+        if let cached = store.cachedImage(ref, bucket: PhotoReference.bucket, maxPixel: maxPixel) { return cached }
+        if let loaded, loaded.ref == ref { return loaded.image }
+        return nil
+    }
 
     var body: some View {
-        if let image = ChallengeImageLoader.image(ref) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Color(.tertiarySystemFill))
+                    .overlay {
+                        if ref == nil || failedRef == ref {
+                            Image(systemName: placeholderSymbol)
+                                .font(.title2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+            }
+        }
+        .task(id: ref) { await load() }
+    }
+
+    /// Baixa (ou confere a cópia guardada, 1 vez por abertura do app).
+    private func load() async {
+        guard let ref else { return }
+        if let image = await store.image(ref, bucket: PhotoReference.bucket, maxPixel: maxPixel) {
+            loaded = (ref, image)
         } else {
-            Rectangle()
-                .fill(Color(.tertiarySystemFill))
-                .overlay {
-                    Image(systemName: placeholderSymbol)
-                        .font(.title2)
-                        .foregroundStyle(.tertiary)
-                }
+            failedRef = ref
         }
     }
 }
@@ -287,6 +323,14 @@ struct ChallengeStandingsTable: View {
         if trophy { text += " Campeão." }
         return text
     }
+}
+
+extension EnvironmentValues {
+    /// Aba com dados do servidor: esconde o que ele ainda não guarda —
+    /// reações, comentários e votos na foto (D7), denunciar e bloquear (D8).
+    /// Sem isso, a turma do teste mexeria em coisas que somem ao recarregar.
+    /// O protótipo D0 mostra tudo.
+    @Entry var challengeServerOnly = false
 }
 
 /// Destinos dentro da aba Desafios.

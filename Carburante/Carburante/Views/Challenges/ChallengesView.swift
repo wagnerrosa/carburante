@@ -30,6 +30,7 @@ struct ChallengesView: View {
 
     private var service: ChallengeService { .shared }
     private var sync: SyncService { .shared }
+    @Environment(\.modelContext) private var modelContext
 
     @State private var selectedID: UUID?
     @State private var path: [ChallengeRoute] = []
@@ -119,6 +120,8 @@ struct ChallengesView: View {
             }
             .navigationDestination(for: ChallengeRoute.self, destination: destination)
         }
+        // Ao vivo, só o que o servidor já guarda (reações e comentários = D7).
+        .environment(\.challengeServerOnly, isLive)
     }
 
     private func withSheets(_ content: some View) -> some View {
@@ -329,6 +332,7 @@ struct ChallengesView: View {
                                onReact: { react($0, on: $1, in: id) })
                     .navigationTitle(challenge.name)
                     .navigationBarTitleDisplayMode(.inline)
+                    .task { await loadEntries(id) }
             }
         case .details(let id):
             if let challenge = challenge(id) {
@@ -340,13 +344,16 @@ struct ChallengesView: View {
             }
         case .participant(let challengeID, let memberID):
             if let challenge = challenge(challengeID), let standing = challenge.standing(for: memberID) {
-                ChallengeParticipantView(challenge: challenge, standing: standing)
+                ChallengeParticipantView(challenge: challenge, standing: standing,
+                                         onRemove: remover(challenge, standing))
+                    .task { await loadEntries(challengeID) }
             }
         case .entry(let challengeID, let entryID):
             if let challenge = challenge(challengeID),
                let entry = challenge.entries.first(where: { $0.id == entryID }),
                let standing = challenge.standing(for: entry.memberID) {
-                ChallengeEntryView(challenge: challenge, entry: entry, standing: standing) { text in
+                ChallengeEntryView(challenge: challenge, entry: entry, standing: standing,
+                                   onSetChallengePhoto: photoSetter(challenge, entry)) { text in
                     update(challengeID) { c in
                         guard let me = c.me else { return }
                         c.comments.append(ChallengeComment(id: UUID(), entryID: entryID, memberID: me.id,
@@ -382,6 +389,69 @@ struct ChallengesView: View {
 
     private func challenge(_ id: UUID) -> Challenge? {
         challenges.first { $0.id == id }
+    }
+
+    /// Encerrado: o mural chega ao abrir (a lista só traz a classificação).
+    private func loadEntries(_ id: UUID) async {
+        guard isLive else { return }
+        await service.loadEntriesIfNeeded(for: id)
+    }
+
+    /// Pôr/trocar a foto do desafio: só no seu abastecimento, desafio aberto.
+    private func photoSetter(_ challenge: Challenge,
+                             _ entry: ChallengeEntry) -> ((UIImage) async -> ChallengePhotoSaveResult)? {
+        guard challenge.canChangeChallengePhoto(of: entry) else { return nil }
+        return { image in await setChallengePhoto(image, on: entry.id, in: challenge.id) }
+    }
+
+    /// Remover piloto: só quem criou, e não a si mesmo.
+    private func remover(_ challenge: Challenge, _ standing: ChallengeStanding) -> (() -> Void)? {
+        guard challenge.createdByMe, !standing.isMe else { return nil }
+        return { remove(standing.id, from: challenge.id) }
+    }
+
+    /// Foto do desafio posta/trocada num abastecimento seu. Aparece na hora
+    /// (o mural recarregado confirma); sem rede, sobe depois.
+    private func setChallengePhoto(_ image: UIImage, on entryID: UUID,
+                                   in id: UUID) async -> ChallengePhotoSaveResult {
+        guard isLive else {
+            #if DEBUG
+            // D0: só na memória, com a foto no lugar das do protótipo.
+            let name = "added-\(UUID().uuidString)"
+            let url = URL.documentsDirectory.appending(path: "ChallengePreview/\(name).jpg")
+            try? PhotoStorage.jpeg(image, maxDimension: PhotoStorage.challengeMaxDimension)?.write(to: url)
+            setPhotoRef(name, on: entryID, in: id)
+            #endif
+            return .sent(path: "")
+        }
+        let result = await service.setChallengePhoto(image, logID: entryID, context: modelContext)
+        if let path = result.path { setPhotoRef(path, on: entryID, in: id) }
+        return result
+    }
+
+    private func setPhotoRef(_ ref: String, on entryID: UUID, in id: UUID) {
+        update(id) { challenge in
+            guard let index = challenge.entries.firstIndex(where: { $0.id == entryID }) else { return }
+            challenge.entries[index].challengePhotoRef = ref
+        }
+    }
+
+    /// Quem criou tira um piloto: volta da tela dele, que deixa de existir.
+    private func remove(_ memberID: UUID, from id: UUID) {
+        if !path.isEmpty { path.removeLast() }
+        guard isLive else {
+            update(id) { $0.standings.removeAll { $0.id == memberID } }
+            return
+        }
+        Task {
+            do {
+                try await service.removeMember(memberID, from: id)
+                Haptics.success()
+            } catch {
+                alert = ChallengeAlert(title: "Não deu para remover o piloto",
+                                       message: ChallengeService.challengeError(error).message)
+            }
+        }
     }
 
     /// Sem conexão, mostrando o placar guardado: desde quando.

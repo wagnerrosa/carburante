@@ -14,7 +14,9 @@
 //
 
 import Foundation
+import SwiftData
 import Supabase
+import UIKit
 
 @MainActor
 @Observable
@@ -39,10 +41,15 @@ final class ChallengeService {
     /// De quem é a lista em memória: trocou de conta, ela some.
     @ObservationIgnored private var loadedUserID: UUID?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    /// As respostas do servidor por trás de `challenges` (e do arquivo).
+    @ObservationIgnored private var snapshot: ChallengeSnapshot?
+    /// Encerrados com o mural já carregado nesta abertura do app.
+    @ObservationIgnored private var finishedEntriesLoaded: Set<UUID> = []
 
     /// O último placar guardado abre a aba e o card do Resumo antes da rede.
     private init() {
         if let snapshot = ChallengeSnapshot.load() {
+            self.snapshot = snapshot
             challenges = snapshot.challenges
             updatedAt = snapshot.savedAt
             loadedUserID = snapshot.userID
@@ -102,6 +109,8 @@ final class ChallengeService {
         gains = [:]
         updatedAt = nil
         loadedUserID = nil
+        snapshot = nil
+        finishedEntriesLoaded = []
         state = .idle
         ChallengeSnapshot.remove()
     }
@@ -120,33 +129,60 @@ final class ChallengeService {
             clearLocal()
         }
         state = .loading
+        let previous = snapshot
         do {
             let rows: [ChallengeRowDTO] = try await client.rpc("my_challenges").execute().value
             var items: [ChallengeSnapshot.Item] = []
             try await withThrowingTaskGroup(of: ChallengeSnapshot.Item.self) { group in
                 for row in rows {
-                    group.addTask { try await self.snapshotItem(row) }
+                    let earlier = previous?.item(row.id)
+                    group.addTask { try await self.snapshotItem(row, previous: earlier) }
                 }
                 for try await item in group { items.append(item) }
             }
             let snapshot = ChallengeSnapshot(userID: userID, savedAt: Date(), items: items)
-            challenges = snapshot.challenges
             loadedUserID = userID
             updatedAt = snapshot.savedAt
             state = .loaded
-            snapshot.save()
+            apply(snapshot)
         } catch {
             state = .failed(Self.challengeError(error))
         }
     }
 
     /// Classificação + mural de um desafio, como o servidor mandou. Encerrado
-    /// só precisa da classificação (o card mostra os 3 primeiros).
-    private func snapshotItem(_ row: ChallengeRowDTO) async throws -> ChallengeSnapshot.Item {
+    /// só traz a classificação (a lista mostra os 3 primeiros); o mural dele
+    /// carrega ao abrir (`loadEntriesIfNeeded`) e o que já veio fica.
+    private func snapshotItem(_ row: ChallengeRowDTO,
+                              previous: ChallengeSnapshot.Item?) async throws -> ChallengeSnapshot.Item {
         async let standings = leaderboard(row.id)
         let finished = row.period.phase() == .finished
-        let entries = finished ? [] : try await self.entries(row.id)
+        let entries = finished ? (previous?.entries ?? []) : try await self.entries(row.id)
         return ChallengeSnapshot.Item(row: row, standings: try await standings, entries: entries)
+    }
+
+    /// Encerrado aberto na aba: mural e registros dos pilotos, 1 vez por
+    /// abertura do app (a classificação já congelou; as fotos seguem visíveis
+    /// para a turma).
+    func loadEntriesIfNeeded(for challengeID: UUID) async {
+        guard !finishedEntriesLoaded.contains(challengeID),
+              let row = snapshot?.item(challengeID)?.row,
+              row.period.phase() == .finished else { return }
+        finishedEntriesLoaded.insert(challengeID)
+        guard let entries = try? await entries(challengeID) else {
+            finishedEntriesLoaded.remove(challengeID)
+            return
+        }
+        // A lista pode ter recarregado enquanto isso: aplica na mais nova.
+        if let current = snapshot {
+            apply(current.replacingEntries(entries, of: challengeID))
+        }
+    }
+
+    private func apply(_ snapshot: ChallengeSnapshot) {
+        self.snapshot = snapshot
+        challenges = snapshot.challenges
+        snapshot.save()
     }
 
     private func leaderboard(_ challengeID: UUID) async throws -> [ChallengeStandingDTO] {
@@ -161,6 +197,38 @@ final class ChallengeService {
             .rpc("challenge_entries", params: EntriesParams(p_challenge_id: challengeID,
                                                             p_member_id: memberID))
             .execute().value
+    }
+
+    // MARK: Foto do desafio
+
+    /// Foto do desafio posta ou trocada depois de salvar o abastecimento (D6).
+    /// Grava no disco como o fluxo do abastecimento (sem metadados), sobe pelo
+    /// sync de sempre e recarrega o mural. Trocar não muda o caminho no bucket
+    /// (a policy da turma exige `<log>-challenge.jpg`): os outros iPhones
+    /// percebem pela data do arquivo (`ChallengeImageStore`).
+    func setChallengePhoto(_ image: UIImage, logID: UUID, context: ModelContext) async -> ChallengePhotoSaveResult {
+        let descriptor = FetchDescriptor<FuelLog>(predicate: #Predicate { $0.id == logID })
+        guard let log = try? context.fetch(descriptor).first, log.deletedAt == nil,
+              let motorcycle = log.motorcycle,
+              let ref = PhotoStorage.saveChallengePhoto(image, for: log.id),
+              let data = PhotoStorage.data(for: ref) else {
+            return .unavailable
+        }
+        let path = PhotoReference.challengeRemotePath(motorcycleID: motorcycle.id, logID: log.id)
+        log.challengePhotoURL = ref
+        try? context.save()
+        // Aparece já neste iPhone, antes do upload.
+        ChallengeImageStore.shared.store(data, for: path, bucket: PhotoReference.bucket)
+        await sync.pushAll(from: context)
+        // Um sync em andamento só marca outra rodada: espera ela terminar (até 15 s).
+        var waits = 0
+        while sync.isSyncing, waits < 60 {
+            try? await Task.sleep(for: .milliseconds(250))
+            waits += 1
+        }
+        guard PhotoReference.isRemote(log.challengePhotoURL) else { return .pending(path: path) }
+        await refresh()
+        return .sent(path: path)
     }
 
     // MARK: Criar, entrar, sair
@@ -304,6 +372,24 @@ final class ChallengeService {
     /// os testes decodificam as respostas capturadas do servidor com ele.
     static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         try PostgrestClient.Configuration.jsonDecoder.decode(type, from: data)
+    }
+}
+
+/// Resultado de pôr/trocar a foto do desafio num abastecimento salvo.
+enum ChallengePhotoSaveResult: Equatable {
+    /// Subiu: a turma já vê.
+    case sent(path: String)
+    /// Ficou no iPhone (sem rede); sobe no próximo sync.
+    case pending(path: String)
+    /// O registro não está neste iPhone, ou a foto não gravou.
+    case unavailable
+
+    /// Onde a foto fica no bucket (a mesma em qualquer iPhone da turma).
+    var path: String? {
+        switch self {
+        case .sent(let path), .pending(let path): path
+        case .unavailable: nil
+        }
     }
 }
 

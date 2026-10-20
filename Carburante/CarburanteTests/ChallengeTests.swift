@@ -295,6 +295,19 @@ final class ChallengeTests: XCTestCase {
                        bike: ChallengeBike(make: "Honda", model: "CB 500X"), odometer: 1000, status: .start)
     }
 
+    /// Foto do desafio depois de salvar (D6): só no seu e até o desafio encerrar.
+    func testChangeChallengePhoto_onlyMineWhileOpen() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        let c = challenge([ana, me]) // 1–31 de out.
+        XCTAssertTrue(c.canChangeChallengePhoto(of: entry(of: me), now: date(2026, 10, 20)))
+        XCTAssertFalse(c.canChangeChallengePhoto(of: entry(of: ana), now: date(2026, 10, 20)), "nunca no do outro")
+        XCTAssertTrue(c.canChangeChallengePhoto(of: entry(of: me), now: date(2026, 11, 2)), "reta de fechamento ainda dá")
+        XCTAssertFalse(c.canChangeChallengePhoto(of: entry(of: me), now: date(2026, 11, 10)), "encerrado não muda")
+        let outside = challenge([ana])
+        XCTAssertFalse(outside.canChangeChallengePhoto(of: entry(of: ana), now: date(2026, 10, 20)), "fora do desafio")
+    }
+
     func testReact_putSwapAndRemove() {
         let me = standing(2, "Wagner Rosa", km: 0, me: true)
         let ana = standing(1, "Ana Paula", km: 0)
