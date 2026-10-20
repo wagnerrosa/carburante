@@ -237,6 +237,109 @@ enum Analytics {
         capture("expense_deleted", ["category": category.rawValue])
     }
 
+    // MARK: - Desafios (PLAN/desafios.md D9)
+    //
+    // Nunca nome, código, texto, id ou km: só tipo, fase e faixas.
+
+    /// Em quantos desafios não encerrados a pessoa está. Super property: separa
+    /// o abastecimento de quem está em desafio do de quem não está (o desafio
+    /// faz registrar mais?).
+    static func registerChallengeCount(_ count: Int) {
+        PostHogSDK.shared.register(["open_challenge_count": count, "in_challenge": count > 0])
+    }
+
+    /// `duration`: `week`, `month` ou `until` (`ChallengeDuration.analyticsKey`).
+    static func challengeCreated(duration: String, days: Int, hasCover: Bool) {
+        capture("challenge_created", [
+            "duration": duration,
+            "days_band": challengeDaysBand(days),
+            "has_cover": hasCover,
+        ])
+    }
+
+    /// `via`: `link` (Universal Link) ou `code` (digitado). `signedIn`: entrou
+    /// com a Apple no meio do convite (era anônimo ao abrir a prévia).
+    static func challengeJoined(via: String, memberCount: Int, signedIn: Bool) {
+        capture("challenge_joined", [
+            "via": via,
+            "member_count_band": memberCountBand(memberCount),
+            "signed_in_to_join": signedIn,
+        ])
+    }
+
+    static func challengeViewed(phase: String, memberCount: Int, isCreator: Bool) {
+        capture("challenge_viewed", [
+            "phase": phase,
+            "member_count_band": memberCountBand(memberCount),
+            "is_creator": isCreator,
+        ])
+    }
+
+    static func challengeMemberViewed(isMe: Bool) {
+        capture("challenge_member_viewed", ["is_me": isMe])
+    }
+
+    static func challengeLeft(phase: String) {
+        capture("challenge_left", ["phase": phase])
+    }
+
+    /// Comentou — nunca o texto.
+    static func challengeCommentPosted(onOwnEntry: Bool) {
+        capture("challenge_comment_posted", ["on_own_entry": onOwnEntry])
+    }
+
+    /// `action`: `add`, `change` ou `remove`. `quick`: emoji dos atalhos (não do teclado).
+    static func challengeReacted(action: String, quick: Bool) {
+        capture("challenge_reacted", ["action": action, "quick": quick])
+    }
+
+    /// `vote`: `ok`, `suspect` ou `removed`.
+    static func challengePhotoVoted(vote: String) {
+        capture("challenge_photo_voted", ["vote": vote])
+    }
+
+    /// Foto do desafio posta (ou trocada) depois de salvar o abastecimento.
+    static func challengePhotoAdded(replaced: Bool, uploaded: Bool) {
+        capture("challenge_photo_added", ["replaced": replaced, "uploaded": uploaded])
+    }
+
+    static func challengeReported(kind: ChallengeReportKind) {
+        capture("challenge_reported", ["kind": kind.rawValue])
+    }
+
+    static func challengeMemberBlocked(_ blocked: Bool) {
+        capture(blocked ? "challenge_member_blocked" : "challenge_member_unblocked")
+    }
+
+    static func challengePhotoHidden(_ hidden: Bool) {
+        capture("challenge_photo_hidden", ["hidden": hidden])
+    }
+
+    static func challengeCodeRotated() {
+        capture("challenge_code_rotated")
+    }
+
+    /// Tamanho da turma em faixa (teto técnico de 50).
+    static func memberCountBand(_ count: Int) -> String {
+        switch count {
+        case ...1: "1"
+        case 2...5: "2-5"
+        case 6...10: "6-10"
+        case 11...25: "11-25"
+        default: "26+"
+        }
+    }
+
+    /// Duração do desafio em faixa de dias.
+    static func challengeDaysBand(_ days: Int) -> String {
+        switch days {
+        case ...7: "1-7"
+        case 8...31: "8-31"
+        case 32...90: "32-90"
+        default: "91+"
+        }
+    }
+
     // MARK: - Dados
 
     /// Exportou os próprios dados (Ajustes → "Exportar meus dados"). Mede a
@@ -382,7 +485,8 @@ enum Analytics {
                             hasLocation: Bool, logNumber: Int, liters: Double, cost: Double,
                             unlocksConsumption: Bool, currency: String, isHistorical: Bool,
                             missedPrevious: Bool = false, gapWarning: String = "none",
-                            priceWarning: Bool = false) {
+                            priceWarning: Bool = false, openChallenges: Int = 0,
+                            countsInChallenge: Bool = false, hasChallengePhoto: Bool = false) {
         capture("fuel_created", [
             "fuel_type": fuelType.rawValue,
             "is_full_tank": isFullTank,
@@ -397,6 +501,11 @@ enum Analytics {
             "missed_previous": missedPrevious,
             "gap_warning": gapWarning,
             "price_warning": priceWarning,
+            // Desafios (D9): em quantos podia contar, se contou (foto do
+            // hodômetro) e se levou a foto do desafio.
+            "open_challenges": openChallenges,
+            "counts_in_challenge": countsInChallenge,
+            "has_challenge_photo": hasChallengePhoto,
         ])
     }
 

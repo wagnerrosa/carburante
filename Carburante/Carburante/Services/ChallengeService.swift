@@ -118,6 +118,7 @@ final class ChallengeService {
     private func load() async {
         // Sessão anônima não tem desafio (o servidor recusaria).
         guard let userID = await sync.ensureSession(), !sync.isAnonymous else {
+            Analytics.registerChallengeCount(0)
             clearLocal()
             loadedUserID = sync.userID
             updatedAt = Date()
@@ -145,6 +146,7 @@ final class ChallengeService {
             updatedAt = snapshot.savedAt
             state = .loaded
             apply(snapshot)
+            Analytics.registerChallengeCount(challenges.count(where: { !$0.isFinished() }))
         } catch {
             state = .failed(Self.challengeError(error))
         }

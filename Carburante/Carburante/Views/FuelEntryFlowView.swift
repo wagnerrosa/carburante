@@ -1235,7 +1235,10 @@ struct FuelEntryFlowView: View {
             isHistorical: log.isHistorical,
             missedPrevious: missedPrevious,
             gapWarning: gapWarning?.rawValue ?? "none",
-            priceWarning: isImplausiblePrice
+            priceWarning: isImplausiblePrice,
+            openChallenges: openChallenges.count,
+            countsInChallenge: !openChallenges.isEmpty && log.odometerPhotoURL != nil,
+            hasChallengePhoto: log.challengePhotoURL != nil
         )
         // 1º OCR aceito = adoção da feature OCR (1 vez por usuário).
         if ocrProcessed, ocrOutcome != .notUsed, AdoptionTracker.markAndCheck(.ocr) {
