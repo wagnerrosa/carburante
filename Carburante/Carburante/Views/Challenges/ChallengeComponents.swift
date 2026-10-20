@@ -325,11 +325,11 @@ struct ChallengeStandingsTable: View {
     }
 }
 
-extension EnvironmentValues {
-    /// Aba com dados do servidor: esconde o que ele ainda não guarda —
-    /// denunciar e bloquear (D8). Sem isso, a turma mexeria em botões que não
-    /// fazem nada. O protótipo D0 mostra tudo.
-    @Entry var challengeServerOnly = false
+/// Textos da moderação (D8), iguais em toda denúncia.
+enum ChallengeModeration {
+    static let reportMessage = "A equipe do Carburante analisa em até 24 horas e remove o que desrespeitar as regras. Quem foi denunciado não fica sabendo quem denunciou."
+    static let reportSentTitle = "Denúncia enviada"
+    static let reportSentMessage = "Obrigado por avisar. A equipe do Carburante analisa em até 24 horas."
 }
 
 /// Destinos dentro da aba Desafios.

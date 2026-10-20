@@ -111,6 +111,9 @@ struct ChallengeSocialDTO: Codable, Equatable {
     var comments: [Comment]
     var reactions: [Reaction]
     var votes: [Vote]
+    /// D8 — opcionais: placar guardado de antes não tem.
+    var hidden_photos: [UUID]? = nil
+    var blocked_members: [UUID]? = nil
 
     struct Comment: Codable, Equatable {
         let id: UUID
@@ -147,6 +150,8 @@ struct ChallengeSocialDTO: Codable, Equatable {
         challenge.photoVotes = votes.map {
             ChallengePhotoVoteMark(entryID: $0.fuel_log_id, memberID: $0.member_id, key: $0.vote)
         }
+        challenge.hiddenPhotoEntryIDs = Set(hidden_photos ?? [])
+        challenge.blockedMemberIDs = Set(blocked_members ?? [])
     }
 }
 

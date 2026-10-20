@@ -268,6 +268,49 @@ final class ChallengeService {
         await refreshSocial(for: challengeID)
     }
 
+    // MARK: Moderação (D8)
+
+    /// Quem criou troca o código: o link e o código antigos param de valer.
+    func rotateCode(_ challengeID: UUID) async throws(ChallengeError) {
+        let _: String = try await call { [client] in
+            try await client.rpc("rotate_invite_code", params: ["p_challenge_id": challengeID]).execute().value
+        }
+        await refresh()
+    }
+
+    /// Quem criou tira (ou devolve) a foto do desafio de alguém do mural.
+    func setPhotoHidden(_ hidden: Bool, on entryID: UUID, in challengeID: UUID) async throws(ChallengeError) {
+        try await call { [client] in
+            try await client.rpc("set_challenge_photo_hidden",
+                                 params: HiddenParams(p_challenge_id: challengeID, p_fuel_log_id: entryID,
+                                                      p_hidden: hidden))
+                .execute()
+        }
+        await refresh()
+    }
+
+    /// Bloqueia (ou desbloqueia) um piloto — vale em todos os desafios, por
+    /// isso recarrega tudo.
+    func setBlocked(_ blocked: Bool, member memberID: UUID, in challengeID: UUID) async throws(ChallengeError) {
+        try await call { [client] in
+            try await client.rpc("set_member_blocked",
+                                 params: BlockParams(p_challenge_id: challengeID, p_member_id: memberID,
+                                                     p_blocked: blocked))
+                .execute()
+        }
+        await refresh()
+    }
+
+    /// Denuncia: o servidor guarda o conteúdo como está e avisa a equipe por e-mail.
+    func report(_ kind: ChallengeReportKind, target: UUID?, in challengeID: UUID) async throws(ChallengeError) {
+        try await call { [client] in
+            try await client.rpc("report_challenge_content",
+                                 params: ReportParams(p_challenge_id: challengeID, p_kind: kind.rawValue,
+                                                      p_target: target))
+                .execute()
+        }
+    }
+
     // MARK: Foto do desafio
 
     /// Foto do desafio posta ou trocada depois de salvar o abastecimento (D6).
@@ -482,6 +525,34 @@ private struct CoverParams: Encodable {
     }
 
     private enum CodingKeys: String, CodingKey { case p_challenge_id, p_cover_path }
+}
+
+private struct HiddenParams: Encodable {
+    let p_challenge_id: UUID
+    let p_fuel_log_id: UUID
+    let p_hidden: Bool
+}
+
+private struct BlockParams: Encodable {
+    let p_challenge_id: UUID
+    let p_member_id: UUID
+    let p_blocked: Bool
+}
+
+/// `p_target` nil (capa) vai como `null`.
+private struct ReportParams: Encodable {
+    let p_challenge_id: UUID
+    let p_kind: String
+    let p_target: UUID?
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(p_challenge_id, forKey: .p_challenge_id)
+        try container.encode(p_kind, forKey: .p_kind)
+        try container.encode(p_target, forKey: .p_target)
+    }
+
+    private enum CodingKeys: String, CodingKey { case p_challenge_id, p_kind, p_target }
 }
 
 private struct CommentParams: Encodable {

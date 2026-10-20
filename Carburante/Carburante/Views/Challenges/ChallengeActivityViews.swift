@@ -511,9 +511,16 @@ struct ChallengeParticipantView: View {
     let standing: ChallengeStanding
     /// Quem criou tira o piloto do desafio. nil = sem a opção.
     var onRemove: (() -> Void)? = nil
+    /// Denunciar o nome do piloto (D8).
+    var onReport: () -> Void = {}
+    /// Bloquear (true) ou desbloquear (false) o piloto (D8).
+    var onBlock: (Bool) -> Void = { _ in }
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.challengeServerOnly) private var serverOnly
     @State private var confirmingRemove = false
+    @State private var confirmingReport = false
+    @State private var confirmingBlock = false
+
+    private var isBlocked: Bool { challenge.isBlocked(standing.id) }
 
     private var entries: [ChallengeEntry] {
         challenge.entries(of: standing.id).sorted { $0.date > $1.date }
@@ -531,6 +538,17 @@ struct ChallengeParticipantView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                    if isBlocked {
+                        // HStack, não Label: centralizado, o Label afasta o ícone do texto.
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Image(systemName: "hand.raised.fill")
+                            Text("Bloqueado: você não vê as fotos nem a conversa")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 2)
+                    }
                     let suspects = challenge.suspectCount(of: standing.id)
                     if suspects > 0 {
                         // HStack, não Label: centralizado, o Label afastava o ícone do texto.
@@ -589,13 +607,14 @@ struct ChallengeParticipantView: View {
         .navigationTitle(standing.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // Denunciar e bloquear chegam com a D8 (só o protótipo mostra).
-            if !standing.isMe, onRemove != nil || !serverOnly {
+            if !standing.isMe {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        if !serverOnly {
-                            Button("Denunciar nome", systemImage: "exclamationmark.bubble") {}
-                            Button("Bloquear", systemImage: "hand.raised") {}
+                        Button("Denunciar o nome", systemImage: "exclamationmark.bubble") { confirmingReport = true }
+                        if isBlocked {
+                            Button("Desbloquear", systemImage: "hand.raised.slash") { onBlock(false) }
+                        } else {
+                            Button("Bloquear", systemImage: "hand.raised") { confirmingBlock = true }
                         }
                         if onRemove != nil {
                             Button("Remover do desafio", systemImage: "person.badge.minus", role: .destructive) {
@@ -614,6 +633,18 @@ struct ChallengeParticipantView: View {
             Button("Remover do desafio", role: .destructive) { onRemove?() }
         } message: {
             Text("Sai da classificação e não entra de novo pelo código.")
+        }
+        .confirmationDialog("Denunciar o nome “\(standing.displayName)”?", isPresented: $confirmingReport,
+                            titleVisibility: .visible) {
+            Button("Denunciar", role: .destructive, action: onReport)
+        } message: {
+            Text(ChallengeModeration.reportMessage)
+        }
+        .confirmationDialog("Bloquear \(standing.displayName)?", isPresented: $confirmingBlock,
+                            titleVisibility: .visible) {
+            Button("Bloquear", role: .destructive) { onBlock(true) }
+        } message: {
+            Text("Você deixa de ver as fotos, os comentários e as reações de \(standing.firstName) em todos os desafios. A classificação não muda e \(standing.firstName) não fica sabendo.")
         }
     }
 
@@ -736,13 +767,17 @@ struct ChallengeEntryView: View {
     /// Seu abastecimento, desafio aberto: põe ou troca a foto do desafio.
     /// nil = sem a opção (`Challenge.canChangeChallengePhoto`).
     var onSetChallengePhoto: ((UIImage) async -> ChallengePhotoSaveResult)? = nil
+    /// Denunciar a foto do desafio ou um comentário (D8).
+    var onReport: (ChallengeReportKind, UUID) -> Void = { _, _ in }
+    /// Quem criou esconde (true) ou mostra (false) a foto do desafio (D8).
+    var onSetPhotoHidden: (Bool) -> Void = { _ in }
     var onPost: (String) -> Void = { _ in }
     var onDelete: (ChallengeComment) -> Void = { _ in }
     var onReact: (String) -> Void = { _ in }
     var onVote: (PhotoVote) -> Void = { _ in }
 
-    @Environment(\.challengeServerOnly) private var serverOnly
     @State private var draft = ""
+    @State private var confirmingPhotoReport = false
     @State private var pickingEmoji = false
     @State private var viewing: ViewedPhoto?
     @State private var reporting: ChallengeComment?
@@ -754,6 +789,7 @@ struct ChallengeEntryView: View {
     @State private var photoNote: String?
 
     private var comments: [ChallengeComment] { challenge.comments(on: entry.id) }
+    private var isMine: Bool { entry.memberID == challenge.me?.id }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -762,6 +798,14 @@ struct ChallengeEntryView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         ChallengeActivityRow(entry: entry, standing: standing, showsOdometer: true,
                                              verdict: challenge.photoVerdict(on: entry.id)) { viewing = $0 }
+                        // Só o dono da foto e quem criou sabem que ela saiu do mural.
+                        if challenge.isPhotoHidden(entry.id), isMine || challenge.createdByMe {
+                            Label(isMine ? "Quem criou o desafio tirou esta foto do mural."
+                                         : "Você tirou esta foto do mural.",
+                                  systemImage: "eye.slash")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                         if onSetChallengePhoto != nil {
                             challengePhotoControl
                         }
@@ -800,14 +844,45 @@ struct ChallengeEntryView: View {
         .navigationTitle(AppFormat.relativeDay(entry.date))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            if !isMine, entry.challengePhotoRef != nil || challenge.canHidePhoto(of: entry) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if entry.challengePhotoRef != nil {
+                            Button("Denunciar a foto", systemImage: "exclamationmark.bubble") {
+                                confirmingPhotoReport = true
+                            }
+                        }
+                        if challenge.canHidePhoto(of: entry) {
+                            if challenge.isPhotoHidden(entry.id) {
+                                Button("Mostrar a foto no mural", systemImage: "eye") { onSetPhotoHidden(false) }
+                            } else {
+                                Button("Tirar a foto do mural", systemImage: "eye.slash") { onSetPhotoHidden(true) }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
+                    .accessibilityLabel("Mais")
+                }
+            }
+        }
+        .confirmationDialog("Denunciar a foto?", isPresented: $confirmingPhotoReport, titleVisibility: .visible) {
+            Button("Denunciar", role: .destructive) { onReport(.photo, entry.id) }
+        } message: {
+            Text(ChallengeModeration.reportMessage)
+        }
         .sheet(item: $viewing) { PhotoViewerSheet(image: $0.image, title: $0.title) }
         .confirmationDialog("Denunciar comentário?", isPresented: Binding(
             get: { reporting != nil },
             set: { if !$0 { reporting = nil } }
         ), titleVisibility: .visible) {
-            Button("Denunciar", role: .destructive) { reporting = nil }
+            Button("Denunciar", role: .destructive) {
+                if let reporting { onReport(.comment, reporting.id) }
+                reporting = nil
+            }
         } message: {
-            Text("A equipe do Carburante analisa e pode remover o comentário.")
+            Text(ChallengeModeration.reportMessage)
         }
         .fullScreenCover(isPresented: $showingCamera) {
             CameraPicker { image in saveChallengePhoto(image) }
@@ -930,8 +1005,7 @@ struct ChallengeEntryView: View {
             Button("Copiar", systemImage: "doc.on.doc") {
                 UIPasteboard.general.string = comment.text
             }
-            // Denunciar chega com a D8 (só o protótipo mostra).
-            if !serverOnly, comment.memberID != challenge.me?.id {
+            if comment.memberID != challenge.me?.id {
                 Button("Denunciar", systemImage: "exclamationmark.bubble") { reporting = comment }
             }
             if challenge.canDelete(comment) {

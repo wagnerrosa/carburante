@@ -295,6 +295,26 @@ final class ChallengeTests: XCTestCase {
                        bike: ChallengeBike(make: "Honda", model: "CB 500X"), odometer: 1000, status: .start)
     }
 
+    /// Esconder foto do mural (D8): só quem criou, na foto de outro piloto.
+    func testHidePhoto_onlyCreatorOnOthers() {
+        let me = standing(2, "Wagner Rosa", km: 0, me: true)
+        let ana = standing(1, "Ana Paula", km: 0)
+        var hers = entry(of: ana)
+        hers.challengePhotoRef = "moto/LOG-challenge.jpg"
+        var c = challenge([ana, me])
+        XCTAssertFalse(c.canHidePhoto(of: hers), "quem não criou não esconde")
+        c.createdByMe = true
+        XCTAssertTrue(c.canHidePhoto(of: hers))
+        var mine = entry(of: me)
+        mine.challengePhotoRef = "moto/MINE-challenge.jpg"
+        XCTAssertFalse(c.canHidePhoto(of: mine), "a própria ele troca no registro")
+        // Já escondida: a foto não vem mais, mas dá para mostrar de novo.
+        hers.challengePhotoRef = nil
+        XCTAssertFalse(c.canHidePhoto(of: hers))
+        c.hiddenPhotoEntryIDs = [hers.id]
+        XCTAssertTrue(c.canHidePhoto(of: hers))
+    }
+
     /// Foto do desafio depois de salvar (D6): só no seu e até o desafio encerrar.
     func testChangeChallengePhoto_onlyMineWhileOpen() {
         let me = standing(2, "Wagner Rosa", km: 0, me: true)

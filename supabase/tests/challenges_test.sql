@@ -1,5 +1,5 @@
--- Testes dos desafios (D1, D7): regra do km, funções do app, policies das fotos,
--- comentários, reações e votos.
+-- Testes dos desafios (D1, D7, D8): regra do km, funções do app, policies das
+-- fotos, comentários, reações, votos e moderação.
 -- Roda numa transação que termina em ROLLBACK — nada fica no banco. Use
 -- supabase/tests/run.sh (com --migrate testa a migração antes de aplicar).
 -- Falhou = exceção com o caso que quebrou. Passou = última linha "ok".
@@ -356,6 +356,130 @@ begin
     assert (select created_by_name from public.my_challenges()
              where id = '11111111-1111-4111-8111-111111111111') = 'Ana Souza', 'Criado por: Ana Souza';
     perform public.zz_admin();
+end $$;
+
+-- ---------- D8: palavrão, bloquear, esconder foto, trocar código, denunciar ----------
+do $$
+declare
+    r record;
+    v_social jsonb;
+    v_post jsonb;
+    v_a_member uuid;
+    v_d_member uuid;
+    v_b_member uuid;
+    v_code text;
+    v_rows integer;
+begin
+    -- Filtro: pega palavrão disfarçado, deixa palavra comum passar.
+    assert public.challenge_is_offensive('P0rr4 véi'), 'p0rr4';
+    assert public.challenge_is_offensive('CARALHOOO'), 'caralhooo';
+    assert public.challenge_is_offensive('seu arrombado'), 'arrombado';
+    assert public.challenge_is_offensive('Fodase'), 'fodase';
+    assert public.challenge_is_offensive('what the fuck'), 'fuck';
+    assert not public.challenge_is_offensive('Turma da serra'), 'turma da serra';
+    assert not public.challenge_is_offensive('Cuidado com o carro, computador e macaco hidráulico'), 'palavras comuns';
+    assert not public.challenge_is_offensive('Ana Paula'), 'nome';
+
+    select id into v_a_member from public.challenge_members
+     where challenge_id = '11111111-1111-4111-8111-111111111111' and user_id = 'a0000000-0000-4000-8000-000000000001';
+    select id into v_d_member from public.challenge_members
+     where challenge_id = '11111111-1111-4111-8111-111111111111' and user_id = 'd0000000-0000-4000-8000-000000000001';
+    select id into v_b_member from public.challenge_members
+     where challenge_id = '11111111-1111-4111-8111-111111111111' and user_id = 'b0000000-0000-4000-8000-000000000001';
+
+    perform public.zz_login('e0000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error($q$select public.create_challenge('Turma do caralho', now(), now() + interval '7 days', 'Edu', 'America/Sao_Paulo')$q$, 'inappropriate_text');
+    perform public.zz_expect_error($q$select public.create_challenge('Turma da serra', now(), now() + interval '7 days', 'Fdp', 'America/Sao_Paulo')$q$, 'inappropriate_text');
+    perform public.zz_login('d0000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'que merda')$q$, 'inappropriate_text');
+    v_post := public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'Foto linda');
+
+    -- Bloqueio: o Bruno bloqueia a Ana → fotos e comentários dela somem para ele.
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    perform public.set_challenge_reaction('11111111-1111-4111-8111-111111111111', 'b3000000-0000-4000-8000-000000000001', '🔥');
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.set_member_blocked('11111111-1111-4111-8111-111111111111', v_a_member, true);
+    select * into r from public.challenge_entries('11111111-1111-4111-8111-111111111111')
+     where fuel_log_id = 'a3000000-0000-4000-8000-000000000002';
+    assert r.odometer_photo_path is null and r.km is not null, format('bloqueado: sem foto, km fica: %s', row_to_json(r));
+    assert not public.can_view_challenge_photo('a1000000-0000-4000-8000-000000000001/A3000000-0000-4000-8000-000000000002.jpg'),
+        'bloqueou = não baixa a foto';
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert v_social->'blocked_members' = jsonb_build_array(v_a_member), format('bloqueados: %s', v_social->'blocked_members');
+    assert jsonb_array_length(v_social->'reactions') = 0, 'reação de quem bloqueou some';
+    assert (select count(*) from public.challenge_leaderboard('11111111-1111-4111-8111-111111111111')) = 3,
+        'classificação não muda';
+    perform public.zz_expect_error(format($q$select public.set_member_blocked('11111111-1111-4111-8111-111111111111', %L, true)$q$,
+        v_b_member), 'cannot_block_self');
+    perform public.zz_expect_error($q$select public.set_member_blocked('11111111-1111-4111-8111-111111111111', gen_random_uuid(), true)$q$, 'member_not_found');
+    -- A Ana (bloqueada) segue vendo tudo do Bruno.
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    assert public.can_view_challenge_photo('b1000000-0000-4000-8000-000000000001/B3000000-0000-4000-8000-000000000001-challenge.jpg'),
+        'bloqueio é de mão única';
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.set_member_blocked('11111111-1111-4111-8111-111111111111', v_a_member, false);
+    assert public.can_view_challenge_photo('a1000000-0000-4000-8000-000000000001/A3000000-0000-4000-8000-000000000002.jpg'),
+        'desbloqueou = vê de novo';
+
+    -- Esconder foto: só quem criou (Ana); some para a turma, o dono vê a dele.
+    perform public.zz_expect_error($q$select public.set_challenge_photo_hidden('11111111-1111-4111-8111-111111111111', 'b3000000-0000-4000-8000-000000000001', true)$q$, 'not_the_creator');
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    perform public.set_challenge_photo_hidden('11111111-1111-4111-8111-111111111111', 'b3000000-0000-4000-8000-000000000001', true);
+    perform public.zz_login('d0000000-0000-4000-8000-000000000001');
+    select * into r from public.challenge_entries('11111111-1111-4111-8111-111111111111')
+     where fuel_log_id = 'b3000000-0000-4000-8000-000000000001';
+    assert r.challenge_photo_path is null and r.odometer_photo_path is not null, format('escondida: %s', row_to_json(r));
+    assert not public.can_view_challenge_photo('b1000000-0000-4000-8000-000000000001/B3000000-0000-4000-8000-000000000001-challenge.jpg'),
+        'escondida = não baixa';
+    assert public.can_view_challenge_photo('b1000000-0000-4000-8000-000000000001/B3000000-0000-4000-8000-000000000001.jpg'),
+        'o hodômetro continua';
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert v_social->'hidden_photos' = '["b3000000-0000-4000-8000-000000000001"]'::jsonb, format('escondidas: %s', v_social->'hidden_photos');
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    select * into r from public.challenge_entries('11111111-1111-4111-8111-111111111111')
+     where fuel_log_id = 'b3000000-0000-4000-8000-000000000001';
+    assert r.challenge_photo_path is not null, 'o dono segue vendo a foto dele';
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    perform public.set_challenge_photo_hidden('11111111-1111-4111-8111-111111111111', 'b3000000-0000-4000-8000-000000000001', false);
+
+    -- Trocar código: só quem criou; o antigo para de valer.
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error($q$select public.rotate_invite_code('11111111-1111-4111-8111-111111111111')$q$, 'not_the_creator');
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    v_code := public.rotate_invite_code('11111111-1111-4111-8111-111111111111');
+    assert v_code <> 'K7QM4XPR' and v_code ~ '^[BCDFGHJKMNPQRSTVWXYZ2-9]{8}$', format('código novo: %s', v_code);
+    assert public.challenge_preview('K7QM4XPR') is null, 'código antigo não acha mais';
+    assert (public.challenge_preview(v_code))->>'name' = 'Turma da serra', 'código novo acha';
+
+    -- Denunciar: nome, foto, comentário; nunca o próprio; sem capa = inválido.
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'name', v_d_member);
+    perform public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'comment', (v_post->>'id')::uuid);
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    perform public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'photo', 'b3000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error(format($q$select public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'name', %L)$q$, v_a_member), 'invalid_report');
+    perform public.zz_expect_error($q$select public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'cover', null)$q$, 'invalid_report');
+    perform public.zz_expect_error($q$select public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'spam', null)$q$, 'invalid_report');
+    perform public.zz_admin();
+    select count(*) into v_rows from public.challenge_reports where challenge_id = '11111111-1111-4111-8111-111111111111';
+    assert v_rows = 3, format('3 denúncias, veio %s', v_rows);
+    assert (select snapshot from public.challenge_reports where kind = 'comment') = 'Foto linda', 'guarda o texto denunciado';
+    assert (select snapshot from public.challenge_reports where kind = 'name') = 'Diego', 'guarda o nome denunciado';
+    -- Limite: 20 por hora.
+    insert into public.challenge_reports (challenge_id, reporter_id, kind, snapshot)
+    select '11111111-1111-4111-8111-111111111111', 'b0000000-0000-4000-8000-000000000001', 'cover', 'x'
+      from generate_series(1, 18);
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error(format($q$select public.report_challenge_content('11111111-1111-4111-8111-111111111111', 'name', %L)$q$, v_d_member), 'too_many_reports');
+
+    -- Tabelas fechadas.
+    select count(*) into v_rows from public.challenge_reports;
+    assert v_rows = 0, 'leitura direta de challenge_reports tinha que vir vazia';
+    select count(*) into v_rows from public.challenge_blocks;
+    assert v_rows = 0, 'leitura direta de challenge_blocks tinha que vir vazia';
+    -- Os testes seguintes usam o código original.
+    perform public.zz_admin();
+    update public.challenges set invite_code = 'K7QM4XPR' where id = '11111111-1111-4111-8111-111111111111';
 end $$;
 
 -- ---------- criar, prévia, entrar, sair, remover, capa ----------
