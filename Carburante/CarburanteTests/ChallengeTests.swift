@@ -152,6 +152,20 @@ final class ChallengeTests: XCTestCase {
         XCTAssertNil(challenge([standing(1, "Ana Paula", km: 500)]).gapSentence)
     }
 
+    func testGap_tiesAsTheServerRanksThem() {
+        // `rank()` no servidor: mesmos km = mesma posição, e a seguinte pula.
+        // Visto ao vivo: os dois em 0 km apareciam como "Você lidera."
+        let start = challenge([standing(1, "Wagner Rosa", km: 0, fuelUps: 1, me: true),
+                               standing(1, "Bruno", km: 0, fuelUps: 0)])
+        XCTAssertEqual(start.gapSentence, "Empatado com Bruno.")
+        let tieAbove = challenge([standing(1, "Ana Paula", km: 900), standing(1, "Bruno", km: 900),
+                                  standing(3, "Wagner Rosa", km: 700, me: true)])
+        XCTAssertEqual(tieAbove.gapSentence, "Ana está 200 km à frente.")
+        let tieBelow = challenge([standing(1, "Wagner Rosa", km: 900, me: true), standing(2, "Ana Paula", km: 500),
+                                  standing(2, "Bruno", km: 500)])
+        XCTAssertEqual(tieBelow.gapSentence, "Você lidera por 400 km.")
+    }
+
     // MARK: Piloto
 
     func testInitials_firstAndLastName() {

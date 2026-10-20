@@ -180,12 +180,18 @@ struct Challenge: Identifiable, Hashable {
         if me.fuelUps == 0 {
             return "Seus km começam a contar no próximo abastecimento com foto."
         }
-        if me.rank == 1 {
-            guard let second = standings.first(where: { $0.rank == 2 }) else { return "Você lidera." }
-            let lead = me.km - second.km
-            return lead > 0 ? "Você lidera por \(AppFormat.km(lead))." : "Empatado com \(second.firstName)."
+        let others = standings.filter { !$0.isMe }
+        // Empate: o servidor (`rank()`) dá a mesma posição a quem tem os
+        // mesmos km — e pula a seguinte (1, 1, 3).
+        if let tied = others.first(where: { $0.rank == me.rank }) {
+            return "Empatado com \(tied.firstName)."
         }
-        guard let ahead = standings.first(where: { $0.rank == me.rank - 1 }) else { return nil }
+        if me.rank == 1 {
+            guard let next = others.min(by: { $0.rank < $1.rank }) else { return "Você lidera." }
+            let lead = me.km - next.km
+            return lead > 0 ? "Você lidera por \(AppFormat.km(lead))." : "Empatado com \(next.firstName)."
+        }
+        guard let ahead = others.filter({ $0.rank < me.rank }).max(by: { $0.rank < $1.rank }) else { return nil }
         let gap = ahead.km - me.km
         return gap > 0 ? "\(ahead.firstName) está \(AppFormat.km(gap)) à frente." : "Empatado com \(ahead.firstName)."
     }
