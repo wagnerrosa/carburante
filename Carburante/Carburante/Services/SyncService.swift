@@ -299,6 +299,7 @@ final class SyncService {
             try eraseLocalData(in: context)
             PhotoStorage.deleteAllLocal()
             ChallengeImageStore.shared.removeAll()
+            ChallengeService.shared.clearLocal()
         } catch {
             // Falha ao limpar o local não desfaz a exclusão no servidor; só loga.
             Analytics.syncFailed(stage: "delete_account_local", errorCode: SyncService.errorCode(error))

@@ -44,7 +44,7 @@ struct DashboardView: View {
     /// Fonte de acessibilidade: grade de métricas em 1 coluna (em 2, o valor
     /// quebrava no meio do número — "1.6 / 27, / 00").
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.openChallenges) private var openChallenges
+    @Environment(\.openChallenge) private var openChallenge
 
     private var sync: SyncService { .shared }
 
@@ -266,16 +266,13 @@ struct DashboardView: View {
                     consumptionCard(summary, segments: [], moto: moto)
                 }
 
-                #if DEBUG
-                // D0 dos Desafios: card do desafio ativo (dados fictícios). O
-                // card de verdade chega na D5.
-                if ChallengePreview.isEnabled, let challenge = ChallengePreview.summaryChallenge {
-                    Button { openChallenges() } label: {
-                        ChallengeSummaryCard(challenge: challenge)
+                // Desafio rolando: posição + quem está logo à frente (D5).
+                if let challenge = summaryChallenge {
+                    Button { openChallenge(challenge.id) } label: {
+                        ChallengeSummaryCard(challenge: challenge, gain: summaryGain(challenge))
                     }
                     .buttonStyle(.plain)
                 }
-                #endif
 
                 // Sem abastecimento a grade seria 4 tiles "—"/"R$ 0,00"/"0 km":
                 // ruído sem informação. O estado vazio já traz o CTA de registro.
@@ -833,4 +830,25 @@ struct DashboardView: View {
 
     return DashboardView()
         .modelContainer(container)
+}
+
+// MARK: - Desafio (card do Resumo)
+
+extension DashboardView {
+    /// O desafio do card (`Challenge.forSummary`); em DEBUG, o protótipo D0
+    /// com `-challengesPreview`.
+    fileprivate var summaryChallenge: Challenge? {
+        #if DEBUG
+        if ChallengePreview.isEnabled { return ChallengePreview.summaryChallenge }
+        #endif
+        guard ChallengeFeature.isEnabled else { return nil }
+        return ChallengeService.shared.summaryChallenge
+    }
+
+    fileprivate func summaryGain(_ challenge: Challenge) -> ChallengeGain? {
+        #if DEBUG
+        if ChallengePreview.isEnabled { return ChallengePreview.summaryGain }
+        #endif
+        return ChallengeService.shared.gain(for: challenge.id)
+    }
 }

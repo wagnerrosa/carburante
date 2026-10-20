@@ -5,13 +5,14 @@
 //  Respostas das funções dos desafios (`supabase/challenges.sql`), em
 //  snake_case como o servidor manda, e a conversão para os tipos de tela
 //  (`Challenge`, `ChallengeStanding`, `ChallengeEntry`, `ChallengeInvite`).
-//  Os testes decodificam JSON capturado do servidor de verdade.
+//  Os testes decodificam JSON capturado do servidor de verdade. As respostas
+//  da lista também vão para o disco como vieram (`ChallengeSnapshot`).
 //
 
 import Foundation
 
 /// Uma linha de `my_challenges()`.
-struct ChallengeRowDTO: Decodable {
+struct ChallengeRowDTO: Codable {
     let id: UUID
     let name: String
     let starts_at: Date
@@ -40,7 +41,7 @@ struct ChallengeRowDTO: Decodable {
 }
 
 /// Uma linha de `challenge_leaderboard(challenge)`.
-struct ChallengeStandingDTO: Decodable {
+struct ChallengeStandingDTO: Codable {
     let member_id: UUID
     let rank: Int
     let display_name: String
@@ -50,7 +51,7 @@ struct ChallengeStandingDTO: Decodable {
     let bikes: [Bike]
     let last_entry_at: Date?
 
-    struct Bike: Decodable {
+    struct Bike: Codable {
         let make: String
         let model: String
     }
@@ -63,7 +64,7 @@ struct ChallengeStandingDTO: Decodable {
 }
 
 /// Uma linha de `challenge_entries(challenge, member?)`.
-struct ChallengeEntryDTO: Decodable {
+struct ChallengeEntryDTO: Codable {
     let fuel_log_id: UUID
     let member_id: UUID
     let date: Date
@@ -143,5 +144,49 @@ enum ChallengeDTO {
     /// iOS); um nome desconhecido aqui cai no fuso do aparelho.
     static func timeZone(_ identifier: String) -> TimeZone {
         TimeZone(identifier: identifier) ?? .current
+    }
+}
+
+/// Último placar carregado, guardado como o servidor mandou: abre a aba e o
+/// card do Resumo na hora e sem rede ("atualizado há 2 horas"). Cache — o
+/// sistema pode apagar; some ao sair da conta.
+struct ChallengeSnapshot: Codable {
+    struct Item: Codable {
+        let row: ChallengeRowDTO
+        let standings: [ChallengeStandingDTO]
+        let entries: [ChallengeEntryDTO]
+
+        var challenge: Challenge {
+            row.challenge(standings: standings.map(\.standing), entries: entries.map(\.entry))
+        }
+    }
+
+    /// De quem é: outra conta no aparelho não vê.
+    let userID: UUID
+    let savedAt: Date
+    let items: [Item]
+
+    /// Mais recente primeiro: é o que a pílula mostra de cara.
+    var challenges: [Challenge] {
+        items.map(\.challenge).sorted { $0.startDate > $1.startDate }
+    }
+
+    private static let fileURL: URL = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return caches.appendingPathComponent("ChallengeSnapshot.json")
+    }()
+
+    static func load(from url: URL = fileURL) -> ChallengeSnapshot? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(ChallengeSnapshot.self, from: data)
+    }
+
+    func save(to url: URL = Self.fileURL) {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    static func remove(at url: URL = fileURL) {
+        try? FileManager.default.removeItem(at: url)
     }
 }

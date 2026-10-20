@@ -14,6 +14,9 @@ enum PhotoStorage {
     /// Supabase lotaria em poucas centenas de fotos); 2048 px mantém os dígitos
     /// do hodômetro legíveis — inclusive para uma checagem por IA no futuro.
     static let maxDimension: CGFloat = 2048
+    /// Foto do desafio: só para ver (mural, tela cheia), não para ler
+    /// dígitos — menor, para não dobrar o Storage por abastecimento.
+    static let challengeMaxDimension: CGFloat = 1600
     private static let jpegQuality: CGFloat = 0.7
 
     private static let folderURL: URL = {
@@ -35,11 +38,11 @@ enum PhotoStorage {
     /// o lugar onde foi tirada), que a turma vai ver.
     @discardableResult
     static func saveChallengePhoto(_ image: UIImage, for logID: UUID) -> String? {
-        save(image, fileName: PhotoReference.challengeFileName(logID: logID))
+        save(image, fileName: PhotoReference.challengeFileName(logID: logID), maxDimension: challengeMaxDimension)
     }
 
-    private static func save(_ image: UIImage, fileName: String) -> String? {
-        guard let data = jpeg(image) else { return nil }
+    private static func save(_ image: UIImage, fileName: String, maxDimension: CGFloat = maxDimension) -> String? {
+        guard let data = jpeg(image, maxDimension: maxDimension) else { return nil }
         do {
             try data.write(to: folderURL.appendingPathComponent(fileName), options: .atomic)
             return fileName
@@ -51,8 +54,8 @@ enum PhotoStorage {
     /// O JPEG que vai para o disco e para o Storage: reduzido e regravado a
     /// partir dos pixels, então sai sem os metadados da original (GPS, data,
     /// aparelho) — o seletor de fotos do iOS entrega a foto com o lugar.
-    static func jpeg(_ image: UIImage) -> Data? {
-        downscaled(image).jpegData(compressionQuality: jpegQuality)
+    static func jpeg(_ image: UIImage, maxDimension: CGFloat = maxDimension) -> Data? {
+        downscaled(image, to: maxDimension).jpegData(compressionQuality: jpegQuality)
     }
 
     /// Bytes da foto no disco (para o upload). Aceita referência local ou
@@ -81,7 +84,7 @@ enum PhotoStorage {
 
     /// Redesenha no tamanho alvo. O `draw` aplica a orientação da câmera, então
     /// o JPEG sai sempre "em pé".
-    private static func downscaled(_ image: UIImage) -> UIImage {
+    private static func downscaled(_ image: UIImage, to maxDimension: CGFloat) -> UIImage {
         let longest = max(image.size.width, image.size.height)
         guard longest > maxDimension else { return image }
         let factor = maxDimension / longest

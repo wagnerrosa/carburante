@@ -119,6 +119,43 @@ final class ChallengeServiceTests: XCTestCase {
         XCTAssertEqual(ChallengeEntryDTO.status("disputed", km: 0), .notCounted(.unknown))
     }
 
+    // MARK: Placar guardado (D5b)
+
+    func testSnapshot_roundTripsWhatTheServerSent() throws {
+        let rows = try decode([ChallengeRowDTO].self, myChallengesJSON)
+        let standings = try decode([ChallengeStandingDTO].self, """
+        [{"member_id": "022f02e9-1f8f-4757-8661-9c1a2303fac9", "rank": 1, "display_name": "Ana Souza",
+          "is_me": true, "km": 876.3, "fuel_ups": 2, "bikes": [{"make": "Yamaha", "model": "MT-07"}],
+          "last_entry_at": "2026-10-10T12:00:00.123456+00:00"}]
+        """)
+        let entries = try decode([ChallengeEntryDTO].self, """
+        [{"fuel_log_id": "a3000000-0000-4000-8000-000000000007", "member_id": "022f02e9-1f8f-4757-8661-9c1a2303fac9",
+          "date": "2026-10-13T12:00:00+00:00", "make": "Yamaha", "model": "MT-07", "odometer": 11300,
+          "status": "counted", "km": 393.8, "odometer_photo_path": null,
+          "odometer_photo_source": "camera", "challenge_photo_path": null}]
+        """)
+        let userID = UUID()
+        let snapshot = ChallengeSnapshot(userID: userID, savedAt: Date(),
+                                         items: [.init(row: rows[0], standings: standings, entries: entries)])
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("snapshot-\(UUID()).json")
+        defer { ChallengeSnapshot.remove(at: url) }
+        snapshot.save(to: url)
+
+        let restored = try XCTUnwrap(ChallengeSnapshot.load(from: url))
+        XCTAssertEqual(restored.userID, userID)
+        XCTAssertEqual(restored.challenges, snapshot.challenges)
+        XCTAssertEqual(restored.challenges.first?.me?.km, 876.3)
+        XCTAssertEqual(restored.challenges.first?.timeZone, brt)
+    }
+
+    func testSnapshot_missingOrBrokenFileIsNoSnapshot() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("snapshot-\(UUID()).json")
+        XCTAssertNil(ChallengeSnapshot.load(from: url))
+        try Data("{".utf8).write(to: url)
+        defer { ChallengeSnapshot.remove(at: url) }
+        XCTAssertNil(ChallengeSnapshot.load(from: url))
+    }
+
     // MARK: challenge_preview
 
     func testPreview_decodesInviteAndWrongCodeIsNil() throws {

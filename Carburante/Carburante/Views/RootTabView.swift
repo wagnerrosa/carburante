@@ -45,6 +45,8 @@ struct RootTabView: View {
     @State private var inviteCodeForChallenges: String?
     /// Build sem a aba Desafios recebeu um convite.
     @State private var showingChallengesUnavailable = false
+    /// Desafio a abrir na aba (card do Resumo). A aba seleciona e zera.
+    @State private var challengeToOpen: UUID?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -62,7 +64,10 @@ struct RootTabView: View {
                     .syncDegradedBanner()
             }
         }
-        .environment(\.openChallenges, { selectedTab = .challenges })
+        .environment(\.openChallenge, { id in
+            selectedTab = .challenges
+            challengeToOpen = id
+        })
         // Convite: Universal Link (`carburante.motorcycles/d/?c=`).
         .receivingInviteLinks(receiveInviteLink)
         .onChange(of: hasCompletedOnboarding) { _, _ in
@@ -144,6 +149,10 @@ struct RootTabView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Analytics.refreshSuperProperties(activeBikeCount: motorcycles.count)
+                // Placar de quem volta ao app: a turma pode ter abastecido.
+                if ChallengeFeature.isEnabled {
+                    Task { await ChallengeService.shared.refreshIfStale() }
+                }
             }
         }
         // Limite da garagem no plano grátis (GarageGate.swift). Por último na
@@ -158,13 +167,19 @@ struct RootTabView: View {
         #if DEBUG
         if ChallengePreview.isEnabled {
             ChallengesView(challenges: ChallengePreview.challenges, start: ChallengePreview.startScreen,
-                           incomingInviteCode: $inviteCodeForChallenges)
+                           incomingInviteCode: $inviteCodeForChallenges,
+                           incomingChallengeID: $challengeToOpen)
         } else {
-            ChallengesView(challenges: [], isLive: true, incomingInviteCode: $inviteCodeForChallenges)
+            liveChallenges
         }
         #else
-        ChallengesView(challenges: [], isLive: true, incomingInviteCode: $inviteCodeForChallenges)
+        liveChallenges
         #endif
+    }
+
+    private var liveChallenges: some View {
+        ChallengesView(challenges: [], isLive: true, incomingInviteCode: $inviteCodeForChallenges,
+                       incomingChallengeID: $challengeToOpen)
     }
 
     /// Link que abriu o app. Só convite de desafio interessa; o resto do site
@@ -273,8 +288,8 @@ private struct SyncDegradedBanner: ViewModifier {
 }
 
 extension EnvironmentValues {
-    /// Leva à aba Desafios (card do Resumo).
-    @Entry var openChallenges: () -> Void = {}
+    /// Leva à aba Desafios, no desafio pedido (card do Resumo).
+    @Entry var openChallenge: (UUID?) -> Void = { _ in }
 }
 
 extension View {

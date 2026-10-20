@@ -21,6 +21,8 @@ struct ChallengesView: View {
     /// Código de um link de convite que abriu o app (`RootTabView`). A aba
     /// abre a prévia e zera.
     var incomingInviteCode: Binding<String?> = .constant(nil)
+    /// Desafio pedido pelo card do Resumo. A aba mostra e zera.
+    var incomingChallengeID: Binding<UUID?> = .constant(nil)
 
     enum StartScreen: Equatable {
         case board, activity, details, participant(UUID), entry(UUID), invite(anonymous: Bool), form
@@ -75,6 +77,11 @@ struct ChallengesView: View {
                 incomingInviteCode.wrappedValue = nil
                 openInviteLink(code)
             }
+            .onChange(of: incomingChallengeID.wrappedValue, initial: true) { _, id in
+                guard let id else { return }
+                incomingChallengeID.wrappedValue = nil
+                show(id)
+            }
     }
 
     private var navigation: some View {
@@ -83,6 +90,7 @@ struct ChallengesView: View {
                 if let selected {
                     ChallengeBoard(challenge: selected,
                                    segment: start == .activity ? .activity : .standings,
+                                   savedCopyDate: savedCopyDate,
                                    onReact: { react($0, on: $1, in: selected.id) })
                         .id(selected.id)
                 } else if isLive && challenges.isEmpty && service.updatedAt == nil && service.state != .loaded {
@@ -317,6 +325,7 @@ struct ChallengesView: View {
         case .board(let id):
             if let challenge = challenge(id) {
                 ChallengeBoard(challenge: challenge, segment: .standings,
+                               savedCopyDate: savedCopyDate,
                                onReact: { react($0, on: $1, in: id) })
                     .navigationTitle(challenge.name)
                     .navigationBarTitleDisplayMode(.inline)
@@ -373,6 +382,23 @@ struct ChallengesView: View {
 
     private func challenge(_ id: UUID) -> Challenge? {
         challenges.first { $0.id == id }
+    }
+
+    /// Sem conexão, mostrando o placar guardado: desde quando.
+    private var savedCopyDate: Date? {
+        isLive && service.isShowingSavedCopy ? service.updatedAt : nil
+    }
+
+    /// Abre um desafio (card do Resumo): o ativo vira o da pílula; o
+    /// encerrado abre por cima, como no menu.
+    private func show(_ id: UUID) {
+        guard let challenge = challenge(id) else { return }
+        if challenge.isFinished() {
+            path = [.board(id)]
+        } else {
+            selectedID = id
+            path = []
+        }
     }
 
     private func react(_ emoji: String, on entry: ChallengeEntry, in id: UUID) {
@@ -529,6 +555,8 @@ private struct InviteRequest: Identifiable {
 struct ChallengeBoard: View {
     let challenge: Challenge
     @State var segment: Segment
+    /// Sem conexão: o placar é a cópia guardada desta hora.
+    var savedCopyDate: Date? = nil
     var onReact: (String, ChallengeEntry) -> Void = { _, _ in }
     /// Abastecimento esperando um emoji do teclado ("Outro emoji").
     @State private var emojiTarget: ChallengeEntry?
@@ -552,8 +580,17 @@ struct ChallengeBoard: View {
 
                 switch segment {
                 case .standings:
+                    if challenge.isFinished() {
+                        ChallengeChampionCard(challenge: challenge)
+                    } else if let me = challenge.me, me.fuelUps == 0 {
+                        // Sem âncora ainda: o 1º abastecimento com foto marca o início.
+                        ChallengeInfoRow(symbol: "camera.fill",
+                                         text: "Seus km começam a contar a partir do próximo abastecimento com foto do hodômetro.")
+                            .font(.subheadline)
+                            .padding(.horizontal, 4)
+                    }
                     ChallengeStandingsTable(challenge: challenge, finished: challenge.isFinished())
-                    Text("Km dos abastecimentos registrados na hora, com foto do hodômetro. Toque em um piloto para conferir os registros.")
+                    Text(standingsFooter)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
@@ -576,6 +613,68 @@ struct ChallengeBoard: View {
                 if let emojiTarget { onReact(emoji, emojiTarget) }
             }
             .frame(width: 1, height: 1)
+        }
+    }
+}
+
+extension ChallengeBoard {
+    fileprivate var standingsFooter: String {
+        var parts: [String] = []
+        if let savedCopyDate {
+            parts.append("Sem conexão. Classificação de \(AppFormat.timeAgo(savedCopyDate)).")
+        }
+        parts.append(challenge.isFinished()
+                     ? "Classificação final: não muda mais. Toque em um piloto para conferir os registros."
+                     : "Km dos abastecimentos registrados na hora, com foto do hodômetro. Toque em um piloto para conferir os registros.")
+        return parts.joined(separator: " ")
+    }
+}
+
+/// Encerrado: o campeão em destaque acima da classificação final (empate =
+/// todos os primeiros).
+struct ChallengeChampionCard: View {
+    let challenge: Challenge
+
+    var body: some View {
+        GroupedCard {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Image(systemName: "trophy.fill")
+                    .font(.title2)
+                    .foregroundStyle(.yellow)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.headline)
+                    Text(detail)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var winners: [ChallengeStanding] { challenge.winners }
+
+    private var title: String {
+        switch winners.count {
+        case 0: "Sem campeão"
+        case 1: winners[0].isMe ? "Você venceu" : "\(winners[0].name) venceu"
+        default: "Empate na ponta"
+        }
+    }
+
+    private var detail: String {
+        switch winners.count {
+        case 0:
+            return "Ninguém somou km neste desafio."
+        case 1:
+            return "\(AppFormat.km(winners[0].km)) em \(AppFormat.dayRange(challenge.startDate, challenge.endDate))"
+        default:
+            let names = winners.map(\.displayName).formatted(.list(type: .and).locale(AppFormat.locale))
+            return "\(names), com \(AppFormat.km(winners[0].km))"
         }
     }
 }
