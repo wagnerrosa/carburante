@@ -126,6 +126,13 @@ struct Challenge: Identifiable, Hashable {
 
     // MARK: Foto suspeita
 
+    /// Foto do desafio depois de salvar: só no seu abastecimento e enquanto o
+    /// desafio não encerrou (na reta de fechamento ainda dá).
+    func canChangeChallengePhoto(of entry: ChallengeEntry, now: Date = Date()) -> Bool {
+        guard let me else { return false }
+        return entry.memberID == me.id && !isFinished(now: now)
+    }
+
     /// Vota quem está no desafio, na foto dos outros. Sem foto, nada a conferir.
     func canVote(on entry: ChallengeEntry) -> Bool {
         canReact(to: entry) && entry.odometerPhotoRef != nil

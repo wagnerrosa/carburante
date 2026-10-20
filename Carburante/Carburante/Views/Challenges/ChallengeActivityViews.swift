@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 /// Foto aberta em tela cheia.
 struct ViewedPhoto: Identifiable {
@@ -24,6 +25,7 @@ struct ChallengeActivityFeed: View {
     var onReact: (String, ChallengeEntry) -> Void = { _, _ in }
     /// "Outro emoji": o teclado mora fora da rolagem (`ChallengeBoard`).
     var onMoreEmoji: (ChallengeEntry) -> Void = { _ in }
+    @Environment(\.challengeServerOnly) private var serverOnly
 
     /// Agrupado por dia, mais novo primeiro (dia relativo do Mail).
     private var days: [(date: Date, entries: [ChallengeEntry])] {
@@ -74,9 +76,11 @@ struct ChallengeActivityFeed: View {
                                      verdict: challenge.photoVerdict(on: entry.id))
             }
             .buttonStyle(.plain)
-            ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route,
-                                 onReact: { onReact($0, entry) },
-                                 onMoreEmoji: { onMoreEmoji(entry) })
+            if !serverOnly {
+                ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route,
+                                     onReact: { onReact($0, entry) },
+                                     onMoreEmoji: { onMoreEmoji(entry) })
+            }
         }
         .padding()
     }
@@ -144,7 +148,7 @@ struct ChallengeActivityRow: View {
                     Color.clear
                         .frame(height: 220)
                         .frame(maxWidth: .infinity)
-                        .overlay { ChallengePhoto(ref: entry.challengePhotoRef) }
+                        .overlay { ChallengePhoto(ref: entry.challengePhotoRef, maxPixel: ChallengePhoto.feedPixels) }
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 .accessibilityLabel("Foto do desafio de \(standing.displayName)")
@@ -168,13 +172,16 @@ struct ChallengeActivityRow: View {
     }
 
     /// Foto que abre em tela cheia quando a tela deixa; senão, só a foto.
+    /// Tela cheia = a imagem inteira (o quadro mostra uma cópia reduzida).
     @ViewBuilder
     private func openable<Content: View>(_ ref: String?, title: String,
                                          @ViewBuilder content: () -> Content) -> some View {
         if let onOpenPhoto {
             Button {
-                if let image = ChallengeImageLoader.image(ref) {
-                    onOpenPhoto(ViewedPhoto(image: image, title: title))
+                Task {
+                    if let image = await ChallengeImageStore.shared.image(ref, bucket: PhotoReference.bucket) {
+                        onOpenPhoto(ViewedPhoto(image: image, title: title))
+                    }
                 }
             } label: {
                 content()
@@ -475,7 +482,10 @@ struct OdometerEvidence: View {
         HStack(spacing: 10) {
             Color.clear
                 .frame(width: 40, height: 40)
-                .overlay { ChallengePhoto(ref: entry.odometerPhotoRef, placeholderSymbol: "gauge.with.dots.needle.67percent") }
+                .overlay {
+                    ChallengePhoto(ref: entry.odometerPhotoRef, placeholderSymbol: "gauge.with.dots.needle.67percent",
+                                   maxPixel: ChallengePhoto.thumbnailPixels)
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text("Hodômetro")
@@ -502,7 +512,11 @@ extension ChallengeEntry {
 struct ChallengeParticipantView: View {
     let challenge: Challenge
     let standing: ChallengeStanding
+    /// Quem criou tira o piloto do desafio. nil = sem a opção.
+    var onRemove: (() -> Void)? = nil
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.challengeServerOnly) private var serverOnly
+    @State private var confirmingRemove = false
 
     private var entries: [ChallengeEntry] {
         challenge.entries(of: standing.id).sorted { $0.date > $1.date }
@@ -557,6 +571,11 @@ struct ChallengeParticipantView: View {
             }
 
             Section {
+                if entries.isEmpty {
+                    Text(standing.isMe ? "Nenhum abastecimento seu neste desafio ainda."
+                                       : "Nenhum abastecimento neste desafio ainda.")
+                        .foregroundStyle(.secondary)
+                }
                 ForEach(entries) { entry in
                     NavigationLink(value: ChallengeRoute.entry(challenge: challenge.id, entry: entry.id)) {
                         ParticipantEntryRow(entry: entry, showsBike: standing.bikes.count > 1,
@@ -573,18 +592,31 @@ struct ChallengeParticipantView: View {
         .navigationTitle(standing.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !standing.isMe {
+            // Denunciar e bloquear chegam com a D8 (só o protótipo mostra).
+            if !standing.isMe, onRemove != nil || !serverOnly {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button("Denunciar nome", systemImage: "exclamationmark.bubble") {}
-                        Button("Bloquear", systemImage: "hand.raised") {}
-                        Button("Remover do desafio", systemImage: "person.badge.minus") {}
+                        if !serverOnly {
+                            Button("Denunciar nome", systemImage: "exclamationmark.bubble") {}
+                            Button("Bloquear", systemImage: "hand.raised") {}
+                        }
+                        if onRemove != nil {
+                            Button("Remover do desafio", systemImage: "person.badge.minus", role: .destructive) {
+                                confirmingRemove = true
+                            }
+                        }
                     } label: {
                         Image(systemName: "ellipsis")
                     }
                     .accessibilityLabel("Mais")
                 }
             }
+        }
+        .confirmationDialog("Remover \(standing.displayName) do desafio?", isPresented: $confirmingRemove,
+                            titleVisibility: .visible) {
+            Button("Remover do desafio", role: .destructive) { onRemove?() }
+        } message: {
+            Text("Sai da classificação e não entra de novo pelo código.")
         }
     }
 
@@ -625,7 +657,8 @@ struct ParticipantEntryRow: View {
                 .frame(width: 44, height: 44)
                 .overlay {
                     if entry.odometerPhotoRef != nil {
-                        ChallengePhoto(ref: entry.odometerPhotoRef, placeholderSymbol: "gauge.with.dots.needle.67percent")
+                        ChallengePhoto(ref: entry.odometerPhotoRef, placeholderSymbol: "gauge.with.dots.needle.67percent",
+                                       maxPixel: ChallengePhoto.thumbnailPixels)
                     } else {
                         Rectangle()
                             .fill(Color(.tertiarySystemFill))
@@ -703,15 +736,25 @@ struct ChallengeEntryView: View {
     let challenge: Challenge
     let entry: ChallengeEntry
     let standing: ChallengeStanding
+    /// Seu abastecimento, desafio aberto: põe ou troca a foto do desafio.
+    /// nil = sem a opção (`Challenge.canChangeChallengePhoto`).
+    var onSetChallengePhoto: ((UIImage) async -> ChallengePhotoSaveResult)? = nil
     var onPost: (String) -> Void = { _ in }
     var onDelete: (ChallengeComment) -> Void = { _ in }
     var onReact: (String) -> Void = { _ in }
     var onVote: (PhotoVote) -> Void = { _ in }
 
+    @Environment(\.challengeServerOnly) private var serverOnly
     @State private var draft = ""
     @State private var pickingEmoji = false
     @State private var viewing: ViewedPhoto?
     @State private var reporting: ChallengeComment?
+    @State private var choosingPhotoSource = false
+    @State private var showingCamera = false
+    @State private var showingGallery = false
+    @State private var galleryItem: PhotosPickerItem?
+    @State private var isSavingPhoto = false
+    @State private var photoNote: String?
 
     private var comments: [ChallengeComment] { challenge.comments(on: entry.id) }
 
@@ -722,40 +765,27 @@ struct ChallengeEntryView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         ChallengeActivityRow(entry: entry, standing: standing, showsOdometer: true,
                                              verdict: challenge.photoVerdict(on: entry.id)) { viewing = $0 }
-                        if entry.odometerPhotoRef != nil {
-                            PhotoVoteControl(verdict: challenge.photoVerdict(on: entry.id),
-                                             mine: challenge.myVote(on: entry.id),
-                                             canVote: challenge.canVote(on: entry),
-                                             onVote: onVote)
+                        if onSetChallengePhoto != nil {
+                            challengePhotoControl
                         }
-                        ChallengeEntryFooter(challenge: challenge, entry: entry,
-                                             onReact: onReact, onMoreEmoji: { pickingEmoji = true })
+                        if !serverOnly {
+                            if entry.odometerPhotoRef != nil {
+                                PhotoVoteControl(verdict: challenge.photoVerdict(on: entry.id),
+                                                 mine: challenge.myVote(on: entry.id),
+                                                 canVote: challenge.canVote(on: entry),
+                                                 onVote: onVote)
+                            }
+                            ChallengeEntryFooter(challenge: challenge, entry: entry,
+                                                 onReact: onReact, onMoreEmoji: { pickingEmoji = true })
+                        }
                     }
                     .padding()
                     .background(Color(.secondarySystemGroupedBackground),
                                 in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        if !comments.isEmpty {
-                            Text("Comentários")
-                                .font(.headline)
-                                .padding(.horizontal, 4)
-                                .accessibilityAddTraits(.isHeader)
-                            VStack(spacing: 0) {
-                                ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
-                                    if index > 0 { Divider().padding(.leading, 58) }
-                                    commentRow(comment)
-                                }
-                            }
-                            .background(Color(.secondarySystemGroupedBackground),
-                                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-                        Text("Só quem está no desafio vê os comentários.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
+                    if !serverOnly {
+                        conversation
                     }
-                    .id("bottom")
                 }
                 .padding()
             }
@@ -767,10 +797,12 @@ struct ChallengeEntryView: View {
         .background(Color(.systemGroupedBackground))
         .background { EmojiKeyboard(isPresented: $pickingEmoji, onPick: onReact).frame(width: 1, height: 1) }
         .safeAreaInset(edge: .bottom) {
-            CommentComposer(draft: $draft) {
-                guard let text = ChallengeComment.cleaned(draft) else { return }
-                onPost(text)
-                draft = ""
+            if !serverOnly {
+                CommentComposer(draft: $draft) {
+                    guard let text = ChallengeComment.cleaned(draft) else { return }
+                    onPost(text)
+                    draft = ""
+                }
             }
         }
         // Como no Fotos: o dia é o título.
@@ -786,6 +818,99 @@ struct ChallengeEntryView: View {
         } message: {
             Text("A equipe do Carburante analisa e pode remover o comentário.")
         }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraPicker { image in saveChallengePhoto(image) }
+                .ignoresSafeArea()
+        }
+        .photosPicker(isPresented: $showingGallery, selection: $galleryItem, matching: .images)
+        .onChange(of: galleryItem) { _, item in
+            guard let item else { return }
+            galleryItem = nil
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    saveChallengePhoto(image)
+                }
+            }
+        }
+    }
+
+    /// Pôr ou trocar a foto do desafio depois de salvar o abastecimento.
+    private var challengePhotoControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                photoNote = nil
+                choosingPhotoSource = true
+            } label: {
+                HStack(spacing: 8) {
+                    Label(entry.challengePhotoRef == nil ? "Adicionar foto do desafio" : "Trocar foto do desafio",
+                          systemImage: entry.challengePhotoRef == nil ? "photo.badge.plus" : "photo")
+                    if isSavingPhoto { ProgressView() }
+                }
+                .font(.subheadline.weight(.medium))
+            }
+            .buttonStyle(.borderless)
+            .disabled(isSavingPhoto)
+            // No botão: no iOS 26 o diálogo vira um balão apontando para ele.
+            .confirmationDialog("Foto do desafio", isPresented: $choosingPhotoSource, titleVisibility: .visible) {
+                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                    Button("Tirar foto") { showingCamera = true }
+                }
+                Button("Escolher da galeria") { showingGallery = true }
+            } message: {
+                Text("Vai para o mural do desafio: a moto na serra, a parada do café. Não vale km.")
+            }
+            if let photoNote {
+                Text(photoNote)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func saveChallengePhoto(_ image: UIImage) {
+        guard let onSetChallengePhoto else { return }
+        isSavingPhoto = true
+        Task {
+            switch await onSetChallengePhoto(image) {
+            case .sent:
+                photoNote = nil
+                Haptics.success()
+            case .pending:
+                photoNote = "Sem conexão agora: a foto sobe sozinha e aparece para a turma depois."
+                Haptics.warning()
+            case .unavailable:
+                photoNote = "Este abastecimento não está neste iPhone. Ponha a foto pelo aparelho em que ele foi registrado."
+                Haptics.warning()
+            }
+            isSavingPhoto = false
+        }
+    }
+
+    /// Comentários (D7): só no protótipo até o servidor guardar.
+    private var conversation: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !comments.isEmpty {
+                Text("Comentários")
+                    .font(.headline)
+                    .padding(.horizontal, 4)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: 0) {
+                    ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
+                        if index > 0 { Divider().padding(.leading, 58) }
+                        commentRow(comment)
+                    }
+                }
+                .background(Color(.secondarySystemGroupedBackground),
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            Text("Só quem está no desafio vê os comentários.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+        }
+        .id("bottom")
     }
 
     private func commentRow(_ comment: ChallengeComment) -> some View {

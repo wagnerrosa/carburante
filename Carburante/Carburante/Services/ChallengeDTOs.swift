@@ -171,6 +171,20 @@ struct ChallengeSnapshot: Codable {
         items.map(\.challenge).sorted { $0.startDate > $1.startDate }
     }
 
+    func item(_ challengeID: UUID) -> Item? {
+        items.first { $0.row.id == challengeID }
+    }
+
+    /// O mesmo placar com o mural de um desafio trocado (encerrado aberto
+    /// depois). Mantém a hora: a classificação continua sendo a daquela carga.
+    func replacingEntries(_ entries: [ChallengeEntryDTO], of challengeID: UUID) -> ChallengeSnapshot {
+        ChallengeSnapshot(userID: userID, savedAt: savedAt, items: items.map { item in
+            item.row.id == challengeID
+                ? Item(row: item.row, standings: item.standings, entries: entries)
+                : item
+        })
+    }
+
     private static let fileURL: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         return caches.appendingPathComponent("ChallengeSnapshot.json")

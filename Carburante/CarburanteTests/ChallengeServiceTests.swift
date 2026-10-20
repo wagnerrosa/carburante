@@ -148,6 +148,32 @@ final class ChallengeServiceTests: XCTestCase {
         XCTAssertEqual(restored.challenges.first?.timeZone, brt)
     }
 
+    /// Encerrado aberto depois (D6): o mural dele entra no placar guardado sem
+    /// mexer nos outros desafios nem na hora da classificação.
+    func testSnapshot_replacingEntriesTouchesOnlyThatChallenge() throws {
+        let row = try decode([ChallengeRowDTO].self, myChallengesJSON)[0]
+        let other = try decode([ChallengeRowDTO].self, myChallengesJSON.replacingOccurrences(
+            of: "11111111-1111-4111-8111-111111111111", with: "22222222-2222-4222-8222-222222222222"))[0]
+        let entries = try decode([ChallengeEntryDTO].self, """
+        [{"fuel_log_id": "a3000000-0000-4000-8000-000000000007", "member_id": "022f02e9-1f8f-4757-8661-9c1a2303fac9",
+          "date": "2026-10-13T12:00:00+00:00", "make": "Yamaha", "model": "MT-07", "odometer": 11300,
+          "status": "counted", "km": 393.8, "odometer_photo_path": "54fe483d-0000-4000-8000-000000000001/A3000000-0000-4000-8000-000000000007.jpg",
+          "odometer_photo_source": "gallery", "challenge_photo_path": null}]
+        """)
+        let savedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshot = ChallengeSnapshot(userID: UUID(), savedAt: savedAt, items: [
+            .init(row: row, standings: [], entries: []),
+            .init(row: other, standings: [], entries: entries),
+        ])
+
+        let updated = snapshot.replacingEntries(entries, of: row.id)
+        XCTAssertEqual(updated.savedAt, savedAt, "a classificação continua sendo a daquela carga")
+        XCTAssertEqual(updated.item(row.id)?.entries.count, 1)
+        XCTAssertEqual(updated.item(other.id)?.entries.count, 1)
+        XCTAssertEqual(updated.item(row.id)?.challenge.entries.first?.odometerFromGallery, true)
+        XCTAssertNil(snapshot.item(UUID()))
+    }
+
     func testSnapshot_missingOrBrokenFileIsNoSnapshot() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("snapshot-\(UUID()).json")
         XCTAssertNil(ChallengeSnapshot.load(from: url))
