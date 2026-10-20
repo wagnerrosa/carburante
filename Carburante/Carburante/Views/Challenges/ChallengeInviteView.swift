@@ -233,7 +233,7 @@ struct ChallengeInviteView: View {
             .disabled(cleanNickname == nil || isJoining)
 
             // Colado ao botão: tocar em "Entrar" é aceitar.
-            Text(ChallengeSharing.joinConsent)
+            Text(LocalizedStringKey(ChallengeSharing.joinConsent))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

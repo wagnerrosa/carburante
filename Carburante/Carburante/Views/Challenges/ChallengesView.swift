@@ -1061,8 +1061,11 @@ enum ChallengeSharing {
     static let title = "O que a turma vê"
     /// O que nunca sai do aparelho/da conta da pessoa.
     static let privateNote = "Litros, valor e lugar dos abastecimentos ficam só com você."
-    static let joinConsent = "Ao entrar, você mostra isso à turma até sair do desafio."
-    static let createConsent = "Ao criar, você mostra isso à turma até sair do desafio."
+    /// Termos de uso (regras da turma, tolerância zero — diretriz 1.2).
+    static let termsURL = URL(string: "https://carburante.motorcycles/termos/")!
+    /// Markdown: o link dos Termos abre no navegador (`Text(LocalizedStringKey(_:))`).
+    static let joinConsent = "Ao entrar, você mostra isso à turma até sair do desafio e concorda com os [Termos de uso](https://carburante.motorcycles/termos/)."
+    static let createConsent = "Ao criar, você mostra isso à turma até sair do desafio e concorda com os [Termos de uso](https://carburante.motorcycles/termos/)."
 
     struct Rows: View {
         var body: some View {

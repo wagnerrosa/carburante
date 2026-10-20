@@ -157,7 +157,7 @@ struct ChallengeFormView: View {
                         Text(errorMessage)
                             .foregroundStyle(.red)
                     } else {
-                        Text("\(ChallengeSharing.privateNote) \(ChallengeSharing.createConsent)")
+                        Text(LocalizedStringKey("\(ChallengeSharing.privateNote) \(ChallengeSharing.createConsent)"))
                     }
                 }
             }

@@ -240,6 +240,7 @@ def page(title, description, url, main, ld, layout='wrap wrap--narrow', script='
     <nav class="footer__links" aria-label="Links">
       <a href="/">Carburante</a>
       <a href="/ajuda/">Ajuda</a>
+      <a href="/termos/">Termos</a>
       <a href="/privacidade/">Privacidade</a>
       <a href="https://www.instagram.com/carburante.app/" target="_blank" rel="noopener">Instagram</a>
       <a href="https://www.reddit.com/r/carburante/" target="_blank" rel="noopener">Reddit</a>
