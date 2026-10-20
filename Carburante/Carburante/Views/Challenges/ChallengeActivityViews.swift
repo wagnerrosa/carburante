@@ -25,7 +25,6 @@ struct ChallengeActivityFeed: View {
     var onReact: (String, ChallengeEntry) -> Void = { _, _ in }
     /// "Outro emoji": o teclado mora fora da rolagem (`ChallengeBoard`).
     var onMoreEmoji: (ChallengeEntry) -> Void = { _ in }
-    @Environment(\.challengeServerOnly) private var serverOnly
 
     /// Agrupado por dia, mais novo primeiro (dia relativo do Mail).
     private var days: [(date: Date, entries: [ChallengeEntry])] {
@@ -76,11 +75,9 @@ struct ChallengeActivityFeed: View {
                                      verdict: challenge.photoVerdict(on: entry.id))
             }
             .buttonStyle(.plain)
-            if !serverOnly {
-                ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route,
-                                     onReact: { onReact($0, entry) },
-                                     onMoreEmoji: { onMoreEmoji(entry) })
-            }
+            ChallengeEntryFooter(challenge: challenge, entry: entry, commentsRoute: route,
+                                 onReact: { onReact($0, entry) },
+                                 onMoreEmoji: { onMoreEmoji(entry) })
         }
         .padding()
     }
@@ -768,24 +765,20 @@ struct ChallengeEntryView: View {
                         if onSetChallengePhoto != nil {
                             challengePhotoControl
                         }
-                        if !serverOnly {
-                            if entry.odometerPhotoRef != nil {
-                                PhotoVoteControl(verdict: challenge.photoVerdict(on: entry.id),
-                                                 mine: challenge.myVote(on: entry.id),
-                                                 canVote: challenge.canVote(on: entry),
-                                                 onVote: onVote)
-                            }
-                            ChallengeEntryFooter(challenge: challenge, entry: entry,
-                                                 onReact: onReact, onMoreEmoji: { pickingEmoji = true })
+                        if entry.odometerPhotoRef != nil {
+                            PhotoVoteControl(verdict: challenge.photoVerdict(on: entry.id),
+                                             mine: challenge.myVote(on: entry.id),
+                                             canVote: challenge.canVote(on: entry),
+                                             onVote: onVote)
                         }
+                        ChallengeEntryFooter(challenge: challenge, entry: entry,
+                                             onReact: onReact, onMoreEmoji: { pickingEmoji = true })
                     }
                     .padding()
                     .background(Color(.secondarySystemGroupedBackground),
                                 in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                    if !serverOnly {
-                        conversation
-                    }
+                    conversation
                 }
                 .padding()
             }
@@ -797,12 +790,10 @@ struct ChallengeEntryView: View {
         .background(Color(.systemGroupedBackground))
         .background { EmojiKeyboard(isPresented: $pickingEmoji, onPick: onReact).frame(width: 1, height: 1) }
         .safeAreaInset(edge: .bottom) {
-            if !serverOnly {
-                CommentComposer(draft: $draft) {
-                    guard let text = ChallengeComment.cleaned(draft) else { return }
-                    onPost(text)
-                    draft = ""
-                }
+            CommentComposer(draft: $draft) {
+                guard let text = ChallengeComment.cleaned(draft) else { return }
+                onPost(text)
+                draft = ""
             }
         }
         // Como no Fotos: o dia é o título.
@@ -888,7 +879,7 @@ struct ChallengeEntryView: View {
         }
     }
 
-    /// Comentários (D7): só no protótipo até o servidor guardar.
+    /// Comentários do abastecimento, mais antigo primeiro.
     private var conversation: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !comments.isEmpty {
@@ -939,7 +930,8 @@ struct ChallengeEntryView: View {
             Button("Copiar", systemImage: "doc.on.doc") {
                 UIPasteboard.general.string = comment.text
             }
-            if comment.memberID != challenge.me?.id {
+            // Denunciar chega com a D8 (só o protótipo mostra).
+            if !serverOnly, comment.memberID != challenge.me?.id {
                 Button("Denunciar", systemImage: "exclamationmark.bubble") { reporting = comment }
             }
             if challenge.canDelete(comment) {

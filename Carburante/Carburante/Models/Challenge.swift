@@ -455,6 +455,9 @@ enum ChallengeError: Error, Hashable {
     case noSession, appleAccountRequired, invalidName, invalidPeriod, notFound
     case notAMember, notTheCreator, full, ended, removed, cannotRemoveSelf
     case tooManyAttempts, invalidCoverPath
+    // D7: comentários, reações, votos.
+    case entryNotFound, invalidComment, tooManyComments, commentNotFound, cannotDeleteComment
+    case cannotReactOwn, invalidReaction, cannotVoteOwn, noPhotoToCheck, invalidVote
     /// Sem internet ou servidor fora do ar.
     case offline
     /// Chave ou erro desconhecido (o texto cru vai só para o log).
@@ -475,6 +478,16 @@ enum ChallengeError: Error, Hashable {
         case "cannot_remove_self": self = .cannotRemoveSelf
         case "too_many_attempts": self = .tooManyAttempts
         case "invalid_cover_path": self = .invalidCoverPath
+        case "entry_not_found": self = .entryNotFound
+        case "invalid_comment": self = .invalidComment
+        case "too_many_comments": self = .tooManyComments
+        case "comment_not_found": self = .commentNotFound
+        case "cannot_delete_comment": self = .cannotDeleteComment
+        case "cannot_react_own": self = .cannotReactOwn
+        case "invalid_reaction": self = .invalidReaction
+        case "cannot_vote_own": self = .cannotVoteOwn
+        case "no_photo_to_check": self = .noPhotoToCheck
+        case "invalid_vote": self = .invalidVote
         default: self = .unknown(serverKey)
         }
     }
@@ -494,6 +507,16 @@ enum ChallengeError: Error, Hashable {
         case .cannotRemoveSelf: "Para sair, use “Sair do desafio”."
         case .tooManyAttempts: "Muitas tentativas com código errado. Espere um pouco e tente de novo."
         case .invalidCoverPath: "Não deu para salvar a capa. Tente de novo."
+        case .entryNotFound: "Este abastecimento não está mais no desafio."
+        case .invalidComment: "O comentário está vazio ou longo demais."
+        case .tooManyComments: "Muitos comentários seguidos. Espere um pouco e tente de novo."
+        case .commentNotFound: "Este comentário já foi apagado."
+        case .cannotDeleteComment: "Só quem escreveu ou quem criou o desafio apaga o comentário."
+        case .cannotReactOwn: "Não dá para reagir ao próprio abastecimento."
+        case .invalidReaction: "Escolha um emoji só."
+        case .cannotVoteOwn: "Não dá para conferir a própria foto."
+        case .noPhotoToCheck: "Este abastecimento não tem foto do hodômetro para conferir."
+        case .invalidVote: "Não deu para registrar o voto. Tente de novo."
         case .offline: "Sem conexão. Confira a internet e tente de novo."
         case .unknown: "Algo deu errado. Tente de novo."
         }

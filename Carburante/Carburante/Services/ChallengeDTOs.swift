@@ -23,6 +23,9 @@ struct ChallengeRowDTO: Codable {
     let created_by_me: Bool
     let member_count: Int
     let finalized_at: Date?
+    /// Nome de quem criou, como a turma vê (D7). Nulo se saiu, apagou a conta
+    /// ou a resposta veio de antes da D7 (placar guardado).
+    let created_by_name: String?
 
     var period: ChallengePeriod {
         ChallengePeriod(startsAt: starts_at, endsAt: ends_at,
@@ -31,8 +34,8 @@ struct ChallengeRowDTO: Codable {
 
     func challenge(standings: [ChallengeStanding], entries: [ChallengeEntry]) -> Challenge {
         let period = period
-        // Quem criou e está no desafio: o nome dele vem da classificação.
-        let createdByName = created_by_me ? standings.first(where: \.isMe)?.name : nil
+        // Placar guardado de antes da D7: para quem criou, o nome vem da classificação.
+        let createdByName = created_by_name ?? (created_by_me ? standings.first(where: \.isMe)?.name : nil)
         return Challenge(id: id, name: name, startDate: period.firstDay, endDate: period.lastDay,
                          createdByName: createdByName, code: invite_code, coverRef: cover_path,
                          standings: standings, entries: entries, createdByMe: created_by_me,
@@ -102,6 +105,57 @@ struct ChallengeEntryDTO: Codable {
     }
 }
 
+/// Resposta de `challenge_social(challenge)` (D7): comentários, reações e votos
+/// na foto do desafio inteiro, de quem ainda está nele.
+struct ChallengeSocialDTO: Codable, Equatable {
+    var comments: [Comment]
+    var reactions: [Reaction]
+    var votes: [Vote]
+
+    struct Comment: Codable, Equatable {
+        let id: UUID
+        let fuel_log_id: UUID
+        let member_id: UUID
+        let body: String
+        let created_at: Date
+    }
+
+    struct Reaction: Codable, Equatable {
+        let fuel_log_id: UUID
+        let member_id: UUID
+        let emoji: String
+    }
+
+    struct Vote: Codable, Equatable {
+        let fuel_log_id: UUID
+        let member_id: UUID
+        /// Chave congelada: ok, suspect (desconhecida não conta — `PhotoVote`).
+        let vote: String
+    }
+
+    static let empty = ChallengeSocialDTO(comments: [], reactions: [], votes: [])
+
+    /// Põe a conversa no desafio (a ordem do servidor = ordem de chegada).
+    func apply(to challenge: inout Challenge) {
+        challenge.comments = comments.map {
+            ChallengeComment(id: $0.id, entryID: $0.fuel_log_id, memberID: $0.member_id,
+                             text: $0.body, date: $0.created_at)
+        }
+        challenge.reactions = reactions.map {
+            ChallengeReactionMark(entryID: $0.fuel_log_id, memberID: $0.member_id, emoji: $0.emoji)
+        }
+        challenge.photoVotes = votes.map {
+            ChallengePhotoVoteMark(entryID: $0.fuel_log_id, memberID: $0.member_id, key: $0.vote)
+        }
+    }
+}
+
+/// `post_challenge_comment` → `{id, created_at}`.
+struct ChallengeCommentPostedDTO: Decodable {
+    let id: UUID
+    let created_at: Date
+}
+
 /// Resposta de `challenge_preview(code)` (null = código não existe).
 struct ChallengeInviteDTO: Decodable {
     let id: UUID
@@ -155,9 +209,14 @@ struct ChallengeSnapshot: Codable {
         let row: ChallengeRowDTO
         let standings: [ChallengeStandingDTO]
         let entries: [ChallengeEntryDTO]
+        /// Comentários, reações e votos (D7). nil = ainda não veio (encerrado
+        /// não aberto, placar guardado de antes da D7).
+        var social: ChallengeSocialDTO? = nil
 
         var challenge: Challenge {
-            row.challenge(standings: standings.map(\.standing), entries: entries.map(\.entry))
+            var challenge = row.challenge(standings: standings.map(\.standing), entries: entries.map(\.entry))
+            social?.apply(to: &challenge)
+            return challenge
         }
     }
 
@@ -180,8 +239,19 @@ struct ChallengeSnapshot: Codable {
     func replacingEntries(_ entries: [ChallengeEntryDTO], of challengeID: UUID) -> ChallengeSnapshot {
         ChallengeSnapshot(userID: userID, savedAt: savedAt, items: items.map { item in
             item.row.id == challengeID
-                ? Item(row: item.row, standings: item.standings, entries: entries)
+                ? Item(row: item.row, standings: item.standings, entries: entries, social: item.social)
                 : item
+        })
+    }
+
+    /// O mesmo placar com a conversa de um desafio trocada (comentou, reagiu,
+    /// abriu um abastecimento).
+    func replacingSocial(_ social: ChallengeSocialDTO, of challengeID: UUID) -> ChallengeSnapshot {
+        ChallengeSnapshot(userID: userID, savedAt: savedAt, items: items.map { item in
+            guard item.row.id == challengeID else { return item }
+            var item = item
+            item.social = social
+            return item
         })
     }
 

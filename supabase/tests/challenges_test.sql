@@ -1,4 +1,5 @@
--- Testes dos desafios (D1): regra do km, funções do app e policies das fotos.
+-- Testes dos desafios (D1, D7): regra do km, funções do app, policies das fotos,
+-- comentários, reações e votos.
 -- Roda numa transação que termina em ROLLBACK — nada fica no banco. Use
 -- supabase/tests/run.sh (com --migrate testa a migração antes de aplicar).
 -- Falhou = exceção com o caso que quebrou. Passou = última linha "ok".
@@ -256,6 +257,104 @@ begin
     perform public.zz_login('e0000000-0000-4000-8000-000000000001');
     assert (select count(*) from storage.objects where bucket_id in ('fuel-log-photos', 'challenge-covers')
              and name like any (array['a1000000-%', '11111111-%'])) = 0, 'estranho não lê nada';
+    perform public.zz_admin();
+end $$;
+
+-- ---------- D7: comentários, reações, votos ----------
+do $$
+declare
+    v_social jsonb;
+    v_post jsonb;
+    v_b_member uuid;
+    v_rows integer;
+begin
+    select id into v_b_member from public.challenge_members
+     where challenge_id = '11111111-1111-4111-8111-111111111111' and user_id = 'b0000000-0000-4000-8000-000000000001';
+
+    -- Bruno comenta no registro da Ana (do período).
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    v_post := public.post_challenge_comment('11111111-1111-4111-8111-111111111111',
+        'a3000000-0000-4000-8000-000000000002', E'  Que vista! 😍\n ');
+    assert v_post ? 'id' and v_post ? 'created_at', format('resposta do comentário: %s', v_post);
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', '   ')$q$, 'invalid_comment');
+    perform public.zz_expect_error(format($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', %L)$q$, repeat('a', 401)), 'invalid_comment');
+    -- Antes do período, de quem saiu, apagado: fora do mural.
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000000', 'oi')$q$, 'entry_not_found');
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'c3000000-0000-4000-8000-000000000001', 'oi')$q$, 'entry_not_found');
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000003', 'oi')$q$, 'entry_not_found');
+
+    -- A Ana vê o comentário com o member_id do Bruno, texto sem espaço nas pontas.
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert jsonb_array_length(v_social->'comments') = 1, format('comentários: %s', v_social);
+    assert v_social->'comments'->0->>'member_id' = v_b_member::text
+       and v_social->'comments'->0->>'body' = 'Que vista! 😍'
+       and v_social->'comments'->0->>'fuel_log_id' = 'a3000000-0000-4000-8000-000000000002',
+        format('comentário: %s', v_social->'comments'->0);
+
+    -- Reações: troca, tira; nunca no próprio.
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.set_challenge_reaction('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', '🔥');
+    perform public.set_challenge_reaction('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', '🏍️');
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert jsonb_array_length(v_social->'reactions') = 1 and v_social->'reactions'->0->>'emoji' = '🏍️',
+        format('1 reação por pessoa, a última vale: %s', v_social->'reactions');
+    perform public.zz_expect_error($q$select public.set_challenge_reaction('11111111-1111-4111-8111-111111111111', 'b3000000-0000-4000-8000-000000000001', '🔥')$q$, 'cannot_react_own');
+    perform public.zz_expect_error(format($q$select public.set_challenge_reaction('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', %L)$q$, repeat('x', 17)), 'invalid_reaction');
+    perform public.set_challenge_reaction('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', null);
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert jsonb_array_length(v_social->'reactions') = 0, 'nulo tira a reação';
+
+    -- Votos: só em foto que está no Storage, nunca na própria.
+    perform public.set_challenge_photo_vote('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'suspect');
+    perform public.zz_expect_error($q$select public.set_challenge_photo_vote('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000004', 'ok')$q$, 'no_photo_to_check');
+    perform public.zz_expect_error($q$select public.set_challenge_photo_vote('11111111-1111-4111-8111-111111111111', 'b3000000-0000-4000-8000-000000000001', 'ok')$q$, 'cannot_vote_own');
+    perform public.zz_expect_error($q$select public.set_challenge_photo_vote('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'talvez')$q$, 'invalid_vote');
+    perform public.zz_login('d0000000-0000-4000-8000-000000000001');
+    perform public.set_challenge_photo_vote('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'ok');
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert jsonb_array_length(v_social->'votes') = 2, format('votos: %s', v_social->'votes');
+
+    -- Apagar: o Diego não apaga o do Bruno; a Ana (criou) apaga.
+    perform public.zz_expect_error(format($q$select public.delete_challenge_comment(%L)$q$, v_post->>'id'), 'cannot_delete_comment');
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    perform public.delete_challenge_comment((v_post->>'id')::uuid);
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert jsonb_array_length(v_social->'comments') = 0, 'comentário apagado some';
+    perform public.zz_expect_error(format($q$select public.delete_challenge_comment(%L)$q$, v_post->>'id'), 'comment_not_found');
+
+    -- Quem saiu não aparece; quem está fora não lê nem escreve.
+    perform public.zz_admin();
+    insert into public.challenge_comments (challenge_id, fuel_log_id, user_id, body)
+    values ('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002',
+            'c0000000-0000-4000-8000-000000000001', 'da Carla, que saiu');
+    perform public.zz_login('a0000000-0000-4000-8000-000000000001');
+    v_social := public.challenge_social('11111111-1111-4111-8111-111111111111');
+    assert jsonb_array_length(v_social->'comments') = 0, 'comentário de quem saiu não aparece';
+    perform public.zz_login('e0000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error($q$select public.challenge_social('11111111-1111-4111-8111-111111111111')$q$, 'not_a_member');
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'oi')$q$, 'not_a_member');
+    perform public.zz_login('f0000000-0000-4000-8000-000000000001', true);
+    perform public.zz_expect_error($q$select public.challenge_social('11111111-1111-4111-8111-111111111111')$q$, 'apple_account_required');
+
+    -- Limite: 30 comentários na última hora.
+    perform public.zz_admin();
+    insert into public.challenge_comments (challenge_id, fuel_log_id, user_id, body)
+    select '11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002',
+           'b0000000-0000-4000-8000-000000000001', 'oi ' || g
+      from generate_series(1, 29) g;
+    perform public.zz_login('b0000000-0000-4000-8000-000000000001');
+    perform public.zz_expect_error($q$select public.post_challenge_comment('11111111-1111-4111-8111-111111111111', 'a3000000-0000-4000-8000-000000000002', 'mais um')$q$, 'too_many_comments');
+
+    -- Tabelas fechadas.
+    select count(*) into v_rows from public.challenge_comments;
+    assert v_rows = 0, 'leitura direta de challenge_comments tinha que vir vazia';
+    select count(*) into v_rows from public.challenge_reactions;
+    assert v_rows = 0, 'leitura direta de challenge_reactions tinha que vir vazia';
+
+    -- Quem criou aparece para a turma na lista.
+    assert (select created_by_name from public.my_challenges()
+             where id = '11111111-1111-4111-8111-111111111111') = 'Ana Souza', 'Criado por: Ana Souza';
     perform public.zz_admin();
 end $$;
 

@@ -327,9 +327,8 @@ struct ChallengeStandingsTable: View {
 
 extension EnvironmentValues {
     /// Aba com dados do servidor: esconde o que ele ainda não guarda —
-    /// reações, comentários e votos na foto (D7), denunciar e bloquear (D8).
-    /// Sem isso, a turma do teste mexeria em coisas que somem ao recarregar.
-    /// O protótipo D0 mostra tudo.
+    /// denunciar e bloquear (D8). Sem isso, a turma mexeria em botões que não
+    /// fazem nada. O protótipo D0 mostra tudo.
     @Entry var challengeServerOnly = false
 }
 
