@@ -67,23 +67,25 @@ struct ChallengeFormView: View {
                 }
 
                 Section {
-                    Picker("Duração", selection: $duration) {
-                        ForEach(ChallengeDuration.allCases) { Text($0.label).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
                     DatePicker("Começa", selection: $startDate,
                                in: today...calendar.date(byAdding: .day, value: ChallengePeriod.maxDays, to: today)!,
                                displayedComponents: .date)
+                    Picker("Dura", selection: $duration) {
+                        ForEach(ChallengeDuration.allCases) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                     if duration == .until {
                         DatePicker("Termina", selection: $untilDate,
                                    in: calendar.date(byAdding: .day, value: 1, to: startDate)!
                                     ... calendar.date(byAdding: .day, value: ChallengePeriod.maxDays - 1, to: startDate)!,
                                    displayedComponents: .date)
+                    } else {
+                        LabeledContent("Termina", value: AppFormat.dayMonth(period.lastDay))
                     }
                 } header: {
                     Text("Prazo")
                 } footer: {
-                    Text("Termina em \(AppFormat.dayMonth(period.lastDay)) e a classificação fecha 3 dias depois, para dar tempo de registrar o último abastecimento.")
+                    Text("Dura \(period.dayCount) dias, até \(AppFormat.dayMonth(period.lastDay)). A classificação fecha 3 dias depois, para dar tempo de registrar o último abastecimento. Depois de criado, o prazo não muda.")
                 }
 
                 Section {
@@ -128,7 +130,7 @@ struct ChallengeFormView: View {
                     }
                     .disabled(isPreparingCover)
                     if cover != nil {
-                        Button("Usar a capa do Carburante", systemImage: "flag.checkered") {
+                        Button("Remover foto", systemImage: "trash", role: .destructive) {
                             cover = nil
                             coverItem = nil
                         }
@@ -142,7 +144,7 @@ struct ChallengeFormView: View {
                 }
 
                 Section {
-                    LabeledContent("Conta", value: "Km rodados")
+                    LabeledContent("Classificação por", value: "Km rodados")
                 } footer: {
                     Text("Só contam abastecimentos registrados na hora, com foto do hodômetro. Todas as motos de cada piloto somam.")
                 }
@@ -157,7 +159,9 @@ struct ChallengeFormView: View {
                         Text(errorMessage)
                             .foregroundStyle(.red)
                     } else {
-                        Text(LocalizedStringKey("\(ChallengeSharing.privateNote) \(ChallengeSharing.createConsent)"))
+                        // String já montada: interpolar dentro do LocalizedStringKey
+                        // deixa o link do markdown aparecer cru.
+                        Text(LocalizedStringKey(ChallengeSharing.privateNote + " " + ChallengeSharing.createConsent))
                     }
                 }
             }

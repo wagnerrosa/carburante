@@ -1042,7 +1042,7 @@ struct ChallengeDetailsView: View {
             }
             .disabled(isSavingCover)
             if challenge.coverRef != nil {
-                Button("Usar a capa do Carburante", systemImage: "flag.checkered") {
+                Button("Remover capa", systemImage: "trash", role: .destructive) {
                     saveCover { nil }
                 }
                 .disabled(isSavingCover)
@@ -1054,6 +1054,8 @@ struct ChallengeDetailsView: View {
                 Text("Salvando a capa…")
             } else if let coverError {
                 Text(coverError).foregroundStyle(.red)
+            } else if challenge.coverRef == nil {
+                Text("Sem capa, o desafio usa a capa do Carburante.")
             } else {
                 Text("A turma e quem abrir o convite veem a capa.")
             }
