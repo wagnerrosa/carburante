@@ -381,12 +381,12 @@ enum ChallengeDuration: Hashable, CaseIterable, Identifiable {
         switch self {
         case .week: "1 semana"
         case .month: "1 mês"
-        case .until: "Até…"
+        case .until: "Até uma data"
         }
     }
 
     /// Chave congelada para a medição: qual prazo gerou o período (`week`,
-    /// `month` ou `until` — "Até…" com uma data que não é 1 semana nem 1 mês).
+    /// `month` ou `until` — "Até uma data" que não dá 1 semana nem 1 mês).
     static func analyticsKey(for period: ChallengePeriod) -> String {
         let start = period.firstDay
         if period == ChallengeDuration.week.period(from: start, until: start, timeZone: period.timeZone) {
